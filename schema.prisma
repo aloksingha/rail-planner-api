@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+
+
+model User {
+  id           String          @id @default(uuid())
+  email        String          @unique
+  passwordHash String
+  name         String?
+  mobile       String?
+  role         String          @default("CUSTOMER")
+  region       String?         // Applicable for SALES_MANAGER
+  createdAt    DateTime        @default(now())
+  
+  createdByUserId String?
+  createdBy       User?           @relation("UserCreator", fields: [createdByUserId], references: [id])
+  createdUsers    User[]          @relation("UserCreator")
+
+  bookings       Booking[]
+  paymentRecords PaymentRecord[]
+  refundRecords  RefundRecord[]
+  
+  auditLogsTarget    AuditLog[] @relation("TargetUser")
+  auditLogsPerformed AuditLog[] @relation("PerformedBy")
+  priceRequests      PriceRequest[]
+
+  @@index([role])
+  @@index([createdByUserId])
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  name        String
+  description String
+  date        DateTime
+  
+  bookings Booking[]
+}
+
+model Booking {
+  id        String   @id @default(uuid())
+  userId    String
+  eventId   String
+  paymentId String?
+  ticketUrl String?
+  status    String   @default("CONFIRMED")
+  class     String?  // 'AC' (includes 2A, 3A, CC) or 'SLEEPER' (includes SL)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user  User  @relation(fields: [userId], references: [id])
+  event Event @relation(fields: [eventId], references: [id])
+
+  refundRecords RefundRecord[]
+
+  @@index([createdAt])
+  @@index([class])
+  @@index([userId])
+  @@index([class, createdAt])
+  @@index([userId, createdAt])
+}
+
+model PaymentRecord {
+  id        String   @id @default(uuid())
+  orderId   String
+  paymentId String   @unique
+  amount    Float
+  status    String   @default("CAPTURED")
+  userId    String
+  createdAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id])
+}
+
+model RefundRecord {
+  id                    String       @id @default(uuid())
+  paymentId             String
+  amount                Float
+  region                String       @default("Global")
+  status                String       @default("AUTOMATED_PENDING")
+  reason                String?
+  originalFailureReason String?
+  manualCreditDueDate   DateTime?
+  attempts              Int          @default(0)
+  razorpayRefundId      String?
+  userId                String
+  bookingId             String?
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
+  
+  user    User     @relation(fields: [userId], references: [id])
+  booking Booking? @relation(fields: [bookingId], references: [id])
+}
+
+model AuditLog {
+  id                String   @id @default(uuid())
+  action            String
+  targetUserId      String?
+  performedByUserId String
+  details           String?
+  timestamp         DateTime @default(now())
+  
+  targetUser      User? @relation("TargetUser", fields: [targetUserId], references: [id])
+  performedByUser User  @relation("PerformedBy", fields: [performedByUserId], references: [id])
+}
+
+model PriceRequest {
+  id             String   @id @default(uuid())
+  userId         String
+  trainName      String
+  trainNumber    String
+  source         String
+  destination    String
+  class          String
+  suggestedPrice Float?
+  status         String   @default("PENDING") // PENDING, UPDATED, COMPLETED
+  adminComment   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
