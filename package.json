@@ -5,8 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon src/index.ts",
-    "build": "rm -rf dist && npx prisma generate && npx prisma db push",
-    "start": "npx ts-node src/index.ts",
+    "build": "npx rimraf dist && npx prisma generate && npx tsc && npx prisma db push",
+    "start": "node dist/index.js",
     "seed": "ts-node src/seed.ts"
   },
   "keywords": [],
