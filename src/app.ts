@@ -1,7 +1,8 @@
 import express from 'express';
 import { prisma } from './prisma';
-import cors from 'cors';
+import fs from 'fs';
 import path from 'path';
+import cors from 'cors';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import 'express-async-errors';
 
@@ -72,6 +73,20 @@ app.get('/api/debug-prisma', (req, res) => {
         models: models,
         hasCorridorPricing: !!(prisma as any).corridorPricing
     });
+});
+
+app.get('/api/debug-schema', (req, res) => {
+    try {
+        const schemaPath = path.join(__dirname, '..', 'prisma', 'schema.prisma');
+        const content = fs.readFileSync(schemaPath, 'utf8');
+        res.json({ 
+            path: schemaPath,
+            exists: fs.existsSync(schemaPath),
+            content: content
+        });
+    } catch (err: any) {
+        res.status(500).json({ error: err.message });
+    }
 });
 
 export default app;
