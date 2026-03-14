@@ -30,6 +30,9 @@ model User {
   auditLogsTarget    AuditLog[] @relation("TargetUser")
   auditLogsPerformed AuditLog[] @relation("PerformedBy")
   priceRequests      PriceRequest[]
+
+  @@index([role])
+  @@index([createdByUserId])
 }
 
 model Event {
@@ -56,6 +59,12 @@ model Booking {
   event Event @relation(fields: [eventId], references: [id])
 
   refundRecords RefundRecord[]
+
+  @@index([createdAt])
+  @@index([class])
+  @@index([userId])
+  @@index([class, createdAt])
+  @@index([userId, createdAt])
 }
 
 model PaymentRecord {
@@ -117,4 +126,16 @@ model PriceRequest {
   updatedAt      DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id])
+}
+
+model CorridorPricing {
+  id                  String   @id @default(uuid())
+  name                String   @unique
+  originStations      String   // JSON array of station codes e.g. '["GHY", "KYQ"]'
+  destinationStations String   // JSON array of station codes
+  markupSL            Float    @default(0) // Total price for Sleeper
+  markup3A            Float    @default(0) // Total price for 3A
+  markup2A            Float    @default(0) // Total price for 2A
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }

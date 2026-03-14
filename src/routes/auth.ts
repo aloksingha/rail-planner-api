@@ -29,15 +29,19 @@ router.post('/google', async (req, res) => {
         }
 
         const email = payload.email;
+        const INITIAL_SUPER_ADMINS = ['alokjnv.singha3@gmail.com', 'admin@ticketspro.in'];
 
-        // 2. Map existing user or Register as Customer
+        // 2. Map existing user or Register
         const user = await prisma.user.upsert({
             where: { email },
-            update: {}, // Email exists, do nothing (keep existing role)
+            update: {
+                // If email is in initial admin list, force role upgrade even for existing users
+                role: INITIAL_SUPER_ADMINS.includes(email) ? 'SUPER_ADMIN' : undefined
+            },
             create: {
                 email,
-                passwordHash: 'GOOGLE_OAUTH_USER', // Or leave empty if schema allows optional
-                role: 'CUSTOMER'
+                passwordHash: 'GOOGLE_OAUTH_USER',
+                role: INITIAL_SUPER_ADMINS.includes(email) ? 'SUPER_ADMIN' : 'CUSTOMER'
             }
         });
 

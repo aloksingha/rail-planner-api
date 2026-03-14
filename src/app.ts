@@ -14,6 +14,7 @@ import trainRoutes from './routes/trains';
 import flightRoutes from './routes/flights';
 import carRoutes from './routes/cars';
 import priceRequestRoutes from './routes/priceRequests';
+import corridorsRoutes from './routes/corridors';
 
 const app = express();
 
@@ -38,5 +39,28 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/customer', customerRoutes);
 app.use('/api/stations', stationRoutes);
 app.use('/api/price-requests', priceRequestRoutes);
+app.use('/api/corridors', corridorsRoutes);
+
+// Debug endpoint to check registered routes
+app.get('/api/debug-routes', (req, res) => {
+    const routes: string[] = [];
+    app._router.stack.forEach((middleware: any) => {
+        if (middleware.route) {
+            routes.push(`${Object.keys(middleware.route.methods).join(',').toUpperCase()} ${middleware.route.path}`);
+        } else if (middleware.name === 'router') {
+            const prefix = middleware.regexp.toString()
+                .replace('\\/', '/')
+                .replace('/^', '')
+                .replace('/?(?=/|$)/i', '')
+                .replace('\\/', '/');
+            middleware.handle.stack.forEach((handler: any) => {
+                if (handler.route) {
+                    routes.push(`${Object.keys(handler.route.methods).join(',').toUpperCase()} ${prefix}${handler.route.path}`);
+                }
+            });
+        }
+    });
+    res.json({ routes });
+});
 
 export default app;
