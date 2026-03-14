@@ -1,8 +1,6 @@
 import express from 'express';
-import { prisma } from './prisma';
-import fs from 'fs';
-import path from 'path';
 import cors from 'cors';
+import path from 'path';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import 'express-async-errors';
 
@@ -42,51 +40,5 @@ app.use('/api/customer', customerRoutes);
 app.use('/api/stations', stationRoutes);
 app.use('/api/price-requests', priceRequestRoutes);
 app.use('/api/corridors', corridorsRoutes);
-
-// Debug endpoint to check registered routes
-app.get('/api/debug-routes', (req, res) => {
-    const routes: string[] = [];
-    app._router.stack.forEach((middleware: any) => {
-        if (middleware.route) {
-            routes.push(`${Object.keys(middleware.route.methods).join(',').toUpperCase()} ${middleware.route.path}`);
-        } else if (middleware.name === 'router') {
-            const prefix = middleware.regexp.toString()
-                .replace('\\/', '/')
-                .replace('/^', '')
-                .replace('/?(?=/|$)/i', '')
-                .replace('\\/', '/');
-            middleware.handle.stack.forEach((handler: any) => {
-                if (handler.route) {
-                    routes.push(`${Object.keys(handler.route.methods).join(',').toUpperCase()} ${prefix}${handler.route.path}`);
-                }
-            });
-        }
-    });
-    res.json({ routes });
-});
-
-app.get('/api/debug-prisma', (req, res) => {
-    const props = Object.keys(prisma);
-    const models = props.filter(p => !p.startsWith('_') && typeof (prisma as any)[p] === 'object');
-    res.json({ 
-        properties: props,
-        models: models,
-        hasCorridorPricing: !!(prisma as any).corridorPricing
-    });
-});
-
-app.get('/api/debug-schema', (req, res) => {
-    try {
-        const schemaPath = path.join(__dirname, '..', 'prisma', 'schema.prisma');
-        const content = fs.readFileSync(schemaPath, 'utf8');
-        res.json({ 
-            path: schemaPath,
-            exists: fs.existsSync(schemaPath),
-            content: content
-        });
-    } catch (err: any) {
-        res.status(500).json({ error: err.message });
-    }
-});
 
 export default app;
