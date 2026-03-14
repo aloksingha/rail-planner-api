@@ -7,7 +7,7 @@ const router = Router();
 // Get all corridor pricing rules
 router.get('/', async (req, res) => {
     try {
-        const corridors = await prisma.corridorPricing.findMany({
+        const corridors = await (prisma as any).corridorPricing.findMany({
             orderBy: { name: 'asc' }
         });
         return res.json({ success: true, corridors });
@@ -26,7 +26,7 @@ router.post('/', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req,
     }
 
     try {
-        const corridor = await prisma.corridorPricing.create({
+        const corridor = await (prisma as any).corridorPricing.create({
             data: {
                 name,
                 originStations: String(originStations),
@@ -61,7 +61,7 @@ router.put('/:id', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (re
     const { name, originStations, destinationStations, markupSL, markup3A, markup2A } = req.body;
 
     try {
-        const corridor = await prisma.corridorPricing.update({
+        const corridor = await (prisma as any).corridorPricing.update({
             where: { id: id as string },
             data: {
                 name,
@@ -93,7 +93,7 @@ router.delete('/:id', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async 
     const { id } = req.params;
 
     try {
-        const corridor = await prisma.corridorPricing.delete({
+        const corridor = await (prisma as any).corridorPricing.delete({
             where: { id: id as string }
         });
 
