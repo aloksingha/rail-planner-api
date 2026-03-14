@@ -1,4 +1,5 @@
 import express from 'express';
+import { prisma } from './prisma';
 import cors from 'cors';
 import path from 'path';
 import { createProxyMiddleware } from 'http-proxy-middleware';
@@ -61,6 +62,16 @@ app.get('/api/debug-routes', (req, res) => {
         }
     });
     res.json({ routes });
+});
+
+app.get('/api/debug-prisma', (req, res) => {
+    const props = Object.keys(prisma);
+    const models = props.filter(p => !p.startsWith('_') && typeof (prisma as any)[p] === 'object');
+    res.json({ 
+        properties: props,
+        models: models,
+        hasCorridorPricing: !!(prisma as any).corridorPricing
+    });
 });
 
 export default app;
