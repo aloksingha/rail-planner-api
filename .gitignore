@@ -1,6 +1,7 @@
 node_modules/
 dist/
 src/generated/
+src/generated-client/
 .env
 *.log
 .DS_Store
