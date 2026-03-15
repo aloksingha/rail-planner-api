@@ -15,6 +15,7 @@ import flightRoutes from './routes/flights';
 import carRoutes from './routes/cars';
 import priceRequestRoutes from './routes/priceRequests';
 import corridorsRoutes from './routes/corridors';
+import contactRoutes from './routes/contact';
 
 const app = express();
 
@@ -40,5 +41,6 @@ app.use('/api/customer', customerRoutes);
 app.use('/api/stations', stationRoutes);
 app.use('/api/price-requests', priceRequestRoutes);
 app.use('/api/corridors', corridorsRoutes);
+app.use('/api/contact', contactRoutes);
 
 export default app;
