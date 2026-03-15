@@ -662,7 +662,7 @@ router.get('/users', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res)
 
 // ── Super Admin: Change a user's role ────────────────────────────────────────
 router.patch('/users/:id/role', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const role = req.body.role as string;
 
     const validRoles = ['CUSTOMER', 'SALES_MANAGER', 'ADMIN', 'SUPER_ADMIN'];
