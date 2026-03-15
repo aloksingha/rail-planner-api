@@ -637,4 +637,65 @@ router.patch('/bookings/:id/status', requireAuth, requireRole(['SUPER_ADMIN', 'A
     }
 });
 
+// ── Super Admin: Get all users (grouped data for User Management page) ──────────
+router.get('/users', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+    try {
+        const users = await prisma.user.findMany({
+            orderBy: [{ role: 'asc' }, { createdAt: 'desc' }],
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                mobile: true,
+                role: true,
+                region: true,
+                createdAt: true,
+                _count: { select: { bookings: true } }
+            }
+        });
+        return res.json({ success: true, users });
+    } catch (error: any) {
+        console.error('Fetch all users error:', error);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// ── Super Admin: Change a user's role ────────────────────────────────────────
+router.patch('/users/:id/role', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+    const { id } = req.params;
+    const role = req.body.role as string;
+
+    const validRoles = ['CUSTOMER', 'SALES_MANAGER', 'ADMIN', 'SUPER_ADMIN'];
+    if (!role || !validRoles.includes(role)) {
+        return res.status(400).json({ error: `Invalid role. Must be one of: ${validRoles.join(', ')}` });
+    }
+
+    // Prevent Super Admin from demoting themselves
+    if (id === req.user!.userId) {
+        return res.status(400).json({ error: 'You cannot change your own role.' });
+    }
+
+    try {
+        const user = await prisma.user.update({
+            where: { id },
+            data: { role },
+            select: { id: true, email: true, role: true }
+        });
+
+        await prisma.auditLog.create({
+            data: {
+                action: 'CHANGE_USER_ROLE',
+                performedByUserId: req.user!.userId,
+                targetUserId: id,
+                details: `Changed role of ${user.email} to ${role}`
+            }
+        });
+
+        return res.json({ success: true, user });
+    } catch (error: any) {
+        console.error('Change role error:', error);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 export default router;
