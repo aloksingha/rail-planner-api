@@ -7,6 +7,7 @@ export interface JwtPayload {
     userId: string;
     email: string;
     role: string;
+    name?: string | null;
 }
 
 declare global {
@@ -17,8 +18,8 @@ declare global {
     }
 }
 
-export const generateToken = (userId: string, email: string, role: string) => {
-    return jwt.sign({ userId, email, role }, JWT_SECRET, { expiresIn: '1d' });
+export const generateToken = (userId: string, email: string, role: string, name?: string | null) => {
+    return jwt.sign({ userId, email, role, name }, JWT_SECRET, { expiresIn: '1d' });
 };
 
 export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
