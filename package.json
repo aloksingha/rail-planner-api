@@ -7,7 +7,8 @@
     "dev": "nodemon src/index.ts",
     "build": "npx rimraf dist && npx prisma generate && npx tsc && npx prisma db push",
     "start": "node dist/index.js",
-    "seed": "ts-node src/seed.ts"
+    "seed": "ts-node src/seed.ts",
+    "db:cleanup": "ts-node prisma/cleanup.ts"
   },
   "keywords": [],
   "author": "",
@@ -32,7 +33,6 @@
     "typescript": "^5.9.3"
   },
   "devDependencies": {
-    "@prisma/config": "^6.19.2",
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
@@ -42,7 +42,8 @@
     "@types/node": "^25.3.0",
     "nodemon": "^3.1.14",
     "prisma": "^6.19.2",
-    "rimraf": "^6.0.1"
+    "rimraf": "^6.0.1",
+    "@prisma/config": "^6.19.2"
   },
   "engines": {
     "node": ">=22.0.0"
