@@ -5,8 +5,9 @@ const S: Record<string, string[]> = {
     DELHI:     ['NDLS','DLI','NZM','DEE','DEC','ANVT'],
     MUMBAI:    ['MMCT','CSMT','BDTS','PNVL','DR','LTT'],
     CHENNAI:   ['MAS','MS','MSB','AJJ','PER'],
-    BANGALORE: ['SBC','BNC','YPR','BYPL','KJM'],
-    KOLKATA:   ['HWH','KOAA','SDAH','BDC','KGP'],
+    BANGALORE: ['SBC','BNC','YPR','BYPL','KJM','SMVB'],
+    KOLKATA:   ['HWH','KOAA','SDAH','BDC','KGP','SHM'],
+    NORTH_BENGAL: ['MLDT','NFK','RPH','BOE','KNE','AUB','RGJ','NJP','SGUJ','RDP','KIR','SM'],
     HYDERABAD: ['HYB','SC','KI','NED','BMO'],
     PATNA:     ['PNBE','DNR','PAT','RJPB','BKP'],
     LUCKNOW:   ['LKO','LJN','BMK','ASH'],
@@ -98,6 +99,17 @@ const ROUTES: [string, string, string, number, number, number][] = [
     ['AGARTALA','CHENNAI','AGARTALA-CHENNAI',3000,4800,5600],
     ['DIBRUGARH','BANGALORE','DIBRUGARH-BANGALORE',3400,5400,6200],
     ['DIBRUGARH','CHENNAI','DIBRUGARH-CHENNAI',3200,5100,5900],
+    ['DIBRUGARH','THIRUVANANTHAPURAM','DIBRUGARH-THIRUVANANTHAPURAM',3600,5800,6600],
+    ['DIBRUGARH','KOLKATA','DIBRUGARH-KOLKATA',1500,2800,3400],
+    ['KOLKATA','THIRUVANANTHAPURAM','KOLKATA-THIRUVANANTHAPURAM',2500,4200,4900],
+    ['KOLKATA','CHENNAI','KOLKATA-CHENNAI',1800,3200,3900],
+    // North Bengal Hub
+    ['NORTH_BENGAL','BANGALORE','NORTH_BENGAL-BANGALORE',2200,3600,4300],
+    ['NORTH_BENGAL','CHENNAI','NORTH_BENGAL-CHENNAI',3000,4500,5500],
+    ['NORTH_BENGAL','THIRUVANANTHAPURAM','NORTH_BENGAL-THIRUVANANTHAPURAM',2500,4200,4900],
+    ['NORTH_BENGAL','DELHI','NORTH_BENGAL-DELHI',1200,2200,2800],
+    ['NORTH_BENGAL','KOLKATA','NORTH_BENGAL-KOLKATA',600,1050,1350],
+    ['NORTH_BENGAL','GUWAHATI','NORTH_BENGAL-GUWAHATI',500,850,1100],
     // Others — Long Distance
     ['AHMEDABAD','BHOPAL','AHMEDABAD-BHOPAL',650,1100,1400],
     ['LUCKNOW','PATNA','LUCKNOW-PATNA',600,1050,1350],
@@ -124,22 +136,30 @@ function buildAllCorridors() {
 }
 
 // ─── Seed Function ──────────────────────────────────────────────────────────
-export async function seedCorridorsIfEmpty() {
+export async function seedCorridors() {
     try {
-        const count = await prisma.corridorPricing.count();
-        if (count > 0) {
-            console.log(`[Seed] ${count} corridor(s) already exist. Skipping seed.`);
-            return;
-        }
+        console.log('[Seed] Syncing all Indian train corridor prices...');
+        
+        // Pre-flight connection check
+        await prisma.$connect();
+        console.log('[Seed] Connection established.');
 
-        console.log('[Seed] No corridors found. Seeding all Indian train corridor prices...');
         const corridors = buildAllCorridors();
 
         let added = 0;
+        let updated = 0;
         for (const c of corridors) {
             try {
-                await prisma.corridorPricing.create({
-                    data: {
+                await prisma.corridorPricing.upsert({
+                    where: { name: c.name },
+                    update: {
+                        originStations: c.origins,
+                        destinationStations: c.dests,
+                        markupSL: c.sl,
+                        markup3A: c.a3,
+                        markup2A: c.a2,
+                    },
+                    create: {
                         name: c.name,
                         originStations: c.origins,
                         destinationStations: c.dests,
@@ -150,13 +170,24 @@ export async function seedCorridorsIfEmpty() {
                 });
                 added++;
             } catch (e: any) {
-                if (!e.message?.includes('Unique constraint')) {
-                    console.warn(`[Seed] Skipped ${c.name}: ${e.message}`);
-                }
+                console.warn(`[Seed] Failed ${c.name}: ${e.message}`);
             }
         }
-        console.log(`[Seed] Done! Added ${added} corridor pricing rules.`);
+        console.log(`[Seed] Done! Processed ${added} corridor pricing rules.`);
     } catch (err) {
-        console.error('[Seed] Corridor seed error (non-fatal):', err);
+        console.error('[Seed] Corridor seed error:', err);
     }
+}
+
+// Top-level execution for npm run seed
+if (require.main === module) {
+    seedCorridors()
+        .then(() => {
+            console.log('Seeding completed successfully.');
+            process.exit(0);
+        })
+        .catch((err) => {
+            console.error('Seeding failed:', err);
+            process.exit(1);
+        });
 }

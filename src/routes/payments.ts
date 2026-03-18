@@ -8,8 +8,8 @@ import { notifyBookingConfirmed } from '../services/notificationService';
 const router = Router();
 
 const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_dummykey12345',
-    key_secret: process.env.RAZORPAY_KEY_SECRET || 'dummy_test_secret_67890',
+    key_id: process.env.RAZORPAY_KEY_ID as string,
+    key_secret: process.env.RAZORPAY_KEY_SECRET as string,
 });
 
 router.post('/create-order', requireAuth, async (req, res) => {

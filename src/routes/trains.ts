@@ -19,12 +19,23 @@ const formatTravelTime = (minutes: number) => {
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:00`;
 };
 
+// SIMPLE IN-MEMORY CACHE for Train Search
+const trainCache = new Map<string, { data: any, expiry: number }>();
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
 router.get('/getTrainOn', async (req: Request, res: Response) => {
     try {
         const { from, to, date } = req.query;
 
         if (!from || !to || !date) {
             return res.status(400).json({ success: false, data: "Missing query parameters" });
+        }
+
+        const cacheKey = `${from}-${to}-${date}`;
+        const cached = trainCache.get(cacheKey);
+        if (cached && cached.expiry > Date.now()) {
+            console.log(`[TrainCache] HIT for ${cacheKey}`);
+            return res.json({ success: true, data: cached.data });
         }
 
         // FIX: Parse date as LOCAL time to avoid UTC timezone off-by-one day issue.
@@ -120,6 +131,10 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             });
 
         console.log(`[TrainSearch] Returning ${adaptedTrains.length} trains after filtering`);
+        
+        // Cache the result
+        trainCache.set(cacheKey, { data: adaptedTrains, expiry: Date.now() + CACHE_TTL });
+        
         return res.json({ success: true, data: adaptedTrains });
 
     } catch (error: any) {

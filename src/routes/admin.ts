@@ -124,11 +124,36 @@ router.get('/refunds', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async
     try {
         const refunds = await prisma.refundRecord.findMany({
             where: { status: 'MANUAL_PENDING' },
-            orderBy: { manualCreditDueDate: 'asc' } // The closest due dates first
+            orderBy: { manualCreditDueDate: 'asc' }
         });
         return res.json({ refunds });
     } catch (error) {
         console.error('Fetch manual refunds error:', error);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// Mark manual refund as resolved
+router.post('/refunds/:id/resolve', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+    const id = req.params.id as string;
+    try {
+        const refund = await prisma.refundRecord.update({
+            where: { id },
+            data: { status: 'MANUAL_RESOLVED' }
+        });
+
+        await prisma.auditLog.create({
+            data: {
+                action: 'RESOLVE_MANUAL_REFUND',
+                performedByUserId: req.user!.userId,
+                details: `Resolved manual refund for payment ${refund.paymentId}`,
+                targetUserId: refund.userId
+            }
+        });
+
+        return res.json({ success: true, message: 'Refund marked as resolved.' });
+    } catch (error) {
+        console.error('Resolve manual refund error:', error);
         return res.status(500).json({ error: 'Internal Server Error' });
     }
 });
@@ -159,10 +184,21 @@ router.get('/team', requireAuth, requireRole(['ADMIN']), async (req, res) => {
     }
 });
 
-// Get system stats for dashboard
+// CACHE for statistics
+const statsCache = new Map<string, { data: any, expiry: number }>();
+const STATS_CACHE_TTL = 60 * 1000; // 1 minute cache for stats
+
 // Get system stats for dashboard
 router.get('/stats', requireAuth, async (req, res) => {
     const { role, userId } = req.user!;
+    
+    // Check cache
+    const cacheKey = `${role}-${userId}`;
+    const cached = statsCache.get(cacheKey);
+    if (cached && cached.expiry > Date.now()) {
+        console.log(`[StatsCache] HIT for ${cacheKey}`);
+        return res.json(cached.data);
+    }
 
     try {
         if (role === 'SUPER_ADMIN') {
@@ -189,7 +225,7 @@ router.get('/stats', requireAuth, async (req, res) => {
                 prisma.booking.count({ where: { class: 'SLEEPER' } })
             ]);
 
-            return res.json({
+            const statsData = {
                 SUPER_ADMIN: superAdmins,
                 ADMIN: admins,
                 SALES_MANAGER: salesMgrs,
@@ -198,12 +234,16 @@ router.get('/stats', requireAuth, async (req, res) => {
                 todaySL,
                 totalAC,
                 totalSL
-            });
+            };
+            statsCache.set(cacheKey, { data: statsData, expiry: Date.now() + STATS_CACHE_TTL });
+            return res.json(statsData);
         }
 
         if (role === 'ADMIN') {
             const salesMgrCount = await prisma.user.count({ where: { createdByUserId: userId, role: 'SALES_MANAGER' } });
-            return res.json({ salesMgrCount });
+            const statsData = { salesMgrCount };
+            statsCache.set(cacheKey, { data: statsData, expiry: Date.now() + STATS_CACHE_TTL });
+            return res.json(statsData);
         }
 
         if (role === 'SALES_MANAGER') {
@@ -216,7 +256,9 @@ router.get('/stats', requireAuth, async (req, res) => {
                 }),
                 prisma.booking.count({ where: { userId: userId } })
             ]);
-            return res.json({ todayCount, totalCount });
+            const statsData = { todayCount, totalCount };
+            statsCache.set(cacheKey, { data: statsData, expiry: Date.now() + STATS_CACHE_TTL });
+            return res.json(statsData);
         }
 
         return res.status(403).json({ error: 'Unauthorized' });
