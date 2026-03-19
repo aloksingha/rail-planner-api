@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import { prisma } from '../prisma';
 import { generateToken, requireAuth, requireRole } from '../middleware/auth';
+import axios from 'axios';
 
 const router = Router();
 
@@ -10,20 +11,30 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '104332986423-dummy-cli
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 router.post('/google', async (req, res) => {
-    const { credential } = req.body;
+    const { credential, access_token } = req.body;
 
-    if (!credential) {
-        return res.status(400).json({ error: 'Missing Google credential token' });
+    if (!credential && !access_token) {
+        return res.status(400).json({ error: 'Missing Google credential or access token' });
     }
 
     try {
-        // 1. Verify the Google Token
-        const ticket = await client.verifyIdToken({
-            idToken: credential,
-            audience: GOOGLE_CLIENT_ID,
-        });
+        let payload: any;
 
-        const payload = ticket.getPayload();
+        if (credential) {
+            // 1a. Verify the Google ID Token (Web)
+            const ticket = await client.verifyIdToken({
+                idToken: credential,
+                audience: GOOGLE_CLIENT_ID,
+            });
+            payload = ticket.getPayload();
+        } else if (access_token) {
+            // 1b. Fetch profile using Access Token (Custom/Native flows)
+            const { data } = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { Authorization: `Bearer ${access_token}` }
+            });
+            payload = data;
+        }
+
         if (!payload || !payload.email) {
             throw new Error('Invalid Google payload');
         }

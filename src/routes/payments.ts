@@ -104,7 +104,7 @@ router.post('/verify', requireAuth, async (req, res) => {
 
             // Categorize class
             let category = 'SLEEPER';
-            if (['2A', '3A', 'CC', '1A', 'EC'].includes(trainClass || '')) {
+            if (['2A', '3A', 'CC', '1A', '3E', 'FC', 'EC'].includes(trainClass || '')) {
                 category = 'AC';
             }
 

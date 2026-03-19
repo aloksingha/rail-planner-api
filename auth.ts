@@ -10,20 +10,33 @@ const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '104332986423-dummy-cli
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 router.post('/google', async (req, res) => {
-    const { credential } = req.body;
+    const { credential, access_token } = req.body;
 
-    if (!credential) {
+    if (!credential && !access_token) {
         return res.status(400).json({ error: 'Missing Google credential token' });
     }
 
     try {
-        // 1. Verify the Google Token
-        const ticket = await client.verifyIdToken({
-            idToken: credential,
-            audience: GOOGLE_CLIENT_ID,
-        });
+        let payload: any;
 
-        const payload = ticket.getPayload();
+        if (credential) {
+            // 1. Verify the Google ID Token (Standard Web Button)
+            const ticket = await client.verifyIdToken({
+                idToken: credential,
+                audience: GOOGLE_CLIENT_ID,
+            });
+            payload = ticket.getPayload();
+        } else if (access_token) {
+            // 2. Fetch User Profile using Access Token (Custom/Native Flow)
+            const response = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { Authorization: `Bearer ${access_token}` }
+            });
+            payload = response.data;
+        }
+
+        if (!payload || !payload.email) {
+            throw new Error('Invalid Google payload');
+        }
         if (!payload || !payload.email) {
             throw new Error('Invalid Google payload');
         }
