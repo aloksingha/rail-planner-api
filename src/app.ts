@@ -16,6 +16,7 @@ import carRoutes from './routes/cars';
 import priceRequestRoutes from './routes/priceRequests';
 import corridorsRoutes from './routes/corridors';
 import contactRoutes from './routes/contact';
+import couponRoutes from './routes/coupons';
 
 const app = express();
 
@@ -42,5 +43,6 @@ app.use('/api/stations', stationRoutes);
 app.use('/api/price-requests', priceRequestRoutes);
 app.use('/api/corridors', corridorsRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/coupons', couponRoutes);
 
 export default app;
