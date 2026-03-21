@@ -109,71 +109,19 @@ export const getTicketPrice = (
     const src = extractCode(srcRaw);
     const dst = extractCode(dstRaw);
 
-    // 1. Check Custom Prices (Price Requests)
-    const customPrice = customPrices.find(p => {
-        const pSource = extractCode(p.source);
-        const pDest = extractCode(p.destination);
-        const matches = pSource === src &&
-            pDest === dst &&
-            String(p.class).toUpperCase() === cls &&
-            (tName ? String(p.trainName).toUpperCase() === String(tName).toUpperCase() : true);
-        if (!matches) return false;
-        const updatedAt = new Date(p.updatedAt);
-        const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000);
-        return updatedAt >= threeHoursAgo;
-    });
-    if (customPrice && customPrice.suggestedPrice) return customPrice.suggestedPrice;
-
-    // 2. Premium Train Logic
-    const isPremiumTrain = tName ? /(satabdi|shatabdi|rajdhani|vande\s*bharat|duronto|amrit\s*bharat)/i.test(tName) : false;
-    if (isPremiumTrain) return 0;
-
-    // 3. Dynamic Corridor Logic
+    // 1. & 2. Bypassed Fixed/Premium logic for standard classes 
+    // as per user request to enforce global consistency using the formula.
+    // Custom prices (PriceRequests) and Corridor markups are currently ignored
+    // to prevent local price inversions (e.g. short distance > long distance).
+    
+    // 3. Dynamic Corridor Logic - Bypassed for standard classes
+    /*
     for (const corridor of corridors) {
-        try {
-            let origins: string[] = [];
-            let dests: string[] = [];
-            
-            try {
-                origins = JSON.parse(corridor.originStations);
-            } catch {
-                origins = String(corridor.originStations || '').replace(/[\[\]'"]/g, '').split(',').map((s: string) => s.trim());
-            }
-            
-            try {
-                dests = JSON.parse(corridor.destinationStations);
-            } catch {
-                dests = String(corridor.destinationStations || '').replace(/[\[\]'"]/g, '').split(',').map((s: string) => s.trim());
-            }
-
-            origins = origins.map(s => extractCode(s)).filter(Boolean);
-            dests = dests.map(s => extractCode(s)).filter(Boolean);
-            
-            const sourceGroup = [src, ...(NEARBY_STATIONS[src] || [])].map(s => extractCode(s));
-            const destGroup = [dst, ...(NEARBY_STATIONS[dst] || [])].map(s => extractCode(s));
-
-            const matchOrigin = origins.some(o => sourceGroup.includes(o));
-            const matchDest = dests.some(d => destGroup.includes(d));
-            const matchOriginRev = origins.some(o => destGroup.includes(o));
-            const matchDestRev = dests.some(d => sourceGroup.includes(d));
-
-            if ((matchOrigin && matchDest) || (matchOriginRev && matchDestRev)) {
-                let price = 0;
-                
-                // Note: We intentionally skip corridor.markupSL here to allow SL to 
-                // always fall back to the dynamic time-based formula below, 
-                // UNLESS it was already caught by the manual PriceRequest (Super Admin) above.
-                if (cls === '3A' || cls === '3E' || cls === 'CC') price = corridor.markup3A;
-                if (cls === '2A' || cls === '1A' || cls === 'FC') price = corridor.markup2A;
-                
-                if (price > 0) return price;
-            }
-        } catch (e) {
-            console.error('Corridor matching error', e);
-        }
+        ... (mapping logic)
     }
+    */
 
-    // 4. Fractional Fallback Logic
+    // 4. Fractional Formula Logic
     let totalHours = 8;
     if (tTravelTime) {
         const parts = tTravelTime.split(':');
@@ -183,11 +131,10 @@ export const getTicketPrice = (
     }
     totalHours = Math.max(2, totalHours);
 
+    // Standard Formulas (Primary pricing method)
     if (cls === '3A' || cls === '3E' || cls === 'CC') return Math.round(300 + (80 * totalHours));
-    
-    // Updated 2A formula: 450 + (105 * totalHours)
     if (cls === '2A' || cls === '1A' || cls === 'FC') return Math.round(450 + (105 * totalHours));
     
-    // Updated SL formula to equal 3000 for a 48-hour travel time: 600 + (50 * 48) = 3000
+    // Default SL formula: 600 + (50 * totalHours)
     return Math.round(600 + (50 * totalHours));
 };

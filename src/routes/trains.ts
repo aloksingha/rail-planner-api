@@ -109,8 +109,16 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                     ).filter(Boolean);
                 }
 
-                // INJECT PRICING — This is the "Implement the Same" part
-                const travelTimeStr = formatTravelTime(t.travelTimeMinutes || 0);
+                // INJECT PRICING — Correctly calculate segment travel time
+                // Use arrivalMinutes - departureMinutes to get the actual trip duration
+                const depMins = t.fromStationSchedule?.departureMinutes || 0;
+                const arrMins = t.toStationSchedule?.arrivalMinutes || 0;
+                let segmentMins = arrMins - depMins;
+                
+                // Fallback to t.travelTimeMinutes if segment calculation is impossible/zero
+                if (segmentMins <= 0) segmentMins = t.travelTimeMinutes || 0;
+
+                const travelTimeStr = formatTravelTime(segmentMins);
                 const prices: Record<string, number> = {};
                 ['SL', '3A', '2A', 'CC'].forEach(cls => {
                     prices[cls] = getTicketPrice(
@@ -132,8 +140,8 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                         train_type: t.type,
                         from_stn_name: t.sourceStationName,
                         to_stn_name: t.destinationStationName,
-                        from_time: formatTime(t.fromStationSchedule?.departureMinutes || 0),
-                        to_time: formatTime(t.toStationSchedule?.arrivalMinutes || 0),
+                        from_time: formatTime(depMins),
+                        to_time: formatTime(arrMins),
                         travel_time: travelTimeStr,
                         running_days,
                         available_classes,
