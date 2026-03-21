@@ -106,22 +106,26 @@ const resolveToCode = (str: string) => {
         if (code === raw) return code;
     }
 
-    // Special case common names
+    // Special case common names / variants
+    const rawClean = raw.replace(/\s+JN$/i, '').replace(/\s+JUNCTION$/i, '').trim();
+
     const NAME_TO_CODE: Record<string, string> = {
         'SECUNDERABAD': 'SC',
+        'HYDERABAD': 'SC',
         'NEW JALPAIGURI': 'NJP',
         'AGARTALA': 'AGT',
         'DELHI': 'NDLS',
+        'NEW DELHI': 'NDLS',
         'MUMBAI': 'CSMT',
         'BANGALORE': 'SBC',
         'BENGALURU': 'SBC',
         'KOLKATA': 'HWH',
+        'HOWRAH': 'HWH',
         'GUWAHATI': 'GHY',
-        'HYDERABAD': 'SC',
         'PATNA': 'PNBE'
     };
     
-    return NAME_TO_CODE[raw] || raw;
+    return NAME_TO_CODE[rawClean] || NAME_TO_CODE[raw] || raw;
 };
 
 export const getTicketPrice = (
