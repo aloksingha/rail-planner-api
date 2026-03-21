@@ -20,6 +20,7 @@ router.post('/google', async (req, res) => {
     try {
         let payload: any;
 
+        console.time('[Auth] Google Verify');
         if (credential) {
             // 1a. Verify the Google ID Token (Web)
             const ticket = await client.verifyIdToken({
@@ -34,6 +35,7 @@ router.post('/google', async (req, res) => {
             });
             payload = data;
         }
+        console.timeEnd('[Auth] Google Verify');
 
         if (!payload || !payload.email) {
             throw new Error('Invalid Google payload');
@@ -46,6 +48,7 @@ router.post('/google', async (req, res) => {
         const INITIAL_SUPER_ADMINS = ['alokjnv.singha3@gmail.com', 'admin@ticketspro.in'];
 
         // 2. Map existing user or Register
+        console.time('[Auth] DB Upsert');
         const user = await prisma.user.upsert({
             where: { email },
             update: {
@@ -60,6 +63,7 @@ router.post('/google', async (req, res) => {
                 role: INITIAL_SUPER_ADMINS.includes(email) ? 'SUPER_ADMIN' : 'CUSTOMER'
             }
         });
+        console.timeEnd('[Auth] DB Upsert');
 
         // 3. Issue our app's JWT Session
         const token = generateToken(user.id, user.email, user.role, user.name);

@@ -3,7 +3,12 @@ import axios from 'axios';
 
 const router = express.Router();
 
-const RAILRADAR_API_KEY = 'rr_l5kw3cdiu6tmfmg2mnq6zlbuoo9ff4pw';
+const RAILRADAR_KEYS = [
+    'rr_l5kw3cdiu6tmfmg2mnq6zlbuoo9ff4pw',
+    'rr_b8bkpypd0wv94nokax545bbubtjf7tru',
+    'rr_3qvr30o4au0u7mbkpx1ybuycxa5fiupc'
+];
+
 const RAILRADAR_BASE_URL = 'https://api.railradar.org/api/v1';
 
 const formatTime = (minutes: number) => {
@@ -58,13 +63,31 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
 
         console.log(`[TrainSearch] ${from} to ${to} on ${date} [Day: ${dayFullName}]`);
 
-        // Helper to fetch from API
+        // Helper to fetch from API with automatic key failover
         const fetchRemote = async (src: string, dst: string, isFallback = false) => {
-            const response = await axios.get(`${RAILRADAR_BASE_URL}/trains/between?from=${src}&to=${dst}&date=${date}`, {
-                headers: { 'X-Api-Key': RAILRADAR_API_KEY, 'Accept': 'application/json' }
-            });
-            const externalTrains = response.data?.data?.trains || [];
-            return externalTrains.map((t: any) => ({ ...t, isAlternative: isFallback }));
+            // Shuffle keys for random distribution but consistent retry order
+            const keys = [...RAILRADAR_KEYS].sort(() => Math.random() - 0.5);
+            let lastError: any = null;
+
+            for (const key of keys) {
+                try {
+                    const response = await axios.get(`${RAILRADAR_BASE_URL}/trains/between?from=${src}&to=${dst}&date=${date}`, {
+                        headers: { 'X-Api-Key': key, 'Accept': 'application/json' }
+                    });
+                    const externalTrains = response.data?.data?.trains || [];
+                    return externalTrains.map((t: any) => ({ ...t, isAlternative: isFallback }));
+                } catch (e: any) {
+                    lastError = e;
+                    const status = e.response?.status;
+                    console.error(`[RailRadar] Key ${key.substring(0, 8)}... failed with status ${status}: ${e.message}`);
+                    if (status === 401 || status === 403 || status === 429) {
+                        console.log(`[RailRadar] Throttled or Invalid. Trying next key...`);
+                        continue; // Try next key
+                    }
+                    throw e; // Critical error, stop retrying
+                }
+            }
+            throw lastError || new Error('All API keys failed');
         };
 
         // 1. Primary Direct Search
@@ -167,14 +190,28 @@ router.get('/schedule/:trainNo', async (req: Request, res: Response) => {
     try {
         const { trainNo } = req.params;
 
-        const response = await axios.get(`${RAILRADAR_BASE_URL}/trains/${trainNo}/schedule`, {
-            headers: {
-                'X-Api-Key': RAILRADAR_API_KEY,
-                'Accept': 'application/json'
-            }
-        });
+        const keys = [...RAILRADAR_KEYS].sort(() => Math.random() - 0.5);
+        let lastError: any = null;
+        let scheduleData: any = [];
 
-        const scheduleData = response.data?.data?.route || [];
+        for (const key of keys) {
+            try {
+                const response = await axios.get(`${RAILRADAR_BASE_URL}/trains/${trainNo}/schedule`, {
+                    headers: { 'X-Api-Key': key, 'Accept': 'application/json' }
+                });
+                scheduleData = response.data?.data?.route || [];
+                lastError = null;
+                break; // Success!
+            } catch (e: any) {
+                lastError = e;
+                if (e.response?.status === 429 || e.response?.status === 401 || e.response?.status === 403) {
+                    continue; // Try next key
+                }
+                throw e; // Critical error
+            }
+        }
+
+        if (lastError) throw lastError;
 
         const adaptedSchedule = scheduleData.map((stop: any) => ({
             stationCode: stop.stationCode,
