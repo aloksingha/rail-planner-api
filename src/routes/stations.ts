@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const router = express.Router();
 
-const RAILRADAR_API_KEY = 'rr_l5kw3cdiu6tmfmg2mnq6zlbuoo9ff4pw';
+import { getRailRadarKey } from '../utils/keys';
 const RAILRADAR_BASE_URL = 'https://api.railradar.org/api/v1';
 
 // Internal Route: /api/stations/search?query=val
@@ -17,7 +17,7 @@ router.get('/search', async (req, res) => {
 
         const response = await axios.get(`${RAILRADAR_BASE_URL}/search/stations?query=${encodeURIComponent(query)}`, {
             headers: {
-                'X-Api-Key': RAILRADAR_API_KEY,
+                'X-Api-Key': getRailRadarKey(),
                 'Accept': 'application/json'
             }
         });

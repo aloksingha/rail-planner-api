@@ -3,12 +3,7 @@ import axios from 'axios';
 
 const router = express.Router();
 
-const RAILRADAR_KEYS = [
-    'rr_l5kw3cdiu6tmfmg2mnq6zlbuoo9ff4pw',
-    'rr_b8bkpypd0wv94nokax545bbubtjf7tru',
-    'rr_3qvr30o4au0u7mbkpx1ybuycxa5fiupc'
-];
-
+import { getRailRadarKey } from '../utils/keys';
 const RAILRADAR_BASE_URL = 'https://api.railradar.org/api/v1';
 
 const formatTime = (minutes: number) => {
@@ -65,11 +60,11 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
 
         // Helper to fetch from API with automatic key failover
         const fetchRemote = async (src: string, dst: string, isFallback = false) => {
-            // Shuffle keys for random distribution but consistent retry order
-            const keys = [...RAILRADAR_KEYS].sort(() => Math.random() - 0.5);
+            const maxRetries = 3;
             let lastError: any = null;
 
-            for (const key of keys) {
+            for (let i = 0; i < maxRetries; i++) {
+                const key = getRailRadarKey();
                 try {
                     const response = await axios.get(`${RAILRADAR_BASE_URL}/trains/between?from=${src}&to=${dst}&date=${date}`, {
                         headers: { 'X-Api-Key': key, 'Accept': 'application/json' }
@@ -84,10 +79,10 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                         console.log(`[RailRadar] Throttled or Invalid. Trying next key...`);
                         continue; // Try next key
                     }
-                    throw e; // Critical error, stop retrying
+                    throw e; // Critical error
                 }
             }
-            throw lastError || new Error('All API keys failed');
+            throw lastError || new Error('All API retries failed');
         };
 
         // 1. Primary Direct Search
@@ -213,11 +208,12 @@ router.get('/schedule/:trainNo', async (req: Request, res: Response) => {
     try {
         const { trainNo } = req.params;
 
-        const keys = [...RAILRADAR_KEYS].sort(() => Math.random() - 0.5);
+        const maxRetries = 3;
         let lastError: any = null;
         let scheduleData: any = [];
 
-        for (const key of keys) {
+        for (let i = 0; i < maxRetries; i++) {
+            const key = getRailRadarKey();
             try {
                 const response = await axios.get(`${RAILRADAR_BASE_URL}/trains/${trainNo}/schedule`, {
                     headers: { 'X-Api-Key': key, 'Accept': 'application/json' }
