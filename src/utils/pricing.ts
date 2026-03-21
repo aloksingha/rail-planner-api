@@ -91,9 +91,37 @@ export const extractCode = (str: string) => {
     if (!str) return '';
     const match = str.match(/\[([A-Z0-9]+)\]/i);
     if (match) return match[1].toUpperCase().trim();
-    const cleaned = str.split('(')[0].split('-')[0].trim().toUpperCase();
-    if (cleaned.length <= 6 && !cleaned.includes(' ')) return cleaned;
-    return cleaned;
+    return str.trim().toUpperCase();
+};
+
+const resolveToCode = (str: string) => {
+    const raw = extractCode(str);
+    // If it's already a short code (<= 4 chars), return it
+    if (raw.length <= 4) return raw;
+    
+    // Otherwise, check if it's a known name in NEARBY_STATIONS
+    for (const [code, alts] of Object.entries(NEARBY_STATIONS)) {
+        // Simple name matching (e.g. SECUNDERABAD matches SC if SC is a key and we find a match)
+        // But for now, let's just use a hardcoded map for major cities or check the keys
+        if (code === raw) return code;
+    }
+
+    // Special case common names
+    const NAME_TO_CODE: Record<string, string> = {
+        'SECUNDERABAD': 'SC',
+        'NEW JALPAIGURI': 'NJP',
+        'AGARTALA': 'AGT',
+        'DELHI': 'NDLS',
+        'MUMBAI': 'CSMT',
+        'BANGALORE': 'SBC',
+        'BENGALURU': 'SBC',
+        'KOLKATA': 'HWH',
+        'GUWAHATI': 'GHY',
+        'HYDERABAD': 'SC',
+        'PATNA': 'PNBE'
+    };
+    
+    return NAME_TO_CODE[raw] || raw;
 };
 
 export const getTicketPrice = (
@@ -106,8 +134,8 @@ export const getTicketPrice = (
     customPrices: any[] = []
 ) => {
     const cls = String(clsRaw || '').toUpperCase().trim();
-    const src = extractCode(srcRaw);
-    const dst = extractCode(dstRaw);
+    const src = resolveToCode(srcRaw);
+    const dst = resolveToCode(dstRaw);
 
     // 1. Check for Custom Price Overrides (PriceRequests)
     const custom = customPrices.find(p => 
