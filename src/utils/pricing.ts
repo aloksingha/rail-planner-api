@@ -139,20 +139,25 @@ export const getTicketPrice = (
 
     // 1. Check for Custom Price Overrides (PriceRequests)
     const custom = customPrices.find(p => 
-        extractCode(p.source) === src && 
-        extractCode(p.destination) === dst && 
+        resolveToCode(p.source) === src && 
+        resolveToCode(p.destination) === dst && 
         p.class === cls &&
-        p.status === 'COMPLETED'
+        (p.status === 'COMPLETED' || p.status === 'UPDATED')
     );
-    if (custom && custom.suggestedPrice) return Math.round(custom.suggestedPrice);
+    if (custom && custom.suggestedPrice) {
+        console.log(`[Pricing] MATCH Custom Price for ${src}->${dst} (${cls}): ${custom.suggestedPrice}`);
+        return Math.round(custom.suggestedPrice);
+    }
 
     // 2. Dynamic Corridor Logic
+    console.log(`[Pricing] Checking Corridors for ${src} -> ${dst} (${cls}). Count: ${corridors.length}`);
     for (const corridor of corridors) {
         try {
             const origins = JSON.parse(corridor.originStations || '[]');
             const destinations = JSON.parse(corridor.destinationStations || '[]');
             
             if (origins.includes(src) && destinations.includes(dst)) {
+                console.log(`[Pricing] MATCH Corridor ${corridor.name} for ${src}->${dst}`);
                 if (cls === 'SL' && corridor.markupSL > 0) return Math.round(corridor.markupSL);
                 if ((cls === '3A' || cls === '3E' || cls === 'CC') && corridor.markup3A > 0) return Math.round(corridor.markup3A);
                 if ((cls === '2A' || cls === '1A' || cls === 'FC') && corridor.markup2A > 0) return Math.round(corridor.markup2A);
@@ -172,10 +177,10 @@ export const getTicketPrice = (
     }
     totalHours = Math.max(2, totalHours);
 
-    // Standard Formulas (Primary pricing method)
-    if (cls === '3A' || cls === '3E' || cls === 'CC') return Math.round(300 + (80 * totalHours));
-    if (cls === '2A' || cls === '1A' || cls === 'FC') return Math.round(450 + (105 * totalHours));
-    
-    // Default SL formula: 600 + (50 * totalHours)
-    return Math.round(600 + (50 * totalHours));
+    // Standard Formulas
+    const price = (cls === '3A' || cls === '3E' || cls === 'CC') ? Math.round(300 + (80 * totalHours)) :
+                  (cls === '2A' || cls === '1A' || cls === 'FC') ? Math.round(450 + (105 * totalHours)) :
+                  Math.round(600 + (50 * totalHours));
+
+    return price;
 };

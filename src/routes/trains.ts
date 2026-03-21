@@ -26,7 +26,7 @@ const formatTravelTime = (minutes: number) => {
 
 // SIMPLE IN-MEMORY CACHE for Train Search
 const trainCache = new Map<string, { data: any, expiry: number }>();
-const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+const CACHE_TTL = 0; // Disabled for real-time testing
 
 import { NEARBY_STATIONS, getTicketPrice } from '../utils/pricing';
 import { prisma } from '../prisma';
