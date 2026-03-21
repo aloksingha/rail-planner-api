@@ -130,5 +130,7 @@ export const getTicketPrice = (
 
     if (cls === '3A' || cls === '3E' || cls === 'CC') return Math.round(300 + (80 * totalHours));
     if (cls === '2A' || cls === '1A' || cls === 'FC') return Math.round(450 + (125 * totalHours));
-    return Math.round(150 + (35 * totalHours));
+    
+    // Updated SL formula to equal 3000 for a 48-hour travel time: 600 + (50 * 48) = 3000
+    return Math.round(600 + (50 * totalHours));
 };
