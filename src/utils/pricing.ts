@@ -157,11 +157,14 @@ export const getTicketPrice = (
     console.log(`[Pricing] Checking Corridors for ${src} -> ${dst} (${cls}). Count: ${corridors.length}`);
     for (const corridor of corridors) {
         try {
-            const origins = JSON.parse(corridor.originStations || '[]');
-            const destinations = JSON.parse(corridor.destinationStations || '[]');
+            const origins = JSON.parse(corridor.originStations || '[]').map((s: any) => resolveToCode(String(s)));
+            const destinations = JSON.parse(corridor.destinationStations || '[]').map((s: any) => resolveToCode(String(s)));
             
-            if (origins.includes(src) && destinations.includes(dst)) {
-                console.log(`[Pricing] MATCH Corridor ${corridor.name} for ${src}->${dst}`);
+            const matchForward = origins.includes(src) && destinations.includes(dst);
+            const matchReverse = origins.includes(dst) && destinations.includes(src);
+
+            if (matchForward || matchReverse) {
+                console.log(`[Pricing] MATCH Corridor ${corridor.name} for ${src}<->${dst}`);
                 if (cls === 'SL' && corridor.markupSL > 0) return Math.round(corridor.markupSL);
                 if ((cls === '3A' || cls === '3E' || cls === 'CC') && corridor.markup3A > 0) return Math.round(corridor.markup3A);
                 if ((cls === '2A' || cls === '1A' || cls === 'FC') && corridor.markup2A > 0) return Math.round(corridor.markup2A);
