@@ -132,11 +132,18 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                     ).filter(Boolean);
                 }
 
-                // INJECT PRICING — Correctly calculate segment travel time
-                // Use arrivalMinutes - departureMinutes to get the actual trip duration
-                const depMins = t.fromStationSchedule?.departureMinutes || 0;
-                const arrMins = t.toStationSchedule?.arrivalMinutes || 0;
-                let segmentMins = arrMins - depMins;
+                // INJECT PRICING — Correctly calculate cumulative segment travel time
+                // The API provides minutes (0-1439) for each day. We MUST add (day - 1) * 1440.
+                const depDay = t.fromStationSchedule?.day || 1;
+                const arrDay = t.toStationSchedule?.day || depDay;
+                
+                const depMinsBase = t.fromStationSchedule?.departureMinutes || 0;
+                const arrMinsBase = t.toStationSchedule?.arrivalMinutes || 0;
+                
+                const depMinsTotal = ((depDay - 1) * 1440) + depMinsBase;
+                const arrMinsTotal = ((arrDay - 1) * 1440) + arrMinsBase;
+                
+                let segmentMins = arrMinsTotal - depMinsTotal;
                 
                 // Fallback to t.travelTimeMinutes if segment calculation is impossible/zero
                 if (segmentMins <= 0) segmentMins = t.travelTimeMinutes || 0;
@@ -163,8 +170,8 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                         train_type: t.type,
                         from_stn_name: t.sourceStationName,
                         to_stn_name: t.destinationStationName,
-                        from_time: formatTime(depMins),
-                        to_time: formatTime(arrMins),
+                        from_time: formatTime(depMinsBase),
+                        to_time: formatTime(arrMinsBase),
                         travel_time: travelTimeStr,
                         running_days,
                         available_classes,
