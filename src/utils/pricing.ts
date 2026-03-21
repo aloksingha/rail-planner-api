@@ -1,40 +1,90 @@
 export const NEARBY_STATIONS: Record<string, string[]> = {
     // Delhi/NCR
-    'NDLS': ['DLI', 'NZM', 'GZB', 'ANVT', 'DEC'],
-    'DLI': ['NDLS', 'NZM', 'GZB', 'ANVT', 'DEC'],
-    'NZM': ['NDLS', 'DLI', 'GZB', 'ANVT', 'DEC'],
-    'ANVT': ['NDLS', 'DLI', 'NZM', 'GZB'],
+    'NDLS': ['DLI', 'NZM', 'GZB', 'ANVT', 'DEC', 'DEE', 'SZM', 'DSA', 'SSB'],
+    'DLI': ['NDLS', 'NZM', 'GZB', 'ANVT', 'DEC', 'DEE', 'SZM', 'DSA', 'SSB'],
+    'NZM': ['NDLS', 'DLI', 'GZB', 'ANVT', 'DEC', 'DEE', 'SZM', 'DSA', 'SSB'],
+    'ANVT': ['NDLS', 'DLI', 'NZM', 'GZB', 'DEE', 'SZM', 'DSA'],
+    
     // Kolkata
-    'HWH': ['SDAH', 'KOAA', 'SHM'],
-    'SDAH': ['HWH', 'KOAA', 'SHM'],
-    'KOAA': ['HWH', 'SDAH', 'SHM'],
-    'SHM': ['HWH', 'SDAH', 'KOAA'],
+    'HWH': ['SDAH', 'KOAA', 'SHM', 'SRC', 'BDC'],
+    'SDAH': ['HWH', 'KOAA', 'SHM', 'SRC', 'BDC'],
+    'KOAA': ['HWH', 'SDAH', 'SHM', 'SRC', 'BDC'],
+    'SHM': ['HWH', 'SDAH', 'KOAA', 'SRC'],
+    
+    // North Bengal
+    'NJP': ['SGUJ', 'SGUT', 'SGU'],
+    'SGUJ': ['NJP', 'SGUT', 'SGU'],
+    
     // Mumbai
-    'MMCT': ['BDTS', 'BCT', 'DDR', 'CSMT', 'LTT'],
-    'BDTS': ['MMCT', 'BCT', 'DDR', 'CSMT', 'LTT'],
-    'CSMT': ['LTT', 'DR', 'MMCT', 'BDTS'],
-    'LTT': ['CSMT', 'DR', 'MMCT', 'BDTS'],
+    'MMCT': ['BDTS', 'BCT', 'DDR', 'CSMT', 'LTT', 'BVI', 'PNVL', 'KYN', 'TNA'],
+    'BDTS': ['MMCT', 'BCT', 'DDR', 'CSMT', 'LTT', 'BVI', 'PNVL', 'KYN', 'TNA'],
+    'CSMT': ['LTT', 'DR', 'MMCT', 'BDTS', 'BVI', 'PNVL', 'KYN', 'TNA'],
+    'LTT': ['CSMT', 'DR', 'MMCT', 'BDTS', 'BVI', 'PNVL', 'KYN', 'TNA'],
+    'BVI': ['MMCT', 'BDTS', 'DDR', 'CSMT', 'LTT'],
+    'TNA': ['LTT', 'CSMT', 'KYN', 'DR', 'PNVL'],
+    'PNVL': ['LTT', 'CSMT', 'TNA', 'KYN'],
+    
     // Bengaluru
-    'SBC': ['YPR', 'SMVB', 'KJM', 'BNC'],
-    'YPR': ['SBC', 'SMVB', 'KJM', 'BNC'],
-    'SMVB': ['SBC', 'YPR', 'KJM', 'BNC'],
+    'SBC': ['YPR', 'SMVB', 'KJM', 'BNC', 'BAND', 'YNK', 'BNCE', 'KGI'],
+    'YPR': ['SBC', 'SMVB', 'KJM', 'BNC', 'BAND', 'YNK', 'BNCE', 'KGI'],
+    'SMVB': ['SBC', 'YPR', 'KJM', 'BNC', 'BAND', 'YNK', 'BNCE', 'KGI'],
+    
     // Chennai
-    'MAS': ['MS', 'TBM', 'PER'],
-    'MS': ['MAS', 'TBM', 'PER'],
+    'MAS': ['MS', 'TBM', 'PER', 'MSB', 'AJJ'],
+    'MS': ['MAS', 'TBM', 'PER', 'MSB', 'AJJ'],
+    'TBM': ['MAS', 'MS', 'PER', 'MSB', 'AJJ'],
+    
     // Guwahati
-    'GHY': ['KYQ'],
-    'KYQ': ['GHY'],
+    'GHY': ['KYQ', 'NGC'],
+    'KYQ': ['GHY', 'NGC'],
+    
     // Hyderabad
-    'SC': ['HYB', 'KCG'],
-    'HYB': ['SC', 'KCG'],
-    'KCG': ['SC', 'HYB'],
-    // Pune/Surat
-    'PUNE': ['SVJR', 'CCH'],
+    'SC': ['HYB', 'KCG', 'CHZ', 'LPI', 'BMO', 'BMT', 'FM', 'SNF'],
+    'HYB': ['SC', 'KCG', 'CHZ', 'LPI', 'BMO', 'BMT', 'FM', 'SNF'],
+    'KCG': ['SC', 'HYB', 'CHZ', 'LPI', 'BMO', 'BMT', 'FM', 'SNF'],
+    'CHZ': ['SC', 'HYB', 'KCG', 'LPI', 'BMO', 'BMT', 'FM', 'SNF'],
+    
+    // Pune/Surat/Ahmedabad
+    'PUNE': ['SVJR', 'CCH', 'LNL', 'PMP'],
     'ST': ['UDN', 'CHM'],
+    'ADI': ['SBT', 'MAN', 'GNC'],
+    
+    // Patna
+    'PNBE': ['DNR', 'PPTA', 'RJPB', 'PNC'],
+    'DNR': ['PNBE', 'PPTA', 'RJPB', 'PNC'],
+    'PPTA': ['PNBE', 'DNR', 'RJPB', 'PNC'],
+    
+    // Lucknow
+    'LKO': ['LJN', 'ASH', 'GTNR', 'BNZ'],
+    'LJN': ['LKO', 'ASH', 'GTNR', 'BNZ'],
+    
+    // Varanasi / Prayagraj
+    'BSB': ['DDU', 'BSBS', 'MUV', 'BCY'],
+    'DDU': ['BSB', 'BSBS', 'MUV', 'BCY'],
+    'PRYJ': ['PRG', 'NYN', 'SFG', 'BPL'],
+    
+    // Bhubaneswar
+    'BBS': ['KUR', 'CTC', 'BBSN'],
+    
+    // Kanpur / Agra
+    'CNB': ['CPA', 'GOY'],
+    'AGC': ['AF', 'IDH', 'AH'],
+    
     // Jharkhand
     'DHN': ['GMO', 'BKSC', 'CRP', 'ASN'],
     'HTE': ['RNC', 'MURI'],
     'RNC': ['HTE', 'MURI'],
+    
+    // Central hubs
+    'BPL': ['HBJ', 'RKMP', 'ET'],
+    'RKMP': ['BPL', 'HBJ', 'ET'],
+    'NGP': ['NGPK', 'ITR', 'WR'],
+    'JBP': ['MML'],
+    
+    // Kochi / Trivandrum
+    'ERS': ['ERN', 'AWY', 'IPL'],
+    'ERN': ['ERS', 'AWY', 'IPL'],
+    'TVC': ['KCVL', 'TVP'],
 };
 
 export const extractCode = (str: string) => {
