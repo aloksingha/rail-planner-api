@@ -108,9 +108,14 @@ export const getTicketPrice = (
             const matchDestRev = dests.some(d => sourceGroup.includes(d));
 
             if ((matchOrigin && matchDest) || (matchOriginRev && matchDestRev)) {
-                let price = corridor.markupSL;
+                let price = 0;
+                
+                // Note: We intentionally skip corridor.markupSL here to allow SL to 
+                // always fall back to the dynamic time-based formula below, 
+                // UNLESS it was already caught by the manual PriceRequest (Super Admin) above.
                 if (cls === '3A' || cls === '3E' || cls === 'CC') price = corridor.markup3A;
                 if (cls === '2A' || cls === '1A' || cls === 'FC') price = corridor.markup2A;
+                
                 if (price > 0) return price;
             }
         } catch (e) {
