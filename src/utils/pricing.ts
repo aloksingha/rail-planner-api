@@ -109,19 +109,32 @@ export const getTicketPrice = (
     const src = extractCode(srcRaw);
     const dst = extractCode(dstRaw);
 
-    // 1. & 2. Bypassed Fixed/Premium logic for standard classes 
-    // as per user request to enforce global consistency using the formula.
-    // Custom prices (PriceRequests) and Corridor markups are currently ignored
-    // to prevent local price inversions (e.g. short distance > long distance).
-    
-    // 3. Dynamic Corridor Logic - Bypassed for standard classes
-    /*
-    for (const corridor of corridors) {
-        ... (mapping logic)
-    }
-    */
+    // 1. Check for Custom Price Overrides (PriceRequests)
+    const custom = customPrices.find(p => 
+        extractCode(p.source) === src && 
+        extractCode(p.destination) === dst && 
+        p.class === cls &&
+        p.status === 'COMPLETED'
+    );
+    if (custom && custom.suggestedPrice) return Math.round(custom.suggestedPrice);
 
-    // 4. Fractional Formula Logic
+    // 2. Dynamic Corridor Logic
+    for (const corridor of corridors) {
+        try {
+            const origins = JSON.parse(corridor.originStations || '[]');
+            const destinations = JSON.parse(corridor.destinationStations || '[]');
+            
+            if (origins.includes(src) && destinations.includes(dst)) {
+                if (cls === 'SL' && corridor.markupSL > 0) return Math.round(corridor.markupSL);
+                if ((cls === '3A' || cls === '3E' || cls === 'CC') && corridor.markup3A > 0) return Math.round(corridor.markup3A);
+                if ((cls === '2A' || cls === '1A' || cls === 'FC') && corridor.markup2A > 0) return Math.round(corridor.markup2A);
+            }
+        } catch (e) {
+            console.error('[Pricing] Failed to parse corridor stations', e);
+        }
+    }
+
+    // 3. Fractional Formula Logic (Fallback)
     let totalHours = 8;
     if (tTravelTime) {
         const parts = tTravelTime.split(':');
