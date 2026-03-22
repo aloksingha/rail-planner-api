@@ -34,7 +34,7 @@ router.get('/', async (req, res) => {
 });
 
 // Update settings (Super Admin Only)
-router.patch('/', requireAuth, requireRole('SUPER_ADMIN'), async (req, res) => {
+router.patch('/', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
     try {
         const { email, phone, address, whatsapp, facebook, telegram } = req.body;
 
