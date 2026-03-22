@@ -58,7 +58,7 @@ router.patch('/:id/status', requireAuth, requireRole(['SUPER_ADMIN']), async (re
 
     try {
         await prisma.failedBooking.update({
-            where: { id },
+            where: { id: id as string },
             data: { status }
         });
         return res.json({ success: true });
@@ -72,7 +72,7 @@ router.patch('/:id/status', requireAuth, requireRole(['SUPER_ADMIN']), async (re
 router.delete('/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
     const { id } = req.params;
     try {
-        await prisma.failedBooking.delete({ where: { id } });
+        await prisma.failedBooking.delete({ where: { id: id as string } });
         return res.json({ success: true });
     } catch (error: any) {
         console.error('Delete failed booking error:', error);
