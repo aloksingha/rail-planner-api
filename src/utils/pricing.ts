@@ -119,6 +119,7 @@ const resolveToCode = (str: string) => {
         'MUMBAI': 'CSMT',
         'BANGALORE': 'SBC',
         'BENGALURU': 'SBC',
+        'SMVT BENGALURU': 'SMVB',
         'KOLKATA': 'HWH',
         'HOWRAH': 'HWH',
         'GUWAHATI': 'GHY',

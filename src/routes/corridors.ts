@@ -10,8 +10,8 @@ router.post('/seed', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (
         const defaults = [
             {
                 name: "Secunderabad - NJP",
-                originStations: JSON.stringify(["SC", "HYB", "KCG", "CHZ"]),
-                destinationStations: JSON.stringify(["NJP", "SGUJ", "SGUT", "SGU"]),
+                originStations: JSON.stringify(["SC", "HYB", "KCG", "CHZ", "SECUNDERABAD"]),
+                destinationStations: JSON.stringify(["NJP", "SGUJ", "SGUT", "SGU", "NEW JALPAIGURI"]),
                 markupSL: 3000,
                 markup3A: 4500,
                 markup2A: 5500
@@ -23,7 +23,27 @@ router.post('/seed', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (
                 markupSL: 2500,
                 markup3A: 3800,
                 markup2A: 4800
-            }
+            },
+            ...[
+                { name: "Delhi", codes: ["NDLS", "DLI", "NZM", "ANVT", "DEE"] },
+                { name: "Mumbai", codes: ["CSMT", "MMCT", "BDTS", "LTT", "DR", "KYN", "BCT"] },
+                { name: "Secunderabad", codes: ["SC", "HYB", "KCG", "LPI"] },
+                { name: "Bangalore", codes: ["SBC", "YPR", "BNC", "KJM", "SMVB"] },
+                { name: "Kerala", codes: ["ERS", "ERN", "TVC", "KCVL", "SRR", "CLT", "PGT", "KTYM", "CNGR", "QLN"] },
+                { name: "Tamil Nadu", codes: ["MAS", "MS", "MSB", "TBM", "CAPE", "MDU", "CBE", "TPJ"] },
+                { name: "Goa", codes: ["MAO", "VSG", "KRMI"] },
+                { name: "Bhopal", codes: ["BPL", "RKMP"] },
+                { name: "Indore", codes: ["INDB", "DADN"] },
+                { name: "Amritsar", codes: ["ASR"] },
+                { name: "Jammu", codes: ["JAT", "SVDK"] }
+            ].map(dest => ({
+                name: `Kolkata - ${dest.name}`,
+                originStations: JSON.stringify(["HWH", "SDAH", "KOAA", "SHM", "BWN"]),
+                destinationStations: JSON.stringify(dest.codes),
+                markupSL: 3000,
+                markup3A: 4500,
+                markup2A: 5500
+            }))
         ];
 
         let createdCount = 0;
