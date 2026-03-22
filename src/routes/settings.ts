@@ -14,34 +14,48 @@ router.get('/', async (req, res) => {
         // Initialize with defaults if not exists
         if (!settings) {
             settings = await prisma.globalSettings.create({
-                data: { id: 'singleton' }
+                data: {
+                    id: 'singleton',
+                    email: 'support@ticketspro.in',
+                    phone: '1800-123-4567',
+                    address: '123 Express Hub, Tech Park Phase 2, Bengaluru, Karnataka 560100',
+                    whatsapp: '',
+                    facebook: '',
+                    telegram: ''
+                }
             });
         }
 
-        return res.json({ success: true, settings });
-    } catch (error: any) {
-        console.error('Fetch settings error:', error);
-        return res.status(500).json({ error: 'Internal Server Error' });
+        res.json({ success: true, settings });
+    } catch (err) {
+        console.error('Failed to get settings', err);
+        res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });
 
 // Update settings (Super Admin Only)
-router.patch('/', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
-    const { email, phone, address } = req.body;
-
+router.patch('/', requireAuth, requireRole('SUPER_ADMIN'), async (req, res) => {
     try {
+        const { email, phone, address, whatsapp, facebook, telegram } = req.body;
+
         const settings = await prisma.globalSettings.upsert({
             where: { id: 'singleton' },
             update: {
                 email,
                 phone,
-                address
+                address,
+                whatsapp,
+                facebook,
+                telegram
             },
             create: {
                 id: 'singleton',
                 email,
                 phone,
-                address
+                address,
+                whatsapp: whatsapp || '',
+                facebook: facebook || '',
+                telegram: telegram || ''
             }
         });
 

@@ -172,5 +172,8 @@ model GlobalSettings {
   email     String   @default("support@ticketspro.in")
   phone     String   @default("1800-123-4567")
   address   String   @default("123 Express Hub, Tech Park Phase 2, Bengaluru, Karnataka 560100")
+  whatsapp  String   @default("")
+  facebook  String   @default("")
+  telegram  String   @default("")
   updatedAt DateTime @updatedAt
 }
