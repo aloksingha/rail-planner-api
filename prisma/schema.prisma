@@ -177,3 +177,24 @@ model GlobalSettings {
   telegram  String   @default("")
   updatedAt DateTime @updatedAt
 }
+
+model FailedBooking {
+  id           String   @id @default(uuid())
+  name         String
+  email        String
+  mobile       String
+  trainName    String?
+  trainNumber  String?
+  source       String?
+  destination  String?
+  journeyDate  String?
+  class        String?
+  reason       String? // e.g. "Payment Cancelled", "Payment Failed"
+  status       String   @default("PENDING") // PENDING, FOLLOWED_UP, IGNORED
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([email])
+  @@index([mobile])
+}
+

@@ -196,8 +196,8 @@ export const getTicketPrice = (
 
     // Standard Formulas
     const price = (cls === '3A' || cls === '3E' || cls === 'CC') ? Math.round(300 + (80 * totalHours)) :
-                  (cls === '2A' || cls === '1A' || cls === 'FC') ? Math.round(450 + (105 * totalHours)) :
-                  Math.round(600 + (50 * totalHours));
+                   (cls === '2A' || cls === '1A' || cls === 'FC') ? Math.round(450 + (125 * totalHours)) :
+                   Math.round(150 + (35 * totalHours));
 
     console.log(`[PRICING_DEBUG] FALLTHROUGH: Using formula for ${src}->${dst}. Price: ${price}`);
     return price;
