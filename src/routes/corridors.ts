@@ -4,6 +4,44 @@ import { prisma } from '../prisma';
 
 const router = Router();
 
+// Seed default corridors (for production setup)
+router.post('/seed', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+    try {
+        const defaults = [
+            {
+                name: "Secunderabad - NJP",
+                originStations: JSON.stringify(["SC", "HYB", "KCG", "CHZ"]),
+                destinationStations: JSON.stringify(["NJP", "SGUJ", "SGUT", "SGU"]),
+                markupSL: 3000,
+                markup3A: 4500,
+                markup2A: 5500
+            },
+            {
+                name: "Delhi - Mumbai",
+                originStations: JSON.stringify(["NDLS", "DLI", "NZM", "ANVT"]),
+                destinationStations: JSON.stringify(["CSMT", "MMCT", "BDTS", "LTT"]),
+                markupSL: 2500,
+                markup3A: 3800,
+                markup2A: 4800
+            }
+        ];
+
+        let createdCount = 0;
+        for (const d of defaults) {
+            const exists = await prisma.corridorPricing.findFirst({ where: { name: d.name } });
+            if (!exists) {
+                await prisma.corridorPricing.create({ data: d });
+                createdCount++;
+            }
+        }
+
+        return res.json({ success: true, message: `Seeded ${createdCount} new corridors. (Total checked: ${defaults.length})` });
+    } catch (error: any) {
+        console.error('Seed corridors error:', error);
+        return res.status(500).json({ success: false, error: error.message || 'Internal Server Error', stack: error.stack });
+    }
+});
+
 // Get all corridor pricing rules (Legacy alias for public access)
 router.get('/public', async (req, res) => {
     try {

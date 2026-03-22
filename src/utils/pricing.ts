@@ -145,6 +145,8 @@ export const getTicketPrice = (
     const src = resolveToCode(srcRaw);
     const dst = resolveToCode(dstRaw);
 
+    console.log(`[PRICING_DEBUG] START: ${srcRaw} (${src}) -> ${dstRaw} (${dst}) | Class: ${cls} | Corridors: ${corridors.length}`);
+
     // 1. Check for Custom Price Overrides (PriceRequests)
     const custom = customPrices.find(p => 
         resolveToCode(p.source) === src && 
@@ -163,6 +165,8 @@ export const getTicketPrice = (
         try {
             const origins = JSON.parse(corridor.originStations || '[]').map((s: any) => resolveToCode(String(s)));
             const destinations = JSON.parse(corridor.destinationStations || '[]').map((s: any) => resolveToCode(String(s)));
+            
+            console.log(`[PRICING_DEBUG] Corridor ${corridor.name}: Origins=${JSON.stringify(origins)}, Dests=${JSON.stringify(destinations)}`);
             
             const matchForward = origins.includes(src) && destinations.includes(dst);
             const matchReverse = origins.includes(dst) && destinations.includes(src);
@@ -194,5 +198,6 @@ export const getTicketPrice = (
                   (cls === '2A' || cls === '1A' || cls === 'FC') ? Math.round(450 + (105 * totalHours)) :
                   Math.round(600 + (50 * totalHours));
 
+    console.log(`[PRICING_DEBUG] FALLTHROUGH: Using formula for ${src}->${dst}. Price: ${price}`);
     return price;
 };
