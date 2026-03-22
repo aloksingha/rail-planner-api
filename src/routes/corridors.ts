@@ -152,56 +152,8 @@ router.put('/:id', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (re
             }
         });
 
-        // ─── Auto-Sync Vice Versa ────────────────────────────────────────────────
-        // If price fields were updated, find the mirror corridor (swapped origin/dest)
-        // and apply the same prices automatically.
-        let mirrorUpdated = false;
-        if (markupSL !== undefined || markup3A !== undefined || markup2A !== undefined) {
-            try {
-                // Build reverse corridor name (e.g. "DELHI-MUMBAI" → "MUMBAI-DELHI")
-                const parts = corridor.name.split('-');
-                const reverseName = parts.length >= 2 ? `${parts.slice(1).join('-')}-${parts[0]}` : null;
-
-                // First try by reversed name, then by swapped station arrays
-                let mirrorCorridor = null;
-
-                if (reverseName) {
-                    mirrorCorridor = await prisma.corridorPricing.findFirst({
-                        where: { name: reverseName, NOT: { id: corridor.id } }
-                    });
-                }
-
-                // Fallback: match by swapped origin/destination station arrays
-                if (!mirrorCorridor) {
-                    mirrorCorridor = await prisma.corridorPricing.findFirst({
-                        where: {
-                            originStations: corridor.destinationStations,
-                            destinationStations: corridor.originStations,
-                            NOT: { id: corridor.id }
-                        }
-                    });
-                }
-
-                if (mirrorCorridor) {
-                    await prisma.corridorPricing.update({
-                        where: { id: mirrorCorridor.id },
-                        data: {
-                            markupSL: markupSL !== undefined ? parseFloat(markupSL) : undefined,
-                            markup3A: markup3A !== undefined ? parseFloat(markup3A) : undefined,
-                            markup2A: markup2A !== undefined ? parseFloat(markup2A) : undefined
-                        }
-                    });
-                    mirrorUpdated = true;
-                    console.log(`[Corridor] Auto-synced reverse: ${mirrorCorridor.name}`);
-                }
-            } catch (mirrorErr) {
-                // Non-fatal: log but don't fail the main update
-                console.warn('[Corridor] Mirror sync warning:', mirrorErr);
-            }
-        }
-        // ─────────────────────────────────────────────────────────────────────────
-
-        return res.json({ success: true, corridor, mirrorUpdated });
+        // Note: Reverse syncing was removed because bidirectional routing applies dynamically.
+        return res.json({ success: true, corridor, mirrorUpdated: false });
     } catch (error: any) {
         console.error('Update corridor error:', error);
         return res.status(500).json({ error: error.message || 'Internal Server Error' });
