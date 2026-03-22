@@ -122,7 +122,11 @@ const resolveToCode = (str: string) => {
         'KOLKATA': 'HWH',
         'HOWRAH': 'HWH',
         'GUWAHATI': 'GHY',
-        'PATNA': 'PNBE'
+        'PATNA': 'PNBE',
+        'DHANBAD': 'DHN',
+        'RANCHI': 'RNC',
+        'SECUNDERABAD JN': 'SC',
+        'NEW JALPAIGURI JN': 'NJP'
     };
     
     return NAME_TO_CODE[rawClean] || NAME_TO_CODE[raw] || raw;
@@ -164,10 +168,11 @@ export const getTicketPrice = (
             const matchReverse = origins.includes(dst) && destinations.includes(src);
 
             if (matchForward || matchReverse) {
-                console.log(`[Pricing] MATCH Corridor ${corridor.name} for ${src}<->${dst}`);
+                console.log(`[Pricing] MATCH Corridor ${corridor.name} for ${src}<->${dst}. Rules: SL:${corridor.markupSL}, 3A:${corridor.markup3A}, 2A:${corridor.markup2A}`);
                 if (cls === 'SL' && corridor.markupSL > 0) return Math.round(corridor.markupSL);
                 if ((cls === '3A' || cls === '3E' || cls === 'CC') && corridor.markup3A > 0) return Math.round(corridor.markup3A);
                 if ((cls === '2A' || cls === '1A' || cls === 'FC') && corridor.markup2A > 0) return Math.round(corridor.markup2A);
+                console.log(`[Pricing] Match found but class ${cls} has 0 or missing price in corridor rule.`);
             }
         } catch (e) {
             console.error('[Pricing] Failed to parse corridor stations', e);

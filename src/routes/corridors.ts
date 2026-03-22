@@ -4,6 +4,19 @@ import { prisma } from '../prisma';
 
 const router = Router();
 
+// Get all corridor pricing rules (Legacy alias for public access)
+router.get('/public', async (req, res) => {
+    try {
+        const corridors = await prisma.corridorPricing.findMany({
+            orderBy: { name: 'asc' }
+        });
+        return res.json({ success: true, corridors });
+    } catch (error: any) {
+        console.error('Fetch corridors public error:', error);
+        return res.status(500).json({ error: error.message || 'Internal Server Error' });
+    }
+});
+
 // Get all corridor pricing rules
 router.get('/', async (req, res) => {
     try {
