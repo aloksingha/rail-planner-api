@@ -166,3 +166,11 @@ model Coupon {
 
   @@index([code])
 }
+
+model GlobalSettings {
+  id        String   @id @default("singleton")
+  email     String   @default("support@ticketspro.in")
+  phone     String   @default("1800-123-4567")
+  address   String   @default("123 Express Hub, Tech Park Phase 2, Bengaluru, Karnataka 560100")
+  updatedAt DateTime @updatedAt
+}
