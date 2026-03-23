@@ -12,10 +12,10 @@ const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 const TEST_EMAIL = 'test@ticketspro.in';
 
 router.post('/bypass', async (req, res) => {
-    const { email } = req.body;
+    const { email, password } = req.body;
 
-    if (email !== TEST_EMAIL) {
-        return res.status(403).json({ error: 'Bypass only allowed for test account' });
+    if (email !== TEST_EMAIL || password !== 'test1234') {
+        return res.status(403).json({ error: 'Invalid test credentials' });
     }
 
     try {
