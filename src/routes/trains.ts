@@ -178,7 +178,7 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                     train_base: {
                         train_no: t.trainNumber,
                         train_name: t.trainName,
-                        train_type: t.type,
+                        train_type: t.type || t.train_type || t.trainType || 'EXPRESS',
                         from_stn_name: t.sourceStationName,
                         to_stn_name: t.destinationStationName,
                         from_time: formatTime(depMinsBase),

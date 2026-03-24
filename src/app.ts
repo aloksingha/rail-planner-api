@@ -19,6 +19,7 @@ import contactRoutes from './routes/contact';
 import settingsRoutes from './routes/settings';
 import couponRoutes from './routes/coupons';
 import failedBookingRoutes from './routes/failedBookings';
+import adminBookingRoutes from './routes/adminBookings';
 
 const app = express();
 
@@ -48,5 +49,6 @@ app.use('/api/contact', contactRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/failed-bookings', failedBookingRoutes);
+app.use('/api/admin/bookings/manual', adminBookingRoutes);
 
 export default app;
