@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { prisma } from '../prisma';
-import { notifyBookingConfirmed } from './notifications';
+import { notifyBookingConfirmed } from '../services/notificationService';
 
 const router = Router();
 
@@ -30,55 +30,41 @@ router.post('/manual', requireAuth, async (req, res) => {
 
     try {
         const result = await prisma.$transaction(async (tx) => {
-            // 1. Create Event if it doesn't exist (Walk-in specific)
-            let event = await tx.event.findFirst({
-                where: {
-                    trainNo: trainNo,
-                    source: fromStation,
-                    destination: toStation,
-                    date: new Date(journeyDate)
+            // 1. Create Event (Walk-in specific)
+            const event = await tx.event.create({
+                data: {
+                    name: `${trainName || 'Express'} (${trainNo}) - ${fromStation} to ${toStation}`,
+                    description: `Manual booking for ${trainNo} on ${journeyDate} via ${fromStation} to ${toStation}. Class: ${trainClass}. Mobile: ${mobile}`,
+                    date: new Date(journeyDate),
                 }
             });
 
-            if (!event) {
-                event = await tx.event.create({
-                    data: {
-                        name: `${trainName || 'Express'} (${trainNo})`,
-                        trainNo,
-                        source: fromStation,
-                        destination: toStation,
-                        date: new Date(journeyDate),
-                        itinerary: `Manual booking for ${trainNo}`,
-                        priceSleeper: trainClass === 'SLEEPER' ? Number(amount) : 0,
-                        priceAC: (trainClass === 'AC' || trainClass === '3A' || trainClass === '2A') ? Number(amount) : 0,
-                    }
-                });
-            }
+            // 2. Generate a manual payment ID
+            const manualPaymentId = `MOFF_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-            // 2. Create Booking
+            // 3. Create PaymentRecord
+            await tx.paymentRecord.create({
+                data: {
+                    orderId: `MANUAL_${Date.now()}`,
+                    paymentId: manualPaymentId,
+                    amount: Number(amount),
+                    status: 'CAPTURED',
+                    userId: req.user!.userId
+                }
+            });
+
+            // 4. Create Booking
             const booking = await tx.booking.create({
                 data: {
-                    userId: req.user!.userId, // The Sales Manager/Admin who created it
+                    userId: req.user!.userId,
                     eventId: event.id,
-                    status: 'CONFIRMED', // Immediately confirmed
-                    passengers: Number(passengers),
-                    totalPaid: Number(amount)
+                    status: 'CONFIRMED',
+                    paymentId: manualPaymentId,
+                    class: trainClass === 'SLEEPER' ? 'SLEEPER' : 'AC'
                 },
                 include: {
                     event: true,
                     user: { select: { email: true } }
-                }
-            });
-
-            // 3. Create Transaction RECORD (Internal only, no Razorpay ID)
-            await tx.transaction.create({
-                data: {
-                    bookingId: booking.id,
-                    amount: Number(amount),
-                    currency: 'INR',
-                    status: 'SUCCESS',
-                    paymentMethod: 'CASH_OFFLINE', // New payment method indicator
-                    razorpayOrderId: `MANUAL_${Date.now()}`
                 }
             });
 
@@ -87,7 +73,7 @@ router.post('/manual', requireAuth, async (req, res) => {
 
         // Notify (Non-fatal)
         try {
-            await notifyBookingConfirmed(result.id);
+            await notifyBookingConfirmed(result.user.email, result.event.name);
         } catch (err) {
             console.error('Failed to send manual booking notification:', err);
         }
