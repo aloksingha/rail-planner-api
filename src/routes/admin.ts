@@ -691,6 +691,7 @@ router.get('/users', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res)
                 mobile: true,
                 role: true,
                 region: true,
+                status: true,
                 createdAt: true,
                 _count: { select: { bookings: true } }
             }
@@ -698,6 +699,44 @@ router.get('/users', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res)
         return res.json({ success: true, users });
     } catch (error: any) {
         console.error('Fetch all users error:', error);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// ── Super Admin: Update a user's status (Block/Restrict) ────────────────────
+router.patch('/users/:id/status', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+    const id = req.params.id as string;
+    const { status } = req.body;
+
+    const validStatuses = ['ACTIVE', 'BLOCKED', 'RESTRICTED'];
+    if (!status || !validStatuses.includes(status)) {
+        return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
+    }
+
+    // Prevent Super Admin from blocking themselves
+    if (id === req.user!.userId) {
+        return res.status(400).json({ error: 'You cannot block your own account.' });
+    }
+
+    try {
+        const user = await prisma.user.update({
+            where: { id },
+            data: { status },
+            select: { id: true, email: true, status: true }
+        });
+
+        await prisma.auditLog.create({
+            data: {
+                action: 'UPDATE_USER_STATUS',
+                performedByUserId: req.user!.userId,
+                targetUserId: id,
+                details: `Updated status of ${user.email} to ${status}`
+            }
+        });
+
+        return res.json({ success: true, user });
+    } catch (error: any) {
+        console.error('Update status error:', error);
         return res.status(500).json({ error: 'Internal Server Error' });
     }
 });

@@ -35,14 +35,65 @@ router.post('/seed', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (
                 { name: "Bhopal", codes: ["BPL", "RKMP"] },
                 { name: "Indore", codes: ["INDB", "DADN"] },
                 { name: "Amritsar", codes: ["ASR"] },
-                { name: "Jammu", codes: ["JAT", "SVDK"] }
+                { name: "Jammu", codes: ["JAT", "SVDK"] },
+                { name: "Sairang", codes: ["SANG"] }
             ].map(dest => ({
                 name: `Kolkata - ${dest.name}`,
                 originStations: JSON.stringify(["HWH", "SDAH", "KOAA", "SHM", "BWN"]),
                 destinationStations: JSON.stringify(dest.codes),
+                markupSL: dest.name === "Sairang" ? 2000 : 3000,
+                markup3A: dest.name === "Sairang" ? 3000 : 4500,
+                markup2A: dest.name === "Sairang" ? 4000 : 5500
+            })),
+            ...[
+                { name: "Bengaluru", codes: ["SBC", "SMVB", "YPR"] }
+            ].map(dest => ({
+                name: `Gorakhpur - ${dest.name}`,
+                originStations: JSON.stringify(["GKP"]),
+                destinationStations: JSON.stringify(dest.codes),
+                markupSL: 2700,
+                markup3A: 3800,
+                markup2A: 5200
+            })),
+            ...[
+                { name: "Trivandrum", codes: ["TVC", "TVP", "KCVL"] }
+            ].map(dest => ({
+                name: `Gorakhpur - ${dest.name}`,
+                originStations: JSON.stringify(["GKP"]),
+                destinationStations: JSON.stringify(dest.codes),
                 markupSL: 3000,
                 markup3A: 4500,
-                markup2A: 5500
+                markup2A: 5600
+            })),
+            ...[
+                { name: "Hadapsar/Pune", codes: ["HDP", "PUNE"] }
+            ].map(dest => ({
+                name: `Danapur - ${dest.name}`,
+                originStations: JSON.stringify(["DNR", "PNBE"]),
+                destinationStations: JSON.stringify(dest.codes),
+                markupSL: 3000,
+                markup3A: 4500,
+                markup2A: 5600
+            })),
+            ...[
+                { name: "Delhi", codes: ["NDLS", "DLI", "NZM", "ANVT", "DEE", "DEC"] }
+            ].map(dest => ({
+                name: `Pune - ${dest.name}`,
+                originStations: JSON.stringify(["PUNE", "HDP"]),
+                destinationStations: JSON.stringify(dest.codes),
+                markupSL: 3000,
+                markup3A: 4500,
+                markup2A: 5600
+            })),
+            ...[
+                { name: "Jammu Tawi", codes: ["JAT", "SVDK"] }
+            ].map(dest => ({
+                name: `Pune - ${dest.name}`,
+                originStations: JSON.stringify(["PUNE", "HDP"]),
+                destinationStations: JSON.stringify(dest.codes),
+                markupSL: 3000,
+                markup3A: 4500,
+                markup2A: 5600
             }))
         ];
 

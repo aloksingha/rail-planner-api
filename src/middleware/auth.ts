@@ -31,8 +31,24 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction) => 
     const token = authHeader.split(' ')[1];
     try {
         const payload = jwt.verify(token, JWT_SECRET) as JwtPayload;
-        req.user = payload;
-        next();
+        
+        // Critical: Check user status in DB for real-time blocking
+        import('../prisma').then(async ({ prisma }) => {
+            const user = await prisma.user.findUnique({
+                where: { id: payload.userId },
+                select: { status: true }
+            });
+
+            if (!user || user.status === 'BLOCKED') {
+                return res.status(403).json({ error: 'Your account has been blocked. Please contact support.' });
+            }
+
+            req.user = payload;
+            next();
+        }).catch(err => {
+            console.error('Auth status check error:', err);
+            res.status(500).json({ error: 'Internal Server Error' });
+        });
     } catch (err) {
         return res.status(401).json({ error: 'Invalid token' });
     }

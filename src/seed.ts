@@ -9,11 +9,12 @@ const S: Record<string, string[]> = {
     KOLKATA:   ['HWH','KOAA','SDAH','BDC','KGP','SHM'],
     NORTH_BENGAL: ['MLDT','NFK','RPH','BOE','KNE','AUB','RGJ','NJP','SGUJ','RDP','KIR','SM'],
     HYDERABAD: ['HYB','SC','KI','NED','BMO'],
-    PATNA:     ['PNBE','DNR','PAT','RJPB','BKP'],
+    PATNA:     ['PNBE','DNR','PAT','RJPB','BKP','BJU','DBG'],
+    SAHARSA:   ['SHC'],
     LUCKNOW:   ['LKO','LJN','BMK','ASH'],
     JAIPUR:    ['JP','JPF','SOJT'],
     AMRITSAR:  ['ASR','ASR1'],
-    PUNE:      ['PUNE','GC','DND','LNL'],
+    PUNE:      ['PUNE','GC','DND','LNL','HDP'],
     AHMEDABAD: ['ADI','ST','BRC','VDR'],
     BHOPAL:    ['BPL','HBJ','ET'],
     NAGPUR:    ['NGP','NGPK','BSL'],
@@ -36,6 +37,8 @@ const S: Record<string, string[]> = {
     DEHRADUN:  ['DDN'],
     GOA:       ['VSG','MAO','KRMI','THVM'],
     RANCHI:    ['RNC','HTE'],
+    SAIRANG:   ['SANG'],
+    GORAKHPUR: ['GKP'],
 };
 
 // ─── Routes: [from, to, name, sl, 3a, 2a] — Long Distance Only (600km+) ──────
@@ -51,13 +54,6 @@ const ROUTES: [string, string, string, number, number, number][] = [
     ['DELHI','LUCKNOW','DELHI-LUCKNOW',500,900,1200],
     ['DELHI','BHUBANESWAR','DELHI-BHUBANESWAR',2000,3200,3800],
     ['DELHI','AHMEDABAD','DELHI-AHMEDABAD',900,1500,1900],
-    ['DELHI','PUNE','DELHI-PUNE',1600,2600,3200],
-    ['DELHI','BHOPAL','DELHI-BHOPAL',700,1200,1600],
-    ['DELHI','NAGPUR','DELHI-NAGPUR',1300,2100,2600],
-    ['DELHI','VARANASI','DELHI-VARANASI',650,1100,1450],
-    ['DELHI','VISAKHAPATNAM','DELHI-VISAKHAPATNAM',2300,3700,4400],
-    ['DELHI','JAMMU','DELHI-JAMMU',650,1100,1450],
-    ['DELHI','LUDHIANA','DELHI-LUDHIANA',350,620,820],
     ['DELHI','PATHANKOT','DELHI-PATHANKOT',500,880,1150],
     // Mumbai Hub — Long Distance
     ['MUMBAI','CHENNAI','MUMBAI-CHENNAI',1100,2000,2400],
@@ -120,6 +116,34 @@ const ROUTES: [string, string, string, number, number, number][] = [
     ['AHMEDABAD','BHOPAL','AHMEDABAD-BHOPAL',650,1100,1400],
     ['LUCKNOW','PATNA','LUCKNOW-PATNA',600,1050,1350],
     ['PATNA','VARANASI','PATNA-VARANASI',600,1050,1350],
+    ['AHMEDABAD','PATNA','AHMEDABAD-PATNA',2700,4000,4600],
+    ['AHMEDABAD','SAHARSA','AHMEDABAD-SAHARSA',2800,4100,4700],
+    ['AHMEDABAD','GUWAHATI','AHMEDABAD-GUWAHATI',3200,5400,6400],
+    ['KOLKATA','SAIRANG','KOLKATA-SAIRANG',2000,3000,4000],
+    ['GUWAHATI','SAIRANG','GHY-SAIRANG',2000,3000,4000],
+    ['NORTH_BENGAL','SAIRANG','NB-SAIRANG',2000,3000,4000],
+    ['GORAKHPUR','BANGALORE','GKP-BANGALORE',2700,3800,5200],
+    ['LUCKNOW','BANGALORE','LKO-BANGALORE',2700,3800,5200],
+    ['BHOPAL','BANGALORE','BPL-BANGALORE',2700,3800,5200],
+    ['NAGPUR','BANGALORE','NGP-BANGALORE',2700,3800,5200],
+    ['HYDERABAD','BANGALORE','HYD-BANGALORE',2700,3800,5200],
+    ['GORAKHPUR','THIRUVANANTHAPURAM','GKP-TVC',3000,4500,5600],
+    ['LUCKNOW','THIRUVANANTHAPURAM','LKO-TVC',3000,4500,5600],
+    ['NAGPUR','THIRUVANANTHAPURAM','NGP-TVC',3000,4500,5600],
+    ['CHENNAI','THIRUVANANTHAPURAM','MAS-TVC',3000,4500,5600],
+    ['PATNA','PUNE','PATNA-PUNE',3000,4500,5600],
+    ['PATNA','PATNA','DNR-HDP',3000,4500,5600],
+    ['VARANASI','PUNE','DDU-PUNE',3000,4500,5600],
+    ['BHOPAL','PUNE','ET-PUNE',3000,4500,5600],
+    ['PUNE','DELHI','PUNE-DELHI',3000,4500,5600],
+    ['BHOPAL','DELHI','BPL-DELHI',3000,4500,5600],
+    ['NAGPUR','DELHI','NGP-DELHI',3000,4500,5600],
+    ['VARANASI','DELHI','VNS-DELHI',3000,4500,5600],
+    ['DELHI','JAMMU','DELHI-JAMMU',3000,4500,5600],
+    ['DELHI','LUDHIANA','DELHI-LDH',3000,4500,5600],
+    ['DELHI','VISAKHAPATNAM','DELHI-VSKP',3000,4500,5600],
+    ['PUNE','JAMMU','PUNE-JAMMU',3000,4500,5600],
+    ['PUNE','PUNE','PUNE-JAMMU-EXT',3000,4500,5600],
 ];
 
 // ─── Build full list with vice-versa ──────────────────────────────────────────
@@ -144,42 +168,56 @@ function buildAllCorridors() {
 // ─── Seed Function ──────────────────────────────────────────────────────────
 export async function seedCorridors() {
     try {
-        console.log('[Seed] Syncing all Indian train corridor prices...');
+        const forceSync = process.env.SYNC_CORRIDORS === 'true';
         
-        // Pre-flight connection check
-        await prisma.$connect();
-        console.log('[Seed] Connection established.');
-
-        const corridors = buildAllCorridors();
-
-        let added = 0;
-        let updated = 0;
-        for (const c of corridors) {
-            try {
-                await prisma.corridorPricing.upsert({
-                    where: { name: c.name },
-                    update: {
-                        originStations: c.origins,
-                        destinationStations: c.dests,
-                        markupSL: c.sl,
-                        markup3A: c.a3,
-                        markup2A: c.a2,
-                    },
-                    create: {
-                        name: c.name,
-                        originStations: c.origins,
-                        destinationStations: c.dests,
-                        markupSL: c.sl,
-                        markup3A: c.a3,
-                        markup2A: c.a2,
-                    }
-                });
-                added++;
-            } catch (e: any) {
-                console.warn(`[Seed] Failed ${c.name}: ${e.message}`);
-            }
+        // 1. Check if we already have data (Avoid redundant heavy sync on every nodemon restart)
+        const count = await prisma.corridorPricing.count();
+        if (count > 0 && !forceSync) {
+            console.log(`[Seed] Corridor pricing already initialized (${count} rules). Skipping sync. (Use SYNC_CORRIDORS=true to force)`);
+            return;
         }
-        console.log(`[Seed] Done! Processed ${added} corridor pricing rules.`);
+
+        console.log('[Seed] Syncing all Indian train corridor prices...');
+        await prisma.$connect();
+        
+        const corridors = buildAllCorridors();
+        const startTime = Date.now();
+
+        // 2. Parallelize with chunks (to avoid saturating DB connections)
+        const CHUNK_SIZE = 15;
+        let added = 0;
+        
+        for (let i = 0; i < corridors.length; i += CHUNK_SIZE) {
+            const chunk = corridors.slice(i, i + CHUNK_SIZE);
+            await Promise.all(chunk.map(async (c) => {
+                try {
+                    await prisma.corridorPricing.upsert({
+                        where: { name: c.name },
+                        update: {
+                            originStations: c.origins,
+                            destinationStations: c.dests,
+                            markupSL: c.sl,
+                            markup3A: c.a3,
+                            markup2A: c.a2,
+                        },
+                        create: {
+                            name: c.name,
+                            originStations: c.origins,
+                            destinationStations: c.dests,
+                            markupSL: c.sl,
+                            markup3A: c.a3,
+                            markup2A: c.a2,
+                        }
+                    });
+                    added++;
+                } catch (e: any) {
+                    console.warn(`[Seed] Failed ${c.name}: ${e.message}`);
+                }
+            }));
+        }
+
+        const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+        console.log(`[Seed] Done! Sync completed in ${duration}s. Total rules: ${added}`);
     } catch (err) {
         console.error('[Seed] Corridor seed error:', err);
     }

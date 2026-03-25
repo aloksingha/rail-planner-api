@@ -7,8 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
-
 model User {
   id           String          @id @default(uuid())
   email        String          @unique
@@ -17,6 +15,7 @@ model User {
   mobile       String?
   role         String          @default("CUSTOMER")
   region       String?         // Applicable for SALES_MANAGER
+  status       String          @default("ACTIVE") // ACTIVE, BLOCKED, RESTRICTED
   createdAt    DateTime        @default(now())
   
   createdByUserId String?
@@ -197,4 +196,3 @@ model FailedBooking {
   @@index([email])
   @@index([mobile])
 }
-
