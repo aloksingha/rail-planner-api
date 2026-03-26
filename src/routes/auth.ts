@@ -9,7 +9,7 @@ const router = Router();
 // Load the Google Client ID from environment or use a dummy placeholder
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '104332986423-dummy-client-id.apps.googleusercontent.com';
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
-const TEST_EMAIL = 'test@ticketspro.in';
+const TEST_EMAIL = 'test@railplanner.in';
 
 router.post('/bypass', async (req, res) => {
     const { email, password } = req.body;
@@ -73,7 +73,7 @@ router.post('/google', async (req, res) => {
         // Capture name with fallbacks
         const name = payload.name || 
                      (payload.given_name ? `${payload.given_name} ${payload.family_name || ''}`.trim() : null);
-        const INITIAL_SUPER_ADMINS = ['alokjnv.singha3@gmail.com', 'admin@ticketspro.in'];
+        const INITIAL_SUPER_ADMINS = ['alokjnv.singha3@gmail.com', 'admin@railplanner.in'];
 
         // 2. Map existing user or Register
         console.time('[Auth] DB Upsert');
