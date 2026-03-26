@@ -13,6 +13,29 @@ router.post('/', async (req, res) => {
     }
 
     try {
+        // Deduplication: Check if a similar failure was recorded in the last 15 minutes
+        const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+        const existing = await prisma.failedBooking.findFirst({
+            where: {
+                mobile,
+                trainNumber,
+                journeyDate,
+                createdAt: { gte: fifteenMinutesAgo }
+            }
+        });
+
+        if (existing) {
+            console.log(`[FailedBooking] Updating existing record ${existing.id} instead of creating duplicate.`);
+            const updated = await prisma.failedBooking.update({
+                where: { id: existing.id },
+                data: { 
+                    reason: reason || existing.reason, // Use new reason if provided
+                    updatedAt: new Date()
+                }
+            });
+            return res.json({ success: true, id: updated.id, updated: true });
+        }
+
         const failedBooking = await prisma.failedBooking.create({
             data: {
                 name,

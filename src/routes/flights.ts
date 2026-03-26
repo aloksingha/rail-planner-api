@@ -10,6 +10,10 @@ const SKYSCRAPPER_HEADERS = {
     'x-rapidapi-key': RAPIDAPI_KEY,
 };
 
+// SIMPLE IN-MEMORY CACHE for Flight Search
+const flightCache = new Map<string, { data: any, expiry: number }>();
+const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+
 /**
  * Confirmed SkyScanner response structure (from live API test):
  *  response.data = { context, itineraries, filterStats, flightsSessionId, ... }
@@ -196,6 +200,13 @@ router.get('/search', async (req: Request, res: Response) => {
             });
         }
 
+        const cacheKey = `${sourceCode}-${destCode}-${date}-${adults}-${cabinClass}-${tripType}`;
+        const cached = flightCache.get(cacheKey);
+        if (cached && cached.expiry > Date.now()) {
+            console.log(`[FlightCache] HIT for ${cacheKey}`);
+            return res.json(cached.data);
+        }
+
         const results = filteredItineraries.map((it: any) => {
             const price = Math.round(it.price?.raw || 0);
             const leg = it.legs?.[0] || {};
@@ -229,7 +240,11 @@ router.get('/search', async (req: Request, res: Response) => {
         // Backend sort as fallback
         if (sortBy === 'price') results.sort((a: any, b: any) => a.price - b.price);
 
-        return res.json({ success: true, count: results.length, data: results, isMock });
+        const finalResponse = { success: true, count: results.length, data: results, isMock };
+        if (!isMock) {
+            flightCache.set(cacheKey, { data: finalResponse, expiry: Date.now() + CACHE_TTL });
+        }
+        return res.json(finalResponse);
     } catch (error: any) {
         console.error('[FlightSearch] Fatal Error:', error);
         return res.status(500).json({ success: false, error: 'Internal server error' });

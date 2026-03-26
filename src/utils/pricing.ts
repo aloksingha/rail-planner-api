@@ -159,6 +159,12 @@ export const getTicketPrice = (
         console.log(`[Pricing] MATCH Custom Price for ${src}->${dst} (${cls}): ${custom.suggestedPrice}`);
         return Math.round(custom.suggestedPrice);
     }
+    // 1.5. Premium Train Check (Price on Request) - Prioritize over Corridors
+    const isPremiumTrain = tName ? /(satabdi|shatabdi|rajdhani|vande\s*bharat|duronto|amrit\s*bharat|tejas|gatiman)/i.test(tName) : false;
+    if (isPremiumTrain) {
+        console.log(`[Pricing] Premium Train detected: ${tName}. Returning 0 for 'Price on Request'.`);
+        return 0;
+    }
 
     // 2. Dynamic Corridor Logic
     console.log(`[Pricing] Checking Corridors for ${src} -> ${dst} (${cls}). Count: ${corridors.length}`);

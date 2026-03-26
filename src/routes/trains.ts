@@ -21,7 +21,8 @@ const formatTravelTime = (minutes: number) => {
 
 // SIMPLE IN-MEMORY CACHE for Train Search
 const trainCache = new Map<string, { data: any, expiry: number }>();
-const CACHE_TTL = 0; // Disabled for real-time testing
+const scheduleCache = new Map<string, { data: any, expiry: number }>();
+const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
 import { NEARBY_STATIONS, getTicketPrice } from '../utils/pricing';
 import { prisma } from '../prisma';
@@ -208,6 +209,12 @@ router.get('/schedule/:trainNo', async (req: Request, res: Response) => {
     try {
         const { trainNo } = req.params;
 
+        const cached = scheduleCache.get(String(trainNo));
+        if (cached && cached.expiry > Date.now()) {
+            console.log(`[ScheduleCache] HIT for ${trainNo}`);
+            return res.json({ success: true, data: cached.data });
+        }
+
         const maxRetries = 3;
         let lastError: any = null;
         let scheduleData: any = [];
@@ -242,6 +249,7 @@ router.get('/schedule/:trainNo', async (req: Request, res: Response) => {
             isHalt: stop.isHalt
         }));
 
+        scheduleCache.set(String(trainNo), { data: adaptedSchedule, expiry: Date.now() + (24 * 60 * 60 * 1000) }); // Cache schedules for 24 hours
         return res.json({ success: true, data: adaptedSchedule });
 
     } catch (error: any) {
