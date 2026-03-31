@@ -201,62 +201,65 @@ router.get('/stats', requireAuth, async (req, res) => {
     }
 
     try {
-        if (role === 'SUPER_ADMIN') {
-            const [superAdmins, admins, salesMgrs, customers, todayAC, todaySL, totalAC, totalSL] = await Promise.all([
+        const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
+
+        if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
+            const userWhere = role === 'ADMIN' ? { createdByUserId: userId, role: 'SALES_MANAGER' } : {};
+            const bookingWhere = role === 'ADMIN' ? { user: { createdByUserId: userId } } : {};
+            const paymentWhere = role === 'ADMIN' ? { user: { createdByUserId: userId } } : {};
+
+            const [
+                superAdmins, admins, salesMgrs, customers,
+                todayBookings, totalBookings, payments
+            ] = await Promise.all([
                 prisma.user.count({ where: { role: 'SUPER_ADMIN' } }),
                 prisma.user.count({ where: { role: 'ADMIN' } }),
                 prisma.user.count({ where: { role: 'SALES_MANAGER' } }),
                 prisma.user.count({ where: { role: 'CUSTOMER' } }),
-                // Today's Bookings by class
-                prisma.booking.count({
-                    where: {
-                        class: 'AC',
-                        createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) }
-                    }
-                }),
-                prisma.booking.count({
-                    where: {
-                        class: 'SLEEPER',
-                        createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) }
-                    }
-                }),
-                // Total Bookings by class
-                prisma.booking.count({ where: { class: 'AC' } }),
-                prisma.booking.count({ where: { class: 'SLEEPER' } })
+                prisma.booking.count({ where: { ...bookingWhere, createdAt: { gte: todayStart } } }),
+                prisma.booking.count({ where: bookingWhere }),
+                prisma.paymentRecord.findMany({
+                    where: { ...paymentWhere, status: 'CAPTURED' },
+                    orderBy: { createdAt: 'desc' },
+                    take: 50 // Last 50 for timeline
+                })
             ]);
 
+            const todayAmount = payments
+                .filter(p => p.createdAt >= todayStart)
+                .reduce((sum, p) => sum + p.amount, 0);
+
+            // Group by day for simple timeline
+            const timelineMap: Record<string, number> = {};
+            payments.forEach(p => {
+                const dateKey = p.createdAt.toISOString().split('T')[0];
+                timelineMap[dateKey] = (timelineMap[dateKey] || 0) + 1;
+            });
+            const timeline = Object.entries(timelineMap)
+                .map(([date, count]) => ({ date, count }))
+                .sort((a, b) => a.date.localeCompare(b.date));
+
             const statsData = {
+                userCount: superAdmins + admins + salesMgrs + customers,
+                todayBookings,
+                bookingCount: totalBookings,
+                todayAmount,
+                timeline,
                 SUPER_ADMIN: superAdmins,
                 ADMIN: admins,
                 SALES_MANAGER: salesMgrs,
-                CUSTOMER: customers,
-                todayAC,
-                todaySL,
-                totalAC,
-                totalSL
+                CUSTOMER: customers
             };
-            statsCache.set(cacheKey, { data: statsData, expiry: Date.now() + STATS_CACHE_TTL });
-            return res.json(statsData);
-        }
-
-        if (role === 'ADMIN') {
-            const salesMgrCount = await prisma.user.count({ where: { createdByUserId: userId, role: 'SALES_MANAGER' } });
-            const statsData = { salesMgrCount };
             statsCache.set(cacheKey, { data: statsData, expiry: Date.now() + STATS_CACHE_TTL });
             return res.json(statsData);
         }
 
         if (role === 'SALES_MANAGER') {
             const [todayCount, totalCount] = await Promise.all([
-                prisma.booking.count({
-                    where: {
-                        userId: userId,
-                        createdAt: { gte: new Date(new Date().setHours(0, 0, 0, 0)) }
-                    }
-                }),
-                prisma.booking.count({ where: { userId: userId } })
+                prisma.booking.count({ where: { userId, createdAt: { gte: todayStart } } }),
+                prisma.booking.count({ where: { userId } })
             ]);
-            const statsData = { todayCount, totalCount };
+            const statsData = { todayBookings: todayCount, bookingCount: totalCount, timeline: [] };
             statsCache.set(cacheKey, { data: statsData, expiry: Date.now() + STATS_CACHE_TTL });
             return res.json(statsData);
         }
