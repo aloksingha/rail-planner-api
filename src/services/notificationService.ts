@@ -6,12 +6,12 @@ const transporter = nodemailer.createTransport({
     port: 465,
     secure: true,
     auth: {
-        user: process.env.ZOHO_MAIL_USER || 'noreply@ticketspro.in',
+        user: process.env.ZOHO_MAIL_USER || 'noreply@railplanner.in',
         pass: process.env.ZOHO_MAIL_PASSWORD || '',
     },
 });
 
-const FROM = `"Tickets Pro" <${process.env.ZOHO_MAIL_USER || 'noreply@ticketspro.in'}>`;
+const FROM = `"Rail Planner" <${process.env.ZOHO_MAIL_USER || 'noreply@railplanner.in'}>`;
 
 // ─── Booking Confirmed ────────────────────────────────────────────────────────
 export const notifyBookingConfirmed = async (email: string, eventName: string) => {
@@ -19,7 +19,7 @@ export const notifyBookingConfirmed = async (email: string, eventName: string) =
         await transporter.sendMail({
             from: FROM,
             to: email,
-            subject: '✅ Booking Confirmed — Tickets Pro',
+            subject: '✅ Booking Confirmed — Rail Planner',
             html: `
 <!DOCTYPE html>
 <html>
@@ -29,7 +29,7 @@ export const notifyBookingConfirmed = async (email: string, eventName: string) =
       <table width="560" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:16px;border:1px solid #1e3a5f;overflow:hidden;">
         <!-- Header -->
         <tr>
-          <td style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:32px;text-align:center;">
+          <td style="background:linear-gradient(135deg,#0d9488,#0ea5e9);padding:32px;text-align:center;">
             <div style="font-size:32px;">🎫</div>
             <h1 style="color:#fff;margin:8px 0 0;font-size:24px;font-weight:900;letter-spacing:-0.5px;">Booking Confirmed!</h1>
             <p style="color:rgba(255,255,255,0.8);margin:6px 0 0;font-size:14px;">Your train ticket is booked successfully.</p>
@@ -47,7 +47,7 @@ export const notifyBookingConfirmed = async (email: string, eventName: string) =
               Please carry a valid photo ID during your journey.
             </p>
             <div style="text-align:center;">
-              <a href="https://ticketspro.in/bookings" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:700;font-size:15px;display:inline-block;">
+              <a href="https://railplanner.in/bookings" style="background:linear-gradient(135deg,#0d9488,#0ea5e9);color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:700;font-size:15px;display:inline-block;">
                 View My Bookings →
               </a>
             </div>
@@ -56,7 +56,7 @@ export const notifyBookingConfirmed = async (email: string, eventName: string) =
         <!-- Footer -->
         <tr>
           <td style="padding:20px 32px;border-top:1px solid #1e293b;text-align:center;">
-            <p style="color:#475569;font-size:12px;margin:0;">© 2026 Tickets Pro · <a href="https://ticketspro.in" style="color:#6366f1;text-decoration:none;">ticketspro.in</a></p>
+            <p style="color:#475569;font-size:12px;margin:0;">© 2026 Rail Planner · <a href="https://railplanner.in" style="color:#0ea5e9;text-decoration:none;">railplanner.in</a></p>
             <p style="color:#334155;font-size:11px;margin:6px 0 0;">This is an automated email. Please do not reply.</p>
           </td>
         </tr>
@@ -78,7 +78,7 @@ export const notifyBookingCancelled = async (email: string, reason: string) => {
         await transporter.sendMail({
             from: FROM,
             to: email,
-            subject: '❌ Booking Cancelled — Tickets Pro',
+            subject: '❌ Booking Cancelled — Rail Planner',
             html: `
 <!DOCTYPE html>
 <html>
@@ -105,8 +105,8 @@ export const notifyBookingCancelled = async (email: string, reason: string) => {
               If you believe this is an error or need further assistance, please contact our support team.
             </p>
             <div style="text-align:center;">
-              <a href="https://ticketspro.in" style="background:linear-gradient(135deg,#dc2626,#991b1b);color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:700;font-size:15px;display:inline-block;">
-                Return to Tickets Pro →
+              <a href="https://railplanner.in" style="background:linear-gradient(135deg,#dc2626,#991b1b);color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:700;font-size:15px;display:inline-block;">
+                Return to Rail Planner →
               </a>
             </div>
           </td>
@@ -114,7 +114,7 @@ export const notifyBookingCancelled = async (email: string, reason: string) => {
         <!-- Footer -->
         <tr>
           <td style="padding:20px 32px;border-top:1px solid #1e293b;text-align:center;">
-            <p style="color:#475569;font-size:12px;margin:0;">© 2026 Tickets Pro · <a href="https://ticketspro.in" style="color:#6366f1;text-decoration:none;">ticketspro.in</a></p>
+            <p style="color:#475569;font-size:12px;margin:0;">© 2026 Rail Planner · <a href="https://railplanner.in" style="color:#0ea5e9;text-decoration:none;">railplanner.in</a></p>
             <p style="color:#334155;font-size:11px;margin:6px 0 0;">This is an automated email. Please do not reply.</p>
           </td>
         </tr>
