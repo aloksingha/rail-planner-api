@@ -89,38 +89,36 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         // 1. Primary Direct Search
         let allRemoteTrains = await fetchRemote(from as string, to as string, false);
 
-        // 2. Proximity Search if needed (mirroring client-side logic)
-        const sourceAlts = [from as string, ...(NEARBY_STATIONS[from as string] || [])];
-        const destAlts = [to as string, ...(NEARBY_STATIONS[to as string] || [])];
+        // 2. Proximity Search - ALWAYS include top 2 nearby stations to give more options
+        const sourceAlts = [from as string, ...(NEARBY_STATIONS[from as string] || [])].slice(0, 3);
+        const destAlts = [to as string, ...(NEARBY_STATIONS[to as string] || [])].slice(0, 3);
 
-        if (allRemoteTrains.length === 0) {
-            console.log(`[TrainSearch] No direct trains for ${from}->${to}. Expanding to proximity stations...`);
-            
-            // Collect all pairs to search
-            const pairs: {s: string, d: string}[] = [];
-            for (const s of sourceAlts) {
-                for (const d of destAlts) {
-                    if (s === from && d === to) continue;
-                    pairs.push({s, d});
-                }
+        const pairs: {s: string, d: string}[] = [];
+        for (const s of sourceAlts) {
+            for (const d of destAlts) {
+                if (s === from && d === to) continue;
+                pairs.push({s, d});
             }
-
-            // Execute proximity searches sequentially or in small batches to avoid 429s
-            console.log(`[TrainSearch] Executing ${pairs.length} proximity pairs...`);
-            const fallbackResults = [];
-            for (const pair of pairs) {
-                try {
-                    // Small delay to prevent bursting too many requests
-                    await new Promise(resolve => setTimeout(resolve, 100));
-                    const results = await fetchRemote(pair.s, pair.d, true);
-                    fallbackResults.push(...results);
-                } catch (e) {
-                    console.warn(`[TrainSearch] Proximity fail for ${pair.s}->${pair.d}: ${e.message}`);
-                    // Continue to next pair instead of failing everything
-                }
-            }
-            allRemoteTrains = fallbackResults;
         }
+
+        console.log(`[TrainSearch] Proactively searching ${pairs.length} proximity pairs...`);
+        
+        // Execute fallback searches in parallel for better performance
+        const fallbackResults: any[] = [];
+        const proximityResults = await Promise.allSettled(
+            pairs.map(pair => fetchRemote(pair.s, pair.d, true))
+        );
+
+        proximityResults.forEach((res, idx) => {
+            if (res.status === 'fulfilled') {
+                fallbackResults.push(...res.value);
+            } else {
+                console.warn(`[TrainSearch] Proximity pair ${pairs[idx].s}->${pairs[idx].d} failed: ${res.reason?.message}`);
+            }
+        });
+
+        // Combine nearby and direct results (Direct results at the end so they overwrite alternative ones in the Map)
+        allRemoteTrains = [...fallbackResults, ...allRemoteTrains];
 
         const adaptedTrains = allRemoteTrains
             .filter((t: any) => {
