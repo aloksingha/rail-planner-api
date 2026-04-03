@@ -4,6 +4,10 @@ import { prisma } from '../prisma';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key';
 
+if (process.env.NODE_ENV === 'production' && JWT_SECRET === 'super-secret-jwt-key') {
+    console.warn('⚠️ WARNING: Using fallback JWT_SECRET in production. Ensure JWT_SECRET is set in environment variables!');
+}
+
 export interface JwtPayload {
     userId: string;
     email: string;
