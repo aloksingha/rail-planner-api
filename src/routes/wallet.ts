@@ -100,4 +100,33 @@ router.post('/admin/adjust', requireAuth, requireRole(['SUPER_ADMIN']), async (r
     }
 });
 
+/**
+ * GET /api/wallet/admin/all-transactions
+ * Super Admin only: Fetch all wallet transactions across the platform.
+ */
+router.get('/admin/all-transactions', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+    try {
+        const transactions = await prisma.walletTransaction.findMany({
+            orderBy: { createdAt: 'desc' },
+            include: { user: { select: { name: true, email: true } } },
+            take: 100
+        });
+
+        // Calculate platform liability
+        const users = await prisma.user.findMany({
+            select: { walletBalance: true }
+        });
+        const totalLiability = users.reduce((sum, u) => sum + u.walletBalance, 0);
+
+        return res.json({
+            transactions,
+            totalLiability,
+            totalTransactions: transactions.length
+        });
+    } catch (error: any) {
+        console.error('All-transactions error:', error);
+        return res.status(500).json({ error: 'Internal Server Error fetching transactions' });
+    }
+});
+
 export default router;
