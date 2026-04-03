@@ -64,8 +64,9 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
 };
 
 export const requireRole = (roles: string[]) => {
+    const normalizedRoles = roles.map(r => r.toUpperCase());
     return (req: Request, res: Response, next: NextFunction) => {
-        if (!req.user || !roles.includes(req.user.role)) {
+        if (!req.user || !normalizedRoles.includes(req.user.role.toUpperCase())) {
             return res.status(403).json({ error: 'Forbidden: Insufficient role' });
         }
         next();
