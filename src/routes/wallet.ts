@@ -92,7 +92,11 @@ router.post('/admin/adjust', requireAuth, requireRole(['SUPER_ADMIN']), async (r
         });
     } catch (error: any) {
         console.error('Wallet adjustment error:', error);
-        return res.status(500).json({ error: error.message || 'Internal Server Error' });
+        // Ensure we send a proper JSON error even for transaction failures
+        const errorMessage = error.message || 'Internal Server Error during transaction';
+        return res.status(error.status || 500).json({ 
+            error: errorMessage
+        });
     }
 });
 
