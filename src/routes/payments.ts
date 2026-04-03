@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
+import { requireActiveUser } from '../middleware/restrict';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import { prisma } from '../prisma';
-import { notifyBookingConfirmed } from '../services/notificationService';
+import { notifyBookingConfirmed, notifyPaymentReceived } from '../services/notificationService';
 
 const router = Router();
 
@@ -12,34 +13,11 @@ const razorpay = new Razorpay({
     key_secret: process.env.RAZORPAY_KEY_SECRET as string,
 });
 
-router.post('/create-order', requireAuth, async (req, res) => {
-    const { amount } = req.body;
-    if (!amount) return res.status(400).json({ error: 'Missing amount' });
-
-    try {
-        const options = {
-            amount: Math.round(amount * 100), // amount in the smallest currency unit (paise)
-            currency: "INR",
-            receipt: `rcpt_${Date.now().toString().slice(-8)}_${req.user!.userId.substring(0, 6)}`
-        };
-
-        const order = await razorpay.orders.create(options);
-        return res.json({ orderId: order.id, amount: order.amount, currency: order.currency });
-    } catch (error: any) {
-        console.error('Razorpay create order error:', JSON.stringify(error, null, 2), error);
-        return res.status(500).json({ error: 'Failed to create order', details: error });
-    }
-});
-
-router.post('/verify', requireAuth, async (req, res) => {
+router.post('/wallet-pay', requireAuth, requireActiveUser, async (req, res) => {
     const {
-        razorpay_order_id,
-        razorpay_payment_id,
-        razorpay_signature,
-        eventId,
         amount,
+        eventId,
         trainClass,
-        // Walk-in booking details to auto-create Event if needed
         trainNo,
         trainName,
         fromStation,
@@ -49,60 +27,65 @@ router.post('/verify', requireAuth, async (req, res) => {
         mobile
     } = req.body;
 
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-        return res.status(400).json({ error: 'Missing payment verification details' });
-    }
-
-    const expectedSignature = crypto
-        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || 'dummy_test_secret_67890')
-        .update(razorpay_order_id + "|" + razorpay_payment_id)
-        .digest('hex');
-
-    if (expectedSignature !== razorpay_signature) {
-        return res.status(400).json({ error: 'Invalid signature' });
+    if (!amount || amount <= 0) {
+        return res.status(400).json({ error: 'Invalid amount' });
     }
 
     try {
         await prisma.$transaction(async (tx) => {
-            const existingPayment = await tx.paymentRecord.findUnique({
-                where: { paymentId: razorpay_payment_id }
+            // 1. Check & Deduct Balance
+            const user = await tx.user.findUnique({
+                where: { id: req.user!.userId },
+                select: { id: true, walletBalance: true, email: true, mobile: true }
             });
-            if (existingPayment) throw new Error('Payment already verified');
 
-            await tx.paymentRecord.create({
+            if (!user || user.walletBalance < amount) {
+                throw new Error('Insufficient wallet balance');
+            }
+
+            await tx.user.update({
+                where: { id: user.id },
+                data: { walletBalance: { decrement: amount } }
+            });
+
+            // 2. Create Wallet Transaction Log
+            const walletTx = await tx.walletTransaction.create({
                 data: {
-                    orderId: razorpay_order_id,
-                    paymentId: razorpay_payment_id,
-                    amount: amount || 0,
-                    status: 'CAPTURED',
-                    userId: req.user!.userId
+                    userId: user.id,
+                    amount,
+                    type: 'DEBIT',
+                    description: `Booking payment for Train ${trainNo || 'Unknown'}`
                 }
             });
 
-            // Determine the Event to link: use existing eventId, or auto-create from train details
-            let resolvedEventId = eventId;
+            // 3. Create Payment Record (Internal)
+            const internalPaymentId = `WAL_${walletTx.id.substring(0, 8)}`;
+            await tx.paymentRecord.create({
+                data: {
+                    orderId: `ORD_WAL_${Date.now()}`,
+                    paymentId: internalPaymentId,
+                    amount,
+                    status: 'CAPTURED',
+                    userId: user.id
+                }
+            });
 
+            // 4. Resolve Event
+            let resolvedEventId = eventId;
             if (!resolvedEventId && trainNo) {
-                // Auto-create an Event record from the train journey details
                 const journeyDateObj = journeyDate ? new Date(journeyDate) : new Date();
                 const eventName = `Train ${trainNo}${trainName ? ' - ' + trainName : ''}: ${fromStation || '?'} → ${toStation || '?'}`;
-                const description = `Walk-in booking. Train: ${trainNo}. Journey: ${fromStation} to ${toStation} on ${journeyDateObj.toDateString()}. Passengers: ${passengers || 1}. Mobile: ${mobile || 'N/A'}.`;
+                const description = `Wallet booking. Train: ${trainNo}. Journey: ${fromStation} to ${toStation} on ${journeyDateObj.toDateString()}. Passengers: ${passengers || 1}. Mobile: ${mobile || 'N/A'}.`;
 
                 const event = await tx.event.create({
-                    data: {
-                        name: eventName,
-                        description,
-                        date: journeyDateObj
-                    }
+                    data: { name: eventName, description, date: journeyDateObj }
                 });
                 resolvedEventId = event.id;
             }
 
-            if (!resolvedEventId) {
-                throw new Error('No event ID provided and no train details to create one.');
-            }
+            if (!resolvedEventId) throw new Error('Could not resolve event');
 
-            // Categorize class
+            // 5. Create Booking
             let category = 'SLEEPER';
             if (['2A', '3A', 'CC', '1A', '3E', 'FC', 'EC'].includes(trainClass || '')) {
                 category = 'AC';
@@ -110,30 +93,41 @@ router.post('/verify', requireAuth, async (req, res) => {
 
             await tx.booking.create({
                 data: {
-                    userId: req.user!.userId,
+                    userId: user.id,
                     eventId: resolvedEventId,
-                    paymentId: razorpay_payment_id,
+                    paymentId: internalPaymentId,
                     status: 'CONFIRMED',
                     class: category
                 }
             });
+
+            // 6. Audit Log
+            await tx.auditLog.create({
+                data: {
+                    action: 'WALLET_PAYMENT',
+                    targetUserId: user.id,
+                    performedByUserId: user.id,
+                    details: `Paid ₹${amount} via wallet for Train ${trainNo}. New balance: ₹${user.walletBalance - amount}`
+                }
+            });
         });
 
-        // Trigger notification
+        // Trigger notifications (non-blocking)
         try {
-            const user = await prisma.user.findUnique({ where: { id: req.user!.userId } });
+            const user = await prisma.user.findUnique({
+                where: { id: req.user!.userId },
+                select: { email: true, mobile: true }
+            });
             if (user && trainNo) {
                 const eventName = `Train ${trainNo}: ${fromStation} → ${toStation}`;
-                await notifyBookingConfirmed(user.email, eventName);
+                await notifyBookingConfirmed(user.email, eventName, user.mobile || undefined);
             }
-        } catch (notifErr) {
-            console.error('Notification error (non-fatal):', notifErr);
-        }
+        } catch (notifErr) { console.error('Notification error:', notifErr); }
 
-        return res.json({ success: true });
+        return res.json({ success: true, message: 'Payment successful via Wallet' });
     } catch (error: any) {
-        console.error('Payment verification error:', error);
-        return res.status(500).json({ error: error.message || 'Verification failed' });
+        console.error('Wallet payment error:', error);
+        return res.status(500).json({ error: error.message || 'Payment failed' });
     }
 });
 

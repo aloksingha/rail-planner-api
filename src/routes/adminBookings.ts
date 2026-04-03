@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
+import { requireActiveUser } from '../middleware/restrict';
 import { prisma } from '../prisma';
 import { notifyBookingConfirmed } from '../services/notificationService';
 
 const router = Router();
 
 // Create a manual booking (Admin/Sales Manager only)
-router.post('/manual', requireAuth, async (req, res) => {
+router.post('/manual', requireAuth, requireActiveUser, async (req, res) => {
     const { 
         trainNo, 
         trainName, 
@@ -64,7 +65,7 @@ router.post('/manual', requireAuth, async (req, res) => {
                 },
                 include: {
                     event: true,
-                    user: { select: { email: true } }
+                    user: { select: { email: true, mobile: true } }
                 }
             });
 
@@ -73,7 +74,7 @@ router.post('/manual', requireAuth, async (req, res) => {
 
         // Notify (Non-fatal)
         try {
-            await notifyBookingConfirmed(result.user.email, result.event.name);
+            await notifyBookingConfirmed(result.user.email, result.event.name, result.user.mobile || undefined);
         } catch (err) {
             console.error('Failed to send manual booking notification:', err);
         }

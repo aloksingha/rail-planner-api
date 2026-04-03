@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { prisma } from '../prisma';
-import { notifyBookingCancelled } from '../services/notificationService';
+import { notifyBookingCancelled, notifyBookingConfirmed } from '../services/notificationService';
 import { refundQueue } from '../queue/refundQueue';
 import multer from 'multer';
 import path from 'path';
@@ -210,28 +210,34 @@ router.get('/stats', requireAuth, async (req, res) => {
 
             const [
                 superAdmins, admins, salesMgrs, customers,
-                todayBookings, totalBookings, payments
+                teamMembersCount,
+                todayBookings, totalBookings,
+                recentPayments,
+                revenueStats
             ] = await Promise.all([
                 prisma.user.count({ where: { role: 'SUPER_ADMIN' } }),
                 prisma.user.count({ where: { role: 'ADMIN' } }),
                 prisma.user.count({ where: { role: 'SALES_MANAGER' } }),
                 prisma.user.count({ where: { role: 'CUSTOMER' } }),
+                prisma.user.count({ where: userWhere }),
                 prisma.booking.count({ where: { ...bookingWhere, createdAt: { gte: todayStart } } }),
                 prisma.booking.count({ where: bookingWhere }),
                 prisma.paymentRecord.findMany({
                     where: { ...paymentWhere, status: 'CAPTURED' },
                     orderBy: { createdAt: 'desc' },
                     take: 50 // Last 50 for timeline
+                }),
+                prisma.paymentRecord.aggregate({
+                    where: { ...paymentWhere, status: 'CAPTURED', createdAt: { gte: todayStart } },
+                    _sum: { amount: true }
                 })
             ]);
 
-            const todayAmount = payments
-                .filter(p => p.createdAt >= todayStart)
-                .reduce((sum, p) => sum + p.amount, 0);
+            const todayAmount = revenueStats._sum.amount || 0;
 
             // Group by day for simple timeline
             const timelineMap: Record<string, number> = {};
-            payments.forEach(p => {
+            recentPayments.forEach(p => {
                 const dateKey = p.createdAt.toISOString().split('T')[0];
                 timelineMap[dateKey] = (timelineMap[dateKey] || 0) + 1;
             });
@@ -241,6 +247,7 @@ router.get('/stats', requireAuth, async (req, res) => {
 
             const statsData = {
                 userCount: superAdmins + admins + salesMgrs + customers,
+                teamCount: teamMembersCount,
                 todayBookings,
                 bookingCount: totalBookings,
                 todayAmount,
@@ -274,24 +281,11 @@ router.get('/stats', requireAuth, async (req, res) => {
 // Get sales data for dashboard
 router.get('/sales', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER']), async (req, res) => {
     try {
-        const queryParams: any = {};
-
-        // If a Sales Manager is retrieving data, only show data for their specific region
-        if (req.user!.role === 'SALES_MANAGER') {
-            const user = await prisma.user.findUnique({ where: { id: req.user!.userId } });
-            if (user?.region) {
-                // In a production system, PaymentRecords or Bookings would have a region assigned.
-                // For this example, if the user is a SALES_MANAGER, we just fetch their specific transactions based on logic
-                // Since our models (Booking/PaymentRecord) don't have region natively mapped yet except inside RefundRecord,
-                // we'll fetch all data globally for Admin/SuperAdmin, and mock it for SalesMgrs.
-            }
-        }
-
-        const [payments, recentBookings] = await Promise.all([
-            prisma.paymentRecord.findMany({
+        const [revenueStats, recentBookings] = await Promise.all([
+            prisma.paymentRecord.aggregate({
                 where: { status: 'CAPTURED' },
-                orderBy: { createdAt: 'desc' },
-                take: 500 // Get expanded set for revenue calc/charting logic
+                _sum: { amount: true },
+                _count: { id: true }
             }),
             prisma.booking.findMany({
                 orderBy: { createdAt: 'desc' },
@@ -303,11 +297,19 @@ router.get('/sales', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MA
             })
         ]);
 
-        const totalRevenue = payments.reduce((sum, payment) => sum + payment.amount, 0);
+        // For timeline, we'll still fetch a limited set or implement a proper aggregated query
+        const recentPayments = await prisma.paymentRecord.findMany({
+            where: { status: 'CAPTURED' },
+            orderBy: { createdAt: 'desc' },
+            take: 100 // Reduce from 500
+        });
+
+        const totalRevenue = revenueStats._sum.amount || 0;
+        const totalSalesCount = revenueStats._count.id;
 
         // Aggregate by day for the chart
         const revenueByDay: Record<string, number> = {};
-        payments.forEach(payment => {
+        recentPayments.forEach(payment => {
             const date = payment.createdAt.toISOString().split('T')[0];
             if (!revenueByDay[date]) revenueByDay[date] = 0;
             revenueByDay[date] += payment.amount;
@@ -320,7 +322,7 @@ router.get('/sales', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MA
         return res.json({
             totalRevenue,
             recentBookings,
-            totalSalesCount: payments.length,
+            totalSalesCount,
             timelineData
         });
 
@@ -373,19 +375,28 @@ router.get('/bookings', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES
             }
         }
 
-        const bookings = await prisma.booking.findMany({
-            where,
-            orderBy: { event: { date: 'asc' } },
-            include: {
-                user: { select: { email: true } },
-                event: { select: { name: true, date: true } },
-                refundRecords: {
-                    orderBy: { createdAt: 'desc' },
-                    take: 1
+        const limit = parseInt(req.query.limit as string) || 50;
+        const page = parseInt(req.query.page as string) || 1;
+        const skip = (page - 1) * limit;
+
+        const [bookings, total] = await Promise.all([
+            prisma.booking.findMany({
+                where,
+                orderBy: { createdAt: 'desc' }, // Switched to createdAt for performance index
+                take: limit,
+                skip,
+                include: {
+                    user: { select: { email: true } },
+                    event: { select: { name: true, date: true } },
+                    refundRecords: {
+                        orderBy: { createdAt: 'desc' },
+                        take: 1
+                    }
                 }
-            }
-        });
-        return res.json({ bookings });
+            }),
+            prisma.booking.count({ where })
+        ]);
+        return res.json({ bookings, total, page, limit });
     } catch (error) {
         console.error('Fetch bookings error:', error);
         return res.status(500).json({ error: 'Internal Server Error' });
@@ -427,13 +438,22 @@ router.get('/transactions', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'S
             }
         }
 
-        const transactions = await prisma.paymentRecord.findMany({
-            where,
-            orderBy: { createdAt: 'desc' },
-            include: {
-                user: { select: { email: true } }
-            }
-        });
+        const limit = parseInt(req.query.limit as string) || 50;
+        const page = parseInt(req.query.page as string) || 1;
+        const skip = (page - 1) * limit;
+
+        const [transactions, total] = await Promise.all([
+            prisma.paymentRecord.findMany({
+                where,
+                orderBy: { createdAt: 'desc' },
+                take: limit,
+                skip,
+                include: {
+                    user: { select: { email: true } }
+                }
+            }),
+            prisma.paymentRecord.count({ where })
+        ]);
 
         // Enhance with refund info if available
         const enhancedTransactions = await Promise.all(transactions.map(async (payment) => {
@@ -457,7 +477,7 @@ router.get('/transactions', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'S
             };
         }));
 
-        return res.json({ payments: enhancedTransactions });
+        return res.json({ payments: enhancedTransactions, total, page, limit });
     } catch (error) {
         console.error('Fetch transactions error:', error);
         return res.status(500).json({ error: 'Internal Server Error' });
@@ -510,9 +530,12 @@ router.put('/bookings/:id/cancel', requireAuth, requireRole(['SUPER_ADMIN', 'ADM
         });
 
         // Trigger Notification Webhook
-        const targetUser = await prisma.user.findUnique({ where: { id: booking.userId } });
+        const targetUser = await prisma.user.findUnique({ 
+            where: { id: booking.userId },
+            select: { email: true, mobile: true }
+        });
         if (targetUser) {
-            await notifyBookingCancelled(targetUser.email, 'Cancelled by Admin');
+            await notifyBookingCancelled(targetUser.email, 'Cancelled by Admin', targetUser.mobile || undefined);
         }
 
         return res.json({ success: true, message: 'Booking cancelled successfully' });
@@ -675,6 +698,18 @@ router.patch('/bookings/:id/status', requireAuth, requireRole(['SUPER_ADMIN', 'A
             }
         });
 
+        // Trigger Notification if status becomes CONFIRMED
+        if (status === 'CONFIRMED') {
+            const user = await prisma.user.findUnique({ 
+                where: { id: booking.userId },
+                select: { email: true, mobile: true }
+            });
+            const event = await prisma.event.findUnique({ where: { id: booking.eventId } });
+            if (user && event) {
+                await notifyBookingConfirmed(user.email, event.name, user.mobile || undefined);
+            }
+        }
+
         return res.json({ success: true, booking });
     } catch (error) {
         console.error('Update status error:', error);
@@ -685,21 +720,30 @@ router.patch('/bookings/:id/status', requireAuth, requireRole(['SUPER_ADMIN', 'A
 // ── Super Admin: Get all users (grouped data for User Management page) ──────────
 router.get('/users', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
     try {
-        const users = await prisma.user.findMany({
-            orderBy: [{ role: 'asc' }, { createdAt: 'desc' }],
-            select: {
-                id: true,
-                email: true,
-                name: true,
-                mobile: true,
-                role: true,
-                region: true,
-                status: true,
-                createdAt: true,
-                _count: { select: { bookings: true } }
-            }
-        });
-        return res.json({ success: true, users });
+        const limit = parseInt(req.query.limit as string) || 50;
+        const page = parseInt(req.query.page as string) || 1;
+        const skip = (page - 1) * limit;
+
+        const [users, total] = await Promise.all([
+            prisma.user.findMany({
+                orderBy: [{ role: 'asc' }, { createdAt: 'desc' }],
+                take: limit,
+                skip,
+                select: {
+                    id: true,
+                    email: true,
+                    name: true,
+                    mobile: true,
+                    role: true,
+                    region: true,
+                    status: true,
+                    createdAt: true,
+                    _count: { select: { bookings: true } }
+                }
+            }),
+            prisma.user.count()
+        ]);
+        return res.json({ success: true, users, total, page, limit });
     } catch (error: any) {
         console.error('Fetch all users error:', error);
         return res.status(500).json({ error: 'Internal Server Error' });

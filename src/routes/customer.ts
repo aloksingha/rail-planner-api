@@ -107,7 +107,9 @@ router.put('/bookings/:id/cancel', requireAuth, async (req, res) => {
     try {
         const booking = await prisma.booking.findFirst({
             where: { id, userId },
-            include: { user: true }
+            include: { 
+                user: { select: { email: true, mobile: true } }
+            }
         });
 
         if (!booking) return res.status(404).json({ error: 'Booking not found.' });
@@ -148,7 +150,7 @@ router.put('/bookings/:id/cancel', requireAuth, async (req, res) => {
 
         // Trigger Notification
         if (booking.user?.email) {
-            await notifyBookingCancelled(booking.user.email, 'Cancelled by You');
+            await notifyBookingCancelled(booking.user.email, 'Cancelled by You', booking.user.mobile || undefined);
         }
 
         return res.json({ success: true, message: 'Booking cancelled and refund initiated.' });
