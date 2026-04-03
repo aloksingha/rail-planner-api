@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, requireRole } from '../middleware/auth';
 import { requireActiveUser } from '../middleware/restrict';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
@@ -13,7 +13,7 @@ const razorpay = new Razorpay({
     key_secret: process.env.RAZORPAY_KEY_SECRET as string,
 });
 
-router.post('/wallet-pay', requireAuth, requireActiveUser, async (req, res) => {
+router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), requireActiveUser, async (req, res) => {
     const {
         amount,
         eventId,
