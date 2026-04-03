@@ -106,26 +106,40 @@ router.post('/admin/adjust', requireAuth, requireRole(['SUPER_ADMIN']), async (r
  */
 router.get('/admin/all-transactions', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
     try {
+        console.log(`[WalletAdmin] Fetching transactions for user ${req.user!.userId} (${req.user!.role})`);
+        
         const transactions = await prisma.walletTransaction.findMany({
             orderBy: { createdAt: 'desc' },
-            include: { user: { select: { name: true, email: true } } },
-            take: 100
+            include: { 
+                user: { 
+                    select: { name: true, email: true } 
+                } 
+            },
+            take: 200
         });
+
+        // Filter out any where user data might be missing (orphaned records - though DB prevents this)
+        const validTransactions = transactions.filter(tx => !!tx.user);
 
         // Calculate platform liability
         const users = await prisma.user.findMany({
             select: { walletBalance: true }
         });
-        const totalLiability = users.reduce((sum, u) => sum + u.walletBalance, 0);
+        const totalLiability = users.reduce((sum, u) => sum + (u.walletBalance || 0), 0);
+
+        console.log(`[WalletAdmin] Success. Records: ${validTransactions.length}, Total Liability: ${totalLiability}`);
 
         return res.json({
-            transactions,
+            transactions: validTransactions,
             totalLiability,
             totalTransactions: transactions.length
         });
     } catch (error: any) {
-        console.error('All-transactions error:', error);
-        return res.status(500).json({ error: 'Internal Server Error fetching transactions' });
+        console.error('[WalletAdmin] Fatal Error:', error);
+        return res.status(500).json({ 
+            error: 'Internal Server Error fetching transactions',
+            details: error.message 
+        });
     }
 });
 

@@ -36,18 +36,26 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
         // Critical: Check user status in DB for real-time blocking
         const user = await prisma.user.findUnique({
             where: { id: payload.userId },
-            select: { status: true }
+            select: { status: true, role: true }
         });
 
-        if (!user || user.status === 'BLOCKED') {
+        if (!user) {
+            return res.status(401).json({ error: 'User not found in system' });
+        }
+
+        if (user.status === 'BLOCKED') {
             return res.status(403).json({ error: 'Your account has been blocked. Please contact support.' });
         }
 
         req.user = payload;
         next();
-    } catch (err) {
+    } catch (err: any) {
         console.error('Auth verification error:', err);
-        return res.status(401).json({ error: 'Invalid token' });
+        return res.status(401).json({ 
+            error: 'Invalid token', 
+            details: err.message,
+            token_present: !!token 
+        });
     }
 };
 
