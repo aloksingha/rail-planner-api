@@ -737,6 +737,7 @@ router.get('/users', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res)
                     role: true,
                     region: true,
                     status: true,
+                    walletBalance: true,
                     createdAt: true,
                     _count: { select: { bookings: true } }
                 }
