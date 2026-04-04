@@ -229,7 +229,9 @@ router.post('/wallet/verify-topup', requireAuth, requireRole(['SUPER_ADMIN', 'AD
 
         // 3. Notify user (optional, non-blocking)
         try {
-            await notifyPaymentReceived(result.email, amount, razorpay_payment_id, result.mobile || undefined);
+            if (result.mobile) {
+                await notifyPaymentReceived(result.mobile, amount, razorpay_payment_id);
+            }
         } catch (e) { console.error('Notification failed:', e); }
 
         return res.json({ 

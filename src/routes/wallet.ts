@@ -256,7 +256,7 @@ router.get('/admin/withdrawals', requireAuth, requireRole(['SUPER_ADMIN']), asyn
  * Super Admin only: Approve (COMPLETED) or Reject (REJECTED) a withdrawal.
  */
 router.patch('/admin/process-withdrawal/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { status, adminComment } = req.body;
 
     if (!['COMPLETED', 'REJECTED'].includes(status)) {
