@@ -31,6 +31,7 @@ model User {
   priceRequests      PriceRequest[]
   walletBalance       Float           @default(0)
   walletTransactions  WalletTransaction[]
+  withdrawalRequests  WithdrawalRequest[]
 
   @@index([role])
   @@index([createdByUserId])
@@ -228,4 +229,21 @@ model WalletTransaction {
 
   @@index([userId])
   @@index([createdAt])
+}
+
+model WithdrawalRequest {
+  id           String   @id @default(uuid())
+  userId       String
+  amount       Float
+  status       String   @default("PENDING") // PENDING, APPROVED, COMPLETED, REJECTED
+  method       String   @default("UPI")     // UPI, BANK
+  details      String?                      // e.g. "UPI: xyz@okicici"
+  adminComment String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([status])
+  @@index([userId])
 }

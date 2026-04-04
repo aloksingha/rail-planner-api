@@ -131,4 +131,116 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), r
     }
 });
 
+/**
+ * POST /api/payments/wallet/create-order
+ * Initiates a Razorpay order for wallet top-up.
+ */
+router.post('/wallet/create-order', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER']), async (req, res) => {
+    const { amount } = req.body;
+
+    if (!amount || amount < 100) {
+        return res.status(400).json({ error: 'Minimum top-up amount is ₹100' });
+    }
+
+    try {
+        const options = {
+            amount: Math.round(amount * 100), // convert to paise
+            currency: 'INR',
+            receipt: `rcpt_wallet_${Date.now()}`,
+        };
+
+        const order = await razorpay.orders.create(options);
+        return res.json(order);
+    } catch (error: any) {
+        console.error('Razorpay order creation error:', error);
+        return res.status(500).json({ error: 'Could not create payment order' });
+    }
+});
+
+/**
+ * POST /api/payments/wallet/verify-topup
+ * Verifies Razorpay payment signature and credits the user's wallet.
+ */
+router.post('/wallet/verify-topup', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER']), async (req, res) => {
+    const { 
+        razorpay_order_id, 
+        razorpay_payment_id, 
+        razorpay_signature,
+        amount 
+    } = req.body;
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+        return res.status(400).json({ error: 'Missing payment verification details' });
+    }
+
+    try {
+        // 1. Verify Signature
+        const body = razorpay_order_id + "|" + razorpay_payment_id;
+        const expectedSignature = crypto
+            .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET as string)
+            .update(body.toString())
+            .digest('hex');
+
+        if (expectedSignature !== razorpay_signature) {
+            return res.status(400).json({ error: 'Invalid payment signature' });
+        }
+
+        // 2. Transactionally update user balance and log it
+        const result = await prisma.$transaction(async (tx) => {
+            // Update User Balance
+            const user = await tx.user.update({
+                where: { id: req.user!.userId },
+                data: { walletBalance: { increment: amount } }
+            });
+
+            // Create Wallet Transaction
+            await tx.walletTransaction.create({
+                data: {
+                    userId: req.user!.userId,
+                    amount,
+                    type: 'CREDIT',
+                    description: `Wallet top-up via Razorpay (ID: ${razorpay_payment_id})`
+                }
+            });
+
+            // Create Payment Record
+            await tx.paymentRecord.create({
+                data: {
+                    orderId: razorpay_order_id,
+                    paymentId: razorpay_payment_id,
+                    amount,
+                    status: 'CAPTURED',
+                    userId: req.user!.userId
+                }
+            });
+
+            // Audit Log
+            await tx.auditLog.create({
+                data: {
+                    action: 'WALLET_TOPUP',
+                    targetUserId: req.user!.userId,
+                    performedByUserId: req.user!.userId,
+                    details: `Added ₹${amount} via Razorpay. New balance: ₹${user.walletBalance}`
+                }
+            });
+
+            return user;
+        });
+
+        // 3. Notify user (optional, non-blocking)
+        try {
+            await notifyPaymentReceived(result.email, amount, razorpay_payment_id, result.mobile || undefined);
+        } catch (e) { console.error('Notification failed:', e); }
+
+        return res.json({ 
+            success: true, 
+            message: 'Wallet credited successfully', 
+            newBalance: result.walletBalance 
+        });
+    } catch (error: any) {
+        console.error('Wallet top-up verification error:', error);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 export default router;

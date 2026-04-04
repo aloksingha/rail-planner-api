@@ -146,4 +146,174 @@ router.get('/admin/all-transactions', requireAuth, requireRole(['SUPER_ADMIN']),
     }
 });
 
+/**
+ * POST /api/wallet/withdraw-request
+ * Allows Admin and Sales roles to request a withdrawal from their wallet.
+ * The amount is deducted immediately to lock the funds.
+ */
+router.post('/withdraw-request', requireAuth, requireRole(['ADMIN', 'SALES_MANAGER']), async (req, res) => {
+    const { amount, method, details } = req.body;
+
+    if (!amount || amount < 500) {
+        return res.status(400).json({ error: 'Minimum withdrawal amount is ₹500' });
+    }
+
+    if (!method || !details) {
+        return res.status(400).json({ error: 'Payment method and details (e.g. UPI ID) are required' });
+    }
+
+    try {
+        const result = await prisma.$transaction(async (tx) => {
+            // 1. Check & Deduct Balance
+            const user = await tx.user.findUnique({
+                where: { id: req.user!.userId },
+                select: { walletBalance: true }
+            });
+
+            if (!user || user.walletBalance < amount) {
+                throw new Error('Insufficient wallet balance');
+            }
+
+            const updatedUser = await tx.user.update({
+                where: { id: req.user!.userId },
+                data: { walletBalance: { decrement: amount } }
+            });
+
+            // 2. Create Withdrawal Request
+            const request = await tx.withdrawalRequest.create({
+                data: {
+                    userId: req.user!.userId,
+                    amount,
+                    method,
+                    details,
+                    status: 'PENDING'
+                }
+            });
+
+            // 3. Create Transaction Log (Locked)
+            await tx.walletTransaction.create({
+                data: {
+                    userId: req.user!.userId,
+                    amount,
+                    type: 'DEBIT',
+                    description: `Withdrawal Request (ID: ${request.id.substring(0, 8)}) - Funds Locked`
+                }
+            });
+
+            return request;
+        });
+
+        return res.json({ 
+            success: true, 
+            message: 'Withdrawal request submitted successfully.',
+            requestId: result.id
+        });
+    } catch (error: any) {
+        console.error('Withdrawal request error:', error);
+        return res.status(500).json({ error: error.message || 'Internal Server Error' });
+    }
+});
+
+/**
+ * GET /api/wallet/my-withdrawals
+ * User's own withdrawal history.
+ */
+router.get('/my-withdrawals', requireAuth, requireRole(['ADMIN', 'SALES_MANAGER']), async (req, res) => {
+    try {
+        const withdrawals = await prisma.withdrawalRequest.findMany({
+            where: { userId: req.user!.userId },
+            orderBy: { createdAt: 'desc' }
+        });
+        return res.json(withdrawals);
+    } catch (error) {
+        console.error('Fetch withdrawals error:', error);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+/**
+ * GET /api/wallet/admin/withdrawals
+ * Super Admin only: Fetch all pending/recent withdrawal requests.
+ */
+router.get('/admin/withdrawals', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+    try {
+        const withdrawals = await prisma.withdrawalRequest.findMany({
+            include: {
+                user: { select: { name: true, email: true, role: true } }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 100
+        });
+        return res.json(withdrawals);
+    } catch (error) {
+        console.error('Admin fetch withdrawals error:', error);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+/**
+ * PATCH /api/wallet/admin/process-withdrawal/:id
+ * Super Admin only: Approve (COMPLETED) or Reject (REJECTED) a withdrawal.
+ */
+router.patch('/admin/process-withdrawal/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+    const { id } = req.params;
+    const { status, adminComment } = req.body;
+
+    if (!['COMPLETED', 'REJECTED'].includes(status)) {
+        return res.status(400).json({ error: 'Invalid status. Use COMPLETED or REJECTED.' });
+    }
+
+    try {
+        const result = await prisma.$transaction(async (tx) => {
+            const request = await tx.withdrawalRequest.findUnique({
+                where: { id },
+                include: { user: true }
+            });
+
+            if (!request) throw new Error('Withdrawal request not found');
+            if (request.status !== 'PENDING') throw new Error('Request already processed');
+
+            // Update status
+            const updatedRequest = await tx.withdrawalRequest.update({
+                where: { id },
+                data: { status, adminComment, updatedAt: new Date() }
+            });
+
+            // If REJECTED, refund the balance
+            if (status === 'REJECTED') {
+                await tx.user.update({
+                    where: { id: request.userId },
+                    data: { walletBalance: { increment: request.amount } }
+                });
+
+                await tx.walletTransaction.create({
+                    data: {
+                        userId: request.userId,
+                        amount: request.amount,
+                        type: 'CREDIT',
+                        description: `Withdrawal Rejected (ID: ${id.substring(0, 8)}) - Funds Restored`
+                    }
+                });
+            }
+
+            // Audit Log
+            await tx.auditLog.create({
+                data: {
+                    action: `WITHDRAWAL_${status}`,
+                    targetUserId: request.userId,
+                    performedByUserId: req.user!.userId,
+                    details: `${status} withdrawal of ₹${request.amount}. ${adminComment || ''}`
+                }
+            });
+
+            return updatedRequest;
+        });
+
+        return res.json({ success: true, request: result });
+    } catch (error: any) {
+        console.error('Process withdrawal error:', error);
+        return res.status(500).json({ error: error.message || 'Internal Server Error' });
+    }
+});
+
 export default router;
