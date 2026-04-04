@@ -138,7 +138,10 @@ router.get('/admin/all-transactions', requireAuth, requireRole(['SUPER_ADMIN']),
         console.error('[WalletAdmin] Fatal Error:', error);
         return res.status(500).json({ 
             error: 'Internal Server Error fetching transactions',
-            details: error.message 
+            details: error.message,
+            transactions: [],
+            totalLiability: 0,
+            totalTransactions: 0
         });
     }
 });
