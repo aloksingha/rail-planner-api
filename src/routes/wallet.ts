@@ -8,7 +8,7 @@ const router = Router();
  * GET /api/wallet/history
  * Fetch current user's wallet balance and recent transaction history.
  */
-router.get('/history', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+router.get('/history', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'CUSTOMER']), async (req, res) => {
     const { userId } = req.user!;
 
     try {
