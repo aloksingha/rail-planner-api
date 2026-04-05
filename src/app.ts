@@ -29,6 +29,7 @@ app.use(express.json());
 
 // Serve uploaded PDF tickets statically
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use('/downloads', express.static(path.join(__dirname, '..', 'downloads')));
 
 app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
