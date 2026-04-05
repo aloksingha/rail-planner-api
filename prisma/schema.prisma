@@ -235,6 +235,7 @@ model WithdrawalRequest {
   id           String   @id @default(uuid())
   userId       String
   amount       Float
+  charge       Float    @default(0)
   status       String   @default("PENDING") // PENDING, APPROVED, COMPLETED, REJECTED
   method       String   @default("UPI")     // UPI, BANK
   details      String?                      // e.g. "UPI: xyz@okicici"

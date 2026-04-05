@@ -208,6 +208,9 @@ router.get('/stats', requireAuth, async (req, res) => {
             const bookingWhere = role === 'ADMIN' ? { user: { createdByUserId: userId } } : {};
             const paymentWhere = role === 'ADMIN' ? { user: { createdByUserId: userId } } : {};
 
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
             const [
                 superAdmins, admins, salesMgrs, customers,
                 teamMembersCount,
@@ -223,9 +226,12 @@ router.get('/stats', requireAuth, async (req, res) => {
                 prisma.booking.count({ where: { ...bookingWhere, createdAt: { gte: todayStart } } }),
                 prisma.booking.count({ where: bookingWhere }),
                 prisma.paymentRecord.findMany({
-                    where: { ...paymentWhere, status: 'CAPTURED' },
-                    orderBy: { createdAt: 'desc' },
-                    take: 50 // Last 50 for timeline
+                    where: { 
+                        ...paymentWhere, 
+                        status: 'CAPTURED', 
+                        createdAt: { gte: thirtyDaysAgo } 
+                    },
+                    orderBy: { createdAt: 'desc' }
                 }),
                 prisma.paymentRecord.aggregate({
                     where: { ...paymentWhere, status: 'CAPTURED', createdAt: { gte: todayStart } },
@@ -235,14 +241,23 @@ router.get('/stats', requireAuth, async (req, res) => {
 
             const todayAmount = revenueStats._sum.amount || 0;
 
-            // Group by day for simple timeline
-            const timelineMap: Record<string, number> = {};
+            // Group by day for simple timeline including count and amount
+            const timelineMap: Record<string, { count: number; amount: number }> = {};
             recentPayments.forEach(p => {
                 const dateKey = p.createdAt.toISOString().split('T')[0];
-                timelineMap[dateKey] = (timelineMap[dateKey] || 0) + 1;
+                if (!timelineMap[dateKey]) {
+                    timelineMap[dateKey] = { count: 0, amount: 0 };
+                }
+                timelineMap[dateKey].count += 1;
+                timelineMap[dateKey].amount += p.amount;
             });
+
             const timeline = Object.entries(timelineMap)
-                .map(([date, count]) => ({ date, count }))
+                .map(([date, data]) => ({ 
+                    date, 
+                    count: data.count, 
+                    amount: Math.round(data.amount) 
+                }))
                 .sort((a, b) => a.date.localeCompare(b.date));
 
             const statsData = {
@@ -291,7 +306,7 @@ router.get('/sales', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MA
                 orderBy: { createdAt: 'desc' },
                 take: 10,
                 include: {
-                    user: { select: { email: true } },
+                    user: { select: { email: true, mobile: true } },
                     event: { select: { name: true } }
                 }
             })
@@ -386,7 +401,7 @@ router.get('/bookings', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES
                 take: limit,
                 skip,
                 include: {
-                    user: { select: { email: true } },
+                    user: { select: { email: true, mobile: true } },
                     event: { select: { name: true, date: true } },
                     refundRecords: {
                         orderBy: { createdAt: 'desc' },
@@ -410,12 +425,17 @@ router.get('/transactions', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'S
         let where: any = {};
 
         if (role === 'ADMIN') {
-            where = {
-                user: {
-                    createdByUserId: userId,
-                    role: 'SALES_MANAGER'
-                }
-            };
+            const scope = req.query.scope as string;
+            if (scope === 'me') {
+                where = { userId };
+            } else {
+                where = {
+                    user: {
+                        createdByUserId: userId,
+                        role: 'SALES_MANAGER'
+                    }
+                };
+            }
         } else if (role === 'SALES_MANAGER') {
             const scope = req.query.scope as string;
             if (scope === 'team') {

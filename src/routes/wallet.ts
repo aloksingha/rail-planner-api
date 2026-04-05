@@ -163,6 +163,13 @@ router.post('/withdraw-request', requireAuth, requireRole(['ADMIN', 'SALES_MANAG
     }
 
     try {
+        // Calculate tiered transaction charges
+        let charge = 10;
+        if (amount > 1000 && amount <= 25000) charge = 15;
+        if (amount > 25000) charge = 20;
+
+        const totalDeduction = amount + charge;
+
         const result = await prisma.$transaction(async (tx) => {
             // 1. Check & Deduct Balance
             const user = await tx.user.findUnique({
@@ -170,13 +177,13 @@ router.post('/withdraw-request', requireAuth, requireRole(['ADMIN', 'SALES_MANAG
                 select: { walletBalance: true }
             });
 
-            if (!user || user.walletBalance < amount) {
-                throw new Error('Insufficient wallet balance');
+            if (!user || user.walletBalance < totalDeduction) {
+                throw new Error(`Insufficient wallet balance. Total required (including ₹${charge} charge): ₹${totalDeduction}`);
             }
 
             const updatedUser = await tx.user.update({
                 where: { id: req.user!.userId },
-                data: { walletBalance: { decrement: amount } }
+                data: { walletBalance: { decrement: totalDeduction } }
             });
 
             // 2. Create Withdrawal Request
@@ -184,6 +191,7 @@ router.post('/withdraw-request', requireAuth, requireRole(['ADMIN', 'SALES_MANAG
                 data: {
                     userId: req.user!.userId,
                     amount,
+                    charge,
                     method,
                     details,
                     status: 'PENDING'
@@ -194,9 +202,9 @@ router.post('/withdraw-request', requireAuth, requireRole(['ADMIN', 'SALES_MANAG
             await tx.walletTransaction.create({
                 data: {
                     userId: req.user!.userId,
-                    amount,
+                    amount: totalDeduction,
                     type: 'DEBIT',
-                    description: `Withdrawal Request (ID: ${request.id.substring(0, 8)}) - Funds Locked`
+                    description: `Withdrawal Request (Amt: ₹${amount}, Charge: ₹${charge}) - Funds Locked`
                 }
             });
 
@@ -281,17 +289,18 @@ router.patch('/admin/process-withdrawal/:id', requireAuth, requireRole(['SUPER_A
 
             // If REJECTED, refund the balance
             if (status === 'REJECTED') {
+                const totalRefund = request.amount + request.charge;
                 await tx.user.update({
                     where: { id: request.userId },
-                    data: { walletBalance: { increment: request.amount } }
+                    data: { walletBalance: { increment: totalRefund } }
                 });
 
                 await tx.walletTransaction.create({
                     data: {
                         userId: request.userId,
-                        amount: request.amount,
+                        amount: totalRefund,
                         type: 'CREDIT',
-                        description: `Withdrawal Rejected (ID: ${id.substring(0, 8)}) - Funds Restored`
+                        description: `Withdrawal Rejected (ID: ${id.substring(0, 8)}) - Funds Restored (₹${request.amount} + ₹${request.charge} fee)`
                     }
                 });
             }

@@ -1,8 +1,8 @@
 export const NEARBY_STATIONS: Record<string, string[]> = {
     // Delhi/NCR
-    'NDLS': ['DLI', 'NZM', 'GZB', 'ANVT', 'DEC', 'DEE', 'SZM', 'DSA', 'SSB'],
-    'DLI': ['NDLS', 'NZM', 'GZB', 'ANVT', 'DEC', 'DEE', 'SZM', 'DSA', 'SSB'],
-    'NZM': ['NDLS', 'DLI', 'GZB', 'ANVT', 'DEC', 'DEE', 'SZM', 'DSA', 'SSB'],
+    'NDLS': ['DLI', 'NZM', 'DEC', 'DEE', 'ANVT', 'GZB', 'SZM', 'DSA', 'SSB'],
+    'DLI': ['NDLS', 'NZM', 'DEC', 'DEE', 'ANVT', 'GZB', 'SZM', 'DSA', 'SSB'],
+    'NZM': ['NDLS', 'DLI', 'DEC', 'DEE', 'ANVT', 'GZB', 'SZM', 'DSA', 'SSB'],
     'ANVT': ['NDLS', 'DLI', 'NZM', 'GZB', 'DEE', 'SZM', 'DSA'],
     
     // Kolkata
@@ -47,7 +47,7 @@ export const NEARBY_STATIONS: Record<string, string[]> = {
     // Pune/Surat/Ahmedabad
     'PUNE': ['SVJR', 'CCH', 'LNL', 'PMP'],
     'ST': ['UDN', 'CHM'],
-    'ADI': ['SBT', 'MAN', 'GNC'],
+    'ADI': ['SBIB', 'SBT', 'MAN', 'GNC'],
     
     // Patna
     'PNBE': ['DNR', 'PPTA', 'RJPB', 'PNC'],
