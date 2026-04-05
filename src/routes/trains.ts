@@ -35,6 +35,13 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, data: "Missing query parameters" });
         }
 
+        // ❌ Block "Intra-City" searches to prevent confusion (e.g. NDLS to NDLS / DLI)
+        const isSameCluster = from === to || (NEARBY_STATIONS[from as string] || []).includes(to as string);
+        if (isSameCluster) {
+            console.log(`[TrainSearch] BLOCKED: Intra-city search detected (${from} -> ${to})`);
+            return res.json({ success: true, data: [] });
+        }
+
         const cacheKey = `${from}-${to}-${date}-${reqClass || 'ALL'}`;
         const cached = trainCache.get(cacheKey);
         if (cached && cached.expiry > Date.now()) {
