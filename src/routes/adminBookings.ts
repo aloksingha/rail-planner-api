@@ -7,7 +7,7 @@ import { notifyBookingConfirmed } from '../services/notificationService';
 const router = Router();
 
 // Create a manual booking (Admin/Sales Manager only)
-router.post('/manual', requireAuth, requireActiveUser, async (req, res) => {
+router.post('/', requireAuth, requireActiveUser, async (req, res) => {
     const { 
         trainNo, 
         trainName, 
