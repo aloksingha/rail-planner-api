@@ -55,10 +55,30 @@ router.get('/dashboard', requireAuth, async (req, res) => {
             bookings,
             payments
         });
-
     } catch (error: any) {
         console.error('Fetch customer dashboard error:', error);
         return res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// Get customer stats for dashboard counters
+router.get('/stats', requireAuth, async (req, res) => {
+    try {
+        const userId = req.user!.userId;
+        const [totalBookings, activeTickets, user] = await Promise.all([
+            prisma.booking.count({ where: { userId } }),
+            prisma.booking.count({ where: { userId, status: 'CONFIRMED' } }),
+            prisma.user.findUnique({ where: { id: userId }, select: { walletBalance: true } })
+        ]);
+
+        return res.json({
+            totalBookings,
+            activeTickets,
+            balance: user?.walletBalance || 0
+        });
+    } catch (error: any) {
+        console.error('Fetch customer stats error:', error);
+        return res.status(500).json({ error: 'Failed to fetch stats' });
     }
 });
 
