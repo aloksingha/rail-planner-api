@@ -245,4 +245,130 @@ router.post('/wallet/verify-topup', requireAuth, requireRole(['SUPER_ADMIN', 'AD
     }
 });
 
+/**
+ * POST /api/payments/create-order
+ * Initiates a standard Razorpay ticket booking order.
+ */
+router.post('/create-order', requireAuth, async (req, res) => {
+    const { amount } = req.body;
+    if (!amount || amount <= 0) {
+        return res.status(400).json({ error: 'Invalid booking amount' });
+    }
+
+    try {
+        const options = {
+            amount: Math.round(amount * 100), // to paise
+            currency: 'INR',
+            receipt: `rcpt_booking_${Date.now()}`,
+        };
+
+        const order = await razorpay.orders.create(options);
+        return res.json({
+            orderId: order.id,
+            amount: order.amount,
+            currency: order.currency
+        });
+    } catch (error: any) {
+        console.error('Razorpay booking order creation error:', error);
+        return res.status(500).json({ error: 'Failed to initiate booking with payment gateway' });
+    }
+});
+
+/**
+ * POST /api/payments/verify
+ * Verifies Razorpay ticket booking payment and creates the Booking record.
+ */
+router.post('/verify', requireAuth, async (req, res) => {
+    const { 
+        razorpay_order_id, 
+        razorpay_payment_id, 
+        razorpay_signature,
+        trainNo,
+        trainName,
+        fromStation,
+        toStation,
+        journeyDate,
+        passengers,
+        mobile,
+        amount,
+        trainClass
+    } = req.body;
+
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+        return res.status(400).json({ error: 'Missing payment signature verification' });
+    }
+
+    try {
+        // 1. Verify Signature
+        const body = razorpay_order_id + "|" + razorpay_payment_id;
+        const expectedSignature = crypto
+            .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET as string)
+            .update(body.toString())
+            .digest('hex');
+
+        if (expectedSignature !== razorpay_signature) {
+            return res.status(400).json({ error: 'Invalid payment signature' });
+        }
+
+        // 2. Transactional Booking Creation
+        const result = await prisma.$transaction(async (tx) => {
+            // Create Event
+            const eventName = `${trainName || 'Express'} (${trainNo}) - ${fromStation} to ${toStation}`;
+            const description = `Razorpay ticket booking. Train: ${trainNo}. Route: ${fromStation} → ${toStation} on ${journeyDate}. Passengers: ${passengers}. Mobile: ${mobile}. Paid: ₹${amount}`;
+            
+            const event = await tx.event.create({
+                data: {
+                    name: eventName,
+                    description,
+                    date: new Date(journeyDate),
+                }
+            });
+
+            // Create Payment Record
+            await tx.paymentRecord.create({
+                data: {
+                    orderId: razorpay_order_id,
+                    paymentId: razorpay_payment_id,
+                    amount: Number(amount),
+                    status: 'CAPTURED',
+                    userId: req.user!.userId
+                }
+            });
+
+            // Resolve Class Category
+            let category = 'SLEEPER';
+            if (['2A', '3A', 'CC', '1A', '3E', 'FC', 'EC'].includes(String(trainClass || '').toUpperCase())) {
+                category = 'AC';
+            }
+
+            // Create Booking
+            const booking = await tx.booking.create({
+                data: {
+                    userId: req.user!.userId,
+                    eventId: event.id,
+                    paymentId: razorpay_payment_id,
+                    status: 'CONFIRMED',
+                    class: category
+                }
+            });
+
+            return { booking, eventName };
+        });
+
+        // 3. Notify (Non-blocking)
+        try {
+            const user = await prisma.user.findUnique({ where: { id: req.user!.userId } });
+            if (user?.email) {
+                await notifyBookingConfirmed(user.email, result.eventName, user.mobile || mobile);
+            }
+        } catch (e) { console.error('Notification log error:', e); }
+
+        return res.json({ success: true, bookingId: result.booking.id });
+
+    } catch (error: any) {
+        console.error('Booking verification error:', error);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 export default router;
