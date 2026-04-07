@@ -30,7 +30,7 @@ router.post('/bypass', async (req, res) => {
             }
         });
 
-        const token = generateToken(user.id, user.email, user.role, user.name);
+        const token = generateToken(user.id, user.email, user.role, user.name, user.role === 'SUPER_ADMIN');
         return res.json({ token, user: { id: user.id, email: user.email, role: user.role, name: user.name } });
     } catch (error: any) {
         console.error('Bypass Auth Error:', error.message || error);
@@ -94,7 +94,7 @@ router.post('/google', async (req, res) => {
         console.timeEnd('[Auth] DB Upsert');
 
         // 3. Issue our app's JWT Session
-        const token = generateToken(user.id, user.email, user.role, user.name);
+        const token = generateToken(user.id, user.email, user.role, user.name, user.role === 'SUPER_ADMIN');
         return res.json({ token, user: { id: user.id, email: user.email, role: user.role, name: user.name } });
 
     } catch (error: any) {
@@ -116,7 +116,8 @@ router.post('/impersonate', requireAuth, requireRole(['SUPER_ADMIN']), async (re
 
     try {
         const user = req.user!;
-        const token = generateToken(user.userId, user.email, role, user.name);
+        // Preserve isSuperAdmin flag during mimicry so we skip DB role sync
+        const token = generateToken(user.userId, user.email, role, user.name, true);
 
         console.log(`[Impersonation] Super Admin ${user.email} is now mimicking role: ${role}`);
         return res.json({ token, role });
@@ -137,8 +138,8 @@ router.post('/impersonate-user/:userId', requireAuth, requireRole(['SUPER_ADMIN'
             return res.status(404).json({ error: 'User not found' });
         }
 
-        // Issue a new token with the target user's role and email
-        const token = generateToken(targetUser.id, targetUser.email, targetUser.role, targetUser.name);
+        // Issue a new token with the target user's role and email, but keep isSuperAdmin flag TRUE
+        const token = generateToken(targetUser.id, targetUser.email, targetUser.role, targetUser.name, true);
 
         console.log(`[Impersonation] Super Admin ${req.user!.email} is now mimicking User: ${targetUser.email} (${targetUser.role})`);
         return res.json({ token, role: targetUser.role });

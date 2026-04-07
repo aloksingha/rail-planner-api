@@ -12,6 +12,7 @@ export interface JwtPayload {
     userId: string;
     email: string;
     role: string;
+    isSuperAdmin?: boolean; // Flag to preserve SA powers during mimicry
     name?: string | null;
 }
 
@@ -23,8 +24,8 @@ declare global {
     }
 }
 
-export const generateToken = (userId: string, email: string, role: string, name?: string | null) => {
-    return jwt.sign({ userId, email, role, name }, JWT_SECRET, { expiresIn: '1d' });
+export const generateToken = (userId: string, email: string, role: string, name?: string | null, isSuperAdmin?: boolean) => {
+    return jwt.sign({ userId, email, role, name, isSuperAdmin }, JWT_SECRET, { expiresIn: '1d' });
 };
 
 export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
@@ -51,8 +52,11 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
             return res.status(403).json({ error: 'Your account has been blocked. Please contact support.' });
         }
 
-        // Critical: Override token role with real-time DB role to prevent stale session errors
-        payload.role = user.role;
+        // Critical: Override token role with real-time DB role ONLY if not mimicking
+        // If the token has isSuperAdmin, we allow the 'role' in the token to persist (Mimic Mode)
+        if (!payload.isSuperAdmin) {
+            payload.role = user.role;
+        }
 
         req.user = payload;
         next();
