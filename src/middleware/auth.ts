@@ -51,6 +51,9 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
             return res.status(403).json({ error: 'Your account has been blocked. Please contact support.' });
         }
 
+        // Critical: Override token role with real-time DB role to prevent stale session errors
+        payload.role = user.role;
+
         req.user = payload;
         next();
     } catch (err: any) {
@@ -64,9 +67,15 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
 };
 
 export const requireRole = (roles: string[]) => {
-    const normalizedRoles = roles.map(r => r.toUpperCase());
+    const normalizedTargetRoles = roles.map(r => r.toUpperCase());
     return (req: Request, res: Response, next: NextFunction) => {
-        if (!req.user || !normalizedRoles.includes(req.user.role.toUpperCase())) {
+        if (!req.user || !req.user.role) {
+            return res.status(403).json({ error: 'Forbidden: No role identified' });
+        }
+        
+        const userRole = req.user.role.toUpperCase();
+        if (!normalizedTargetRoles.includes(userRole)) {
+            console.warn(`[Auth] Access Denied. User role: ${userRole}, Required: ${normalizedTargetRoles}`);
             return res.status(403).json({ error: 'Forbidden: Insufficient role' });
         }
         next();

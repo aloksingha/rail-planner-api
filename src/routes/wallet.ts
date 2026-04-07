@@ -151,7 +151,7 @@ router.get('/admin/all-transactions', requireAuth, requireRole(['SUPER_ADMIN']),
  * Allows Admin and Sales roles to request a withdrawal from their wallet.
  * The amount is deducted immediately to lock the funds.
  */
-router.post('/withdraw-request', requireAuth, requireRole(['ADMIN', 'SALES_MANAGER']), async (req, res) => {
+router.post('/withdraw-request', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'CUSTOMER']), async (req, res) => {
     const { amount, method, details } = req.body;
 
     if (!amount || amount < 500) {
@@ -226,7 +226,7 @@ router.post('/withdraw-request', requireAuth, requireRole(['ADMIN', 'SALES_MANAG
  * GET /api/wallet/my-withdrawals
  * User's own withdrawal history.
  */
-router.get('/my-withdrawals', requireAuth, requireRole(['ADMIN', 'SALES_MANAGER']), async (req, res) => {
+router.get('/my-withdrawals', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'CUSTOMER']), async (req, res) => {
     try {
         const withdrawals = await prisma.withdrawalRequest.findMany({
             where: { userId: req.user!.userId },

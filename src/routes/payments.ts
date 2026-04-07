@@ -13,7 +13,7 @@ const razorpay = new Razorpay({
     key_secret: process.env.RAZORPAY_KEY_SECRET as string,
 });
 
-router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), requireActiveUser, async (req, res) => {
+router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CUSTOMER']), requireActiveUser, async (req, res) => {
     const {
         amount,
         eventId,
@@ -135,7 +135,7 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), r
  * POST /api/payments/wallet/create-order
  * Initiates a Razorpay order for wallet top-up.
  */
-router.post('/wallet/create-order', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER']), async (req, res) => {
+router.post('/wallet/create-order', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'CUSTOMER']), async (req, res) => {
     const { amount } = req.body;
 
     if (!amount || amount < 100) {
@@ -161,7 +161,7 @@ router.post('/wallet/create-order', requireAuth, requireRole(['SUPER_ADMIN', 'AD
  * POST /api/payments/wallet/verify-topup
  * Verifies Razorpay payment signature and credits the user's wallet.
  */
-router.post('/wallet/verify-topup', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER']), async (req, res) => {
+router.post('/wallet/verify-topup', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'CUSTOMER']), async (req, res) => {
     const { 
         razorpay_order_id, 
         razorpay_payment_id, 
