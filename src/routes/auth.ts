@@ -10,23 +10,30 @@ const router = Router();
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '104332986423-dummy-client-id.apps.googleusercontent.com';
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 const TEST_EMAIL = 'test@ticketspro.in';
+const TEST_ADMIN_EMAIL = 'test@railplanner.in';
 
 router.post('/bypass', async (req, res) => {
     const { email, password } = req.body;
 
-    if (email !== TEST_EMAIL || password !== 'test1234') {
+    const isNormalTest = email === TEST_EMAIL && password === 'test1234';
+    const isAdminTest = email === TEST_ADMIN_EMAIL && password === 'admin1234';
+
+    if (!isNormalTest && !isAdminTest) {
         return res.status(403).json({ error: 'Invalid test credentials' });
     }
 
     try {
+        const role = email === TEST_ADMIN_EMAIL ? 'SUPER_ADMIN' : 'CUSTOMER';
+        const name = email === TEST_ADMIN_EMAIL ? 'Test Super Admin' : 'Test Payment User';
+
         const user = await prisma.user.upsert({
             where: { email },
-            update: {},
+            update: { role },
             create: {
                 email,
-                name: 'Test Payment User',
+                name,
                 passwordHash: 'TEST_BYPASS_USER',
-                role: 'CUSTOMER'
+                role
             }
         });
 
