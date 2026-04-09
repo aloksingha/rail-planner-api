@@ -7,32 +7,35 @@ const transporter = nodemailer.createTransport({
     port: 465,
     secure: true,
     auth: {
-        user: process.env.ZOHO_MAIL_USER || 'noreply@ticketspro.in',
-        pass: process.env.ZOHO_MAIL_PASSWORD || '',
+        user: 'noreply@ticketspro.in',
+        pass: 'Machhol1@733215',
     },
 });
 
-const FROM = `"Tickets Pro" <${process.env.ZOHO_MAIL_USER || 'noreply@ticketspro.in'}>`;
+const FROM = `"Tickets Pro" <noreply@ticketspro.in>`;
+
+// ─── Msg91 Configuration ─────────────────────────────────────────────────────
+const MSG91_AUTH_KEY = "505192AktwOM99DBH369cd7b9eP1";
+const MSG91_SENDER_ID = "TKTSPR";
+const MSG91_TEMPLATES = {
+    CONFIRMED: "69cd80d3c102c5e0ae0aa2a2",
+    CANCELLED: "69cd8100fdf8a150e9033db2",
+    PAYMENT: "69cd80aa1b7f2b91270c2902"
+};
 
 // ─── Msg91 SMS Utility ────────────────────────────────────────────────────────
 /**
  * Generic SMS sender using Msg91 API
  */
 export const sendSMS = async (mobile: string, templateId: string, params: Record<string, string>) => {
-    const authKey = process.env.MSG91_AUTH_KEY;
-    if (!authKey) {
-        console.warn('⚠️ Msg91 Auth Key not found. SMS skipped.');
-        return;
-    }
-
     try {
         // Msg91 expects mobile with country code without +
         const cleanMobile = mobile.replace(/\D/g, ''); 
         
         const response = await axios.post('https://api.msg91.com/api/v5/flow/', {
             template_id: templateId,
-            sender: process.env.MSG91_SENDER_ID || 'TKTSPR',
-            short_url: '1', // Ensure links are short if any
+            sender: MSG91_SENDER_ID,
+            short_url: '1',
             recipients: [
                 {
                     mobiles: cleanMobile,
@@ -41,7 +44,7 @@ export const sendSMS = async (mobile: string, templateId: string, params: Record
             ]
         }, {
             headers: {
-                'authkey': authKey,
+                'authkey': MSG91_AUTH_KEY,
                 'content-type': 'application/json'
             }
         });
@@ -61,16 +64,8 @@ export const sendSMS = async (mobile: string, templateId: string, params: Record
  * Generic WhatsApp sender using Msg91 Flow API
  */
 export const sendWhatsApp = async (mobile: string, templateId: string, params: Record<string, string>) => {
-    const authKey = process.env.MSG91_AUTH_KEY;
-    if (!authKey) {
-        console.warn('⚠️ Msg91 Auth Key not found. WhatsApp skipped.');
-        return;
-    }
-
     try {
-        // Msg91 expects mobile with country code without +
         const cleanMobile = mobile.replace(/\D/g, ''); 
-        
         const response = await axios.post('https://api.msg91.com/api/v5/flow/', {
             template_id: templateId,
             short_url: '1',
@@ -82,7 +77,7 @@ export const sendWhatsApp = async (mobile: string, templateId: string, params: R
             ]
         }, {
             headers: {
-                'authkey': authKey,
+                'authkey': MSG91_AUTH_KEY,
                 'content-type': 'application/json'
             }
         });
@@ -153,9 +148,9 @@ export const notifyBookingConfirmed = async (email: string, eventName: string, m
         });
         console.log(`✅ Booking confirmation email sent to ${email}`);
 
-        // SMS (Optional)
-        if (mobile && process.env.MSG91_TEMPLATE_ID_CONFIRMED) {
-            await sendSMS(mobile, process.env.MSG91_TEMPLATE_ID_CONFIRMED, {
+        // SMS
+        if (mobile) {
+            await sendSMS(mobile, MSG91_TEMPLATES.CONFIRMED, {
                 event_name: eventName,
                 status: 'Confirmed'
             });
