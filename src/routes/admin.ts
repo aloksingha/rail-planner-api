@@ -718,8 +718,8 @@ router.patch('/bookings/:id/status', requireAuth, requireRole(['SUPER_ADMIN', 'A
             }
         });
 
-        // Trigger Notification if status becomes CONFIRMED
-        if (status === 'CONFIRMED') {
+        // Trigger Notification if status becomes CONFIRMED or SUCCESS
+        if (status === 'CONFIRMED' || status === 'SUCCESS') {
             const user = await prisma.user.findUnique({ 
                 where: { id: booking.userId },
                 select: { email: true, mobile: true }
