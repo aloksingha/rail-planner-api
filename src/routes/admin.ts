@@ -402,7 +402,7 @@ router.get('/bookings', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES
                 skip,
                 include: {
                     user: { select: { email: true, mobile: true } },
-                    event: { select: { name: true, date: true } },
+                    event: { select: { name: true, date: true, description: true } },
                     refundRecords: {
                         orderBy: { createdAt: 'desc' },
                         take: 1
