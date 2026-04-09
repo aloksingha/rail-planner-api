@@ -73,14 +73,16 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
 
             const pDesc = Array.isArray(passengerList) 
                 ? passengerList.map((p: any) => `${p.name} (${p.age}), ${p.gender}`).join('; ')
-                : `Passengers: ${passengers || 1}`;
+                : `Count: ${passengers || 1}`;
+
+            const fullPassengerDesc = `Passengers: ${pDesc}`;
 
             // 4. Resolve Event
             let resolvedEventId = eventId;
             if (!resolvedEventId && trainNo) {
                 const journeyDateObj = journeyDate ? new Date(journeyDate) : new Date();
                 const eventName = `Train ${trainNo}${trainName ? ' - ' + trainName : ''}: ${fromStation || '?'} → ${toStation || '?'}`;
-                const description = `Wallet booking. Train: ${trainNo}. Journey: ${fromStation} to ${toStation} on ${journeyDateObj.toDateString()}. Passengers: ${pDesc}. Mobile: ${mobile || 'N/A'}.`;
+                const description = `Wallet booking. Train: ${trainNo}. Journey: ${fromStation} to ${toStation} on ${journeyDateObj.toDateString()}. ${fullPassengerDesc}. Mobile: ${mobile || 'N/A'}.`;
 
                 const event = await tx.event.create({
                     data: { name: eventName, description, date: journeyDateObj }
@@ -321,10 +323,12 @@ router.post('/verify', requireAuth, async (req, res) => {
             // Create Event
             const pDesc = Array.isArray(passengerList) 
                 ? passengerList.map((p: any) => `${p.name} (${p.age}), ${p.gender}`).join('; ')
-                : `Passengers: ${passengers}`;
+                : `Count: ${passengers}`;
+
+            const fullPassengerDesc = `Passengers: ${pDesc}`;
 
             const eventName = `${trainName || 'Express'} (${trainNo}) - ${fromStation} to ${toStation}`;
-            const description = `Razorpay ticket booking. Train: ${trainNo}. Route: ${fromStation} → ${toStation} on ${journeyDate}. Passengers: ${pDesc}. Mobile: ${mobile}. Paid: ₹${amount}`;
+            const description = `Razorpay ticket booking. Train: ${trainNo}. Route: ${fromStation} → ${toStation} on ${journeyDate}. ${fullPassengerDesc}. Mobile: ${mobile}. Paid: ₹${amount}`;
 
             const event = await tx.event.create({
                 data: {
