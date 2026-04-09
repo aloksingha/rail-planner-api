@@ -17,8 +17,10 @@ router.post('/', requireAuth, requireActiveUser, async (req, res) => {
         passengers, 
         mobile, 
         amount, 
-        trainClass 
+        trainClass,
+        passengerList
     } = req.body;
+
 
     // Check permissions
     if (!['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(req.user!.role)) {
@@ -32,13 +34,18 @@ router.post('/', requireAuth, requireActiveUser, async (req, res) => {
     try {
         const result = await prisma.$transaction(async (tx) => {
             // 1. Create Event (Walk-in specific)
+            const pDesc = Array.isArray(passengerList) 
+                ? passengerList.map((p: any) => `${p.name} (${p.age}), ${p.gender}`).join('; ')
+                : `Count: ${passengers || 1}`;
+
             const event = await tx.event.create({
                 data: {
                     name: `${trainName || 'Express'} (${trainNo}) - ${fromStation} to ${toStation}`,
-                    description: `Manual booking for ${trainNo} on ${journeyDate} via ${fromStation} to ${toStation}. Class: ${trainClass}. Mobile: ${mobile}`,
+                    description: `Manual booking for ${trainNo} on ${journeyDate} via ${fromStation} to ${toStation}. Class: ${trainClass}. Mobile: ${mobile}. Passengers: ${pDesc}.`,
                     date: new Date(journeyDate),
                 }
             });
+
 
             // 2. Generate a manual payment ID
             const manualPaymentId = `MOFF_${Date.now()}_${Math.random().toString(36).substring(7)}`;
