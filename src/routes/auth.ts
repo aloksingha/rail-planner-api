@@ -7,7 +7,7 @@ import axios from 'axios';
 const router = Router();
 
 // Load the Google Client ID from environment or use a dummy placeholder
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '104332986423-dummy-client-id.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '230918188710-1vri19r33j94uc64ohubmnbdp8mtnrk7.apps.googleusercontent.com';
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 const TEST_EMAIL = 'test@ticketspro.in';
 const TEST_ADMIN_EMAIL = 'test@railplanner.in';
