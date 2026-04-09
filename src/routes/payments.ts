@@ -207,6 +207,18 @@ router.post('/offline-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), 
             });
         });
 
+        // Trigger notifications (non-blocking) for testing verification
+        try {
+            const user = await prisma.user.findUnique({
+                where: { id: req.user!.userId },
+                select: { email: true, mobile: true }
+            });
+            if (user && trainNo) {
+                const eventName = `OFFLINE TEST: Train ${trainNo}: ${fromStation} → ${toStation}`;
+                await notifyBookingConfirmed(user.email, eventName, user.mobile || mobile || undefined);
+            }
+        } catch (notifErr) { console.error('Offline notification error:', notifErr); }
+
         return res.json({ success: true, message: 'Offline Test Booking Created Successfully' });
     } catch (error: any) {
         console.error('Offline payment error:', error);
