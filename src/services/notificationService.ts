@@ -225,21 +225,12 @@ export const notifyBookingCancelled = async (email: string, reason: string, mobi
         });
         console.log(`✅ Cancellation email sent to ${email}`);
 
-        // SMS (Optional)
-        if (mobile && process.env.MSG91_TEMPLATE_ID_CANCELLED) {
-            await sendSMS(mobile, process.env.MSG91_TEMPLATE_ID_CANCELLED, {
+        // SMS
+        if (mobile) {
+            await sendSMS(mobile, MSG91_TEMPLATES.CANCELLED, {
                 reason: reason || 'Cancelled per request'
             });
         }
-
-        /*
-        // WhatsApp (Optional) - Removed per request for API-less operation
-        if (mobile && process.env.MSG91_WHATSAPP_TEMPLATE_ID_CANCELLED) {
-            await sendWhatsApp(mobile, process.env.MSG91_WHATSAPP_TEMPLATE_ID_CANCELLED, {
-                reason: reason || 'Cancelled per request'
-            });
-        }
-        */
     } catch (e: any) {
         console.error('Email send failed (non-fatal):', e?.message || e);
     }
@@ -248,20 +239,10 @@ export const notifyBookingCancelled = async (email: string, reason: string, mobi
 // ─── Payment Received (Initial Receipt) ───────────────────────────────────────
 export const notifyPaymentReceived = async (mobile: string, amount: number, orderId: string) => {
     // 1. SMS
-    if (mobile && process.env.MSG91_TEMPLATE_ID_PAYMENT) {
-        await sendSMS(mobile, process.env.MSG91_TEMPLATE_ID_PAYMENT, {
+    if (mobile) {
+        await sendSMS(mobile, MSG91_TEMPLATES.PAYMENT, {
             amount: amount.toString(),
             order_id: orderId
         });
     }
-
-    /*
-    // 2. WhatsApp - Removed per request for API-less operation
-    if (mobile && process.env.MSG91_WHATSAPP_TEMPLATE_ID_PAYMENT) {
-        await sendWhatsApp(mobile, process.env.MSG91_WHATSAPP_TEMPLATE_ID_PAYMENT, {
-            amount: amount.toString(),
-            order_id: orderId
-        });
-    }
-    */
 };
