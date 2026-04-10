@@ -38,10 +38,12 @@ router.post('/', requireAuth, requireActiveUser, async (req, res) => {
                 ? passengerList.map((p: any) => `${p.name} (${p.age}), ${p.gender}`).join('; ')
                 : `Count: ${passengers || 1}`;
 
+            const fullPassengerDesc = `Passengers: ${pDesc}`;
+
             const event = await tx.event.create({
                 data: {
                     name: `${trainName || 'Express'} (${trainNo}) - ${fromStation} to ${toStation}`,
-                    description: `Manual booking for ${trainNo} on ${journeyDate} via ${fromStation} to ${toStation}. Class: ${trainClass}. Mobile: ${mobile}. Passengers: ${pDesc}.`,
+                    description: `Manual booking for ${trainNo} on ${journeyDate} via ${fromStation} to ${toStation}. Class: ${trainClass}. Mobile: ${mobile}. ${fullPassengerDesc}.`,
                     date: new Date(journeyDate),
                 }
             });

@@ -73,16 +73,14 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
 
             const pDesc = Array.isArray(passengerList) 
                 ? passengerList.map((p: any) => `${p.name} (${p.age}), ${p.gender}`).join('; ')
-                : `Count: ${passengers || 1}`;
-
-            const fullPassengerDesc = `Passengers: ${pDesc}`;
+                : `Passengers: ${passengers || 1}`;
 
             // 4. Resolve Event
             let resolvedEventId = eventId;
             if (!resolvedEventId && trainNo) {
                 const journeyDateObj = journeyDate ? new Date(journeyDate) : new Date();
                 const eventName = `Train ${trainNo}${trainName ? ' - ' + trainName : ''}: ${fromStation || '?'} → ${toStation || '?'}`;
-                const description = `Wallet booking. Train: ${trainNo}. Journey: ${fromStation} to ${toStation} on ${journeyDateObj.toDateString()}. ${fullPassengerDesc}. Mobile: ${mobile || 'N/A'}.`;
+                const description = `Wallet booking. Train: ${trainNo}. Journey: ${fromStation} to ${toStation} on ${journeyDateObj.toDateString()}. Passengers: ${pDesc}. Mobile: ${mobile || 'N/A'}.`;
 
                 const event = await tx.event.create({
                     data: { name: eventName, description, date: journeyDateObj }
@@ -135,94 +133,6 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
     } catch (error: any) {
         console.error('Wallet payment error:', error);
         return res.status(500).json({ error: error.message || 'Payment failed' });
-    }
-});
-
-/**
- * POST /api/payments/offline-pay
- * Internal TESTING route for Admins to create bookings without actual payment.
- */
-router.post('/offline-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
-    const {
-        amount,
-        trainClass,
-        trainNo,
-        trainName,
-        fromStation,
-        toStation,
-        journeyDate,
-        passengers,
-        mobile,
-        passengerList
-    } = req.body;
-
-    try {
-        await prisma.$transaction(async (tx) => {
-            const user = await tx.user.findUnique({
-                where: { id: req.user!.userId },
-                select: { id: true, email: true }
-            });
-
-            if (!user) throw new Error('User not found');
-
-            const pDesc = Array.isArray(passengerList) 
-                ? passengerList.map((p: any) => `${p.name} (${p.age}), ${p.gender}`).join('; ')
-                : `Count: ${passengers || 1}`;
-
-            const fullPassengerDesc = `Passengers: ${pDesc}`;
-            const journeyDateObj = journeyDate ? new Date(journeyDate) : new Date();
-            const eventName = `OFFLINE: ${trainNo}${trainName ? ' - ' + trainName : ''}: ${fromStation || '?'} → ${toStation || '?'}`;
-            const description = `TEST BOOKING (Admin Offline Mode). Train: ${trainNo}. Journey: ${fromStation} to ${toStation} on ${journeyDateObj.toDateString()}. ${fullPassengerDesc}. Mobile: ${mobile || 'N/A'}. Amount Saved: ₹${amount || 0}`;
-
-            // 1. Create Event
-            const event = await tx.event.create({
-                data: { name: eventName, description, date: journeyDateObj }
-            });
-
-            // 2. Resolve Category
-            let category = 'SLEEPER';
-            if (['2A', '3A', 'CC', '1A', '3E', 'FC', 'EC'].includes(String(trainClass || '').toUpperCase())) {
-                category = 'AC';
-            }
-
-            // 3. Create Booking
-            await tx.booking.create({
-                data: {
-                    userId: user.id,
-                    eventId: event.id,
-                    paymentId: `TEST_OFFLINE_${Date.now()}`,
-                    status: 'CONFIRMED',
-                    class: category
-                }
-            });
-
-            // 4. Audit Log
-            await tx.auditLog.create({
-                data: {
-                    action: 'OFFLINE_TEST_BOOKING',
-                    targetUserId: user.id,
-                    performedByUserId: user.id,
-                    details: `Admin created offline test booking for Train ${trainNo}.`
-                }
-            });
-        });
-
-        // Trigger notifications (non-blocking) for testing verification
-        try {
-            const user = await prisma.user.findUnique({
-                where: { id: req.user!.userId },
-                select: { email: true, mobile: true }
-            });
-            if (user && trainNo) {
-                const eventName = `OFFLINE TEST: Train ${trainNo}: ${fromStation} → ${toStation}`;
-                await notifyBookingConfirmed(user.email, eventName, user.mobile || mobile || undefined);
-            }
-        } catch (notifErr) { console.error('Offline notification error:', notifErr); }
-
-        return res.json({ success: true, message: 'Offline Test Booking Created Successfully' });
-    } catch (error: any) {
-        console.error('Offline payment error:', error);
-        return res.status(500).json({ error: error.message || 'Offline booking failed' });
     }
 });
 
@@ -411,12 +321,10 @@ router.post('/verify', requireAuth, async (req, res) => {
             // Create Event
             const pDesc = Array.isArray(passengerList) 
                 ? passengerList.map((p: any) => `${p.name} (${p.age}), ${p.gender}`).join('; ')
-                : `Count: ${passengers}`;
-
-            const fullPassengerDesc = `Passengers: ${pDesc}`;
+                : `Passengers: ${passengers}`;
 
             const eventName = `${trainName || 'Express'} (${trainNo}) - ${fromStation} to ${toStation}`;
-            const description = `Razorpay ticket booking. Train: ${trainNo}. Route: ${fromStation} → ${toStation} on ${journeyDate}. ${fullPassengerDesc}. Mobile: ${mobile}. Paid: ₹${amount}`;
+            const description = `Razorpay ticket booking. Train: ${trainNo}. Route: ${fromStation} → ${toStation} on ${journeyDate}. Passengers: ${pDesc}. Mobile: ${mobile}. Paid: ₹${amount}`;
 
             const event = await tx.event.create({
                 data: {

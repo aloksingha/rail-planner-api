@@ -7,35 +7,32 @@ const transporter = nodemailer.createTransport({
     port: 465,
     secure: true,
     auth: {
-        user: 'noreply@ticketspro.in',
-        pass: 'Machhol1@733215',
+        user: process.env.ZOHO_MAIL_USER || 'noreply@ticketspro.in',
+        pass: process.env.ZOHO_MAIL_PASSWORD || '',
     },
 });
 
-const FROM = `"Tickets Pro" <noreply@ticketspro.in>`;
-
-// ─── Msg91 Configuration ─────────────────────────────────────────────────────
-const MSG91_AUTH_KEY = "505192AktwOM99DBH369cd7b9eP1";
-const MSG91_SENDER_ID = "TKTSPR";
-const MSG91_TEMPLATES = {
-    CONFIRMED: "69cd80d3c102c5e0ae0aa2a2",
-    CANCELLED: "69cd8100fdf8a150e9033db2",
-    PAYMENT: "69cd80aa1b7f2b91270c2902"
-};
+const FROM = `"Tickets Pro" <${process.env.ZOHO_MAIL_USER || 'noreply@ticketspro.in'}>`;
 
 // ─── Msg91 SMS Utility ────────────────────────────────────────────────────────
 /**
  * Generic SMS sender using Msg91 API
  */
 export const sendSMS = async (mobile: string, templateId: string, params: Record<string, string>) => {
+    const authKey = process.env.MSG91_AUTH_KEY;
+    if (!authKey) {
+        console.warn('⚠️ Msg91 Auth Key not found. SMS skipped.');
+        return;
+    }
+
     try {
         // Msg91 expects mobile with country code without +
         const cleanMobile = mobile.replace(/\D/g, ''); 
         
         const response = await axios.post('https://api.msg91.com/api/v5/flow/', {
             template_id: templateId,
-            sender: MSG91_SENDER_ID,
-            short_url: '1',
+            sender: process.env.MSG91_SENDER_ID || 'TKTSPR',
+            short_url: '1', // Ensure links are short if any
             recipients: [
                 {
                     mobiles: cleanMobile,
@@ -44,7 +41,7 @@ export const sendSMS = async (mobile: string, templateId: string, params: Record
             ]
         }, {
             headers: {
-                'authkey': MSG91_AUTH_KEY,
+                'authkey': authKey,
                 'content-type': 'application/json'
             }
         });
@@ -64,8 +61,16 @@ export const sendSMS = async (mobile: string, templateId: string, params: Record
  * Generic WhatsApp sender using Msg91 Flow API
  */
 export const sendWhatsApp = async (mobile: string, templateId: string, params: Record<string, string>) => {
+    const authKey = process.env.MSG91_AUTH_KEY;
+    if (!authKey) {
+        console.warn('⚠️ Msg91 Auth Key not found. WhatsApp skipped.');
+        return;
+    }
+
     try {
+        // Msg91 expects mobile with country code without +
         const cleanMobile = mobile.replace(/\D/g, ''); 
+        
         const response = await axios.post('https://api.msg91.com/api/v5/flow/', {
             template_id: templateId,
             short_url: '1',
@@ -77,7 +82,7 @@ export const sendWhatsApp = async (mobile: string, templateId: string, params: R
             ]
         }, {
             headers: {
-                'authkey': MSG91_AUTH_KEY,
+                'authkey': authKey,
                 'content-type': 'application/json'
             }
         });
@@ -148,9 +153,9 @@ export const notifyBookingConfirmed = async (email: string, eventName: string, m
         });
         console.log(`✅ Booking confirmation email sent to ${email}`);
 
-        // SMS
-        if (mobile) {
-            await sendSMS(mobile, MSG91_TEMPLATES.CONFIRMED, {
+        // SMS (Optional)
+        if (mobile && process.env.MSG91_TEMPLATE_ID_CONFIRMED) {
+            await sendSMS(mobile, process.env.MSG91_TEMPLATE_ID_CONFIRMED, {
                 event_name: eventName,
                 status: 'Confirmed'
             });
@@ -225,12 +230,21 @@ export const notifyBookingCancelled = async (email: string, reason: string, mobi
         });
         console.log(`✅ Cancellation email sent to ${email}`);
 
-        // SMS
-        if (mobile) {
-            await sendSMS(mobile, MSG91_TEMPLATES.CANCELLED, {
+        // SMS (Optional)
+        if (mobile && process.env.MSG91_TEMPLATE_ID_CANCELLED) {
+            await sendSMS(mobile, process.env.MSG91_TEMPLATE_ID_CANCELLED, {
                 reason: reason || 'Cancelled per request'
             });
         }
+
+        /*
+        // WhatsApp (Optional) - Removed per request for API-less operation
+        if (mobile && process.env.MSG91_WHATSAPP_TEMPLATE_ID_CANCELLED) {
+            await sendWhatsApp(mobile, process.env.MSG91_WHATSAPP_TEMPLATE_ID_CANCELLED, {
+                reason: reason || 'Cancelled per request'
+            });
+        }
+        */
     } catch (e: any) {
         console.error('Email send failed (non-fatal):', e?.message || e);
     }
@@ -239,10 +253,20 @@ export const notifyBookingCancelled = async (email: string, reason: string, mobi
 // ─── Payment Received (Initial Receipt) ───────────────────────────────────────
 export const notifyPaymentReceived = async (mobile: string, amount: number, orderId: string) => {
     // 1. SMS
-    if (mobile) {
-        await sendSMS(mobile, MSG91_TEMPLATES.PAYMENT, {
+    if (mobile && process.env.MSG91_TEMPLATE_ID_PAYMENT) {
+        await sendSMS(mobile, process.env.MSG91_TEMPLATE_ID_PAYMENT, {
             amount: amount.toString(),
             order_id: orderId
         });
     }
+
+    /*
+    // 2. WhatsApp - Removed per request for API-less operation
+    if (mobile && process.env.MSG91_WHATSAPP_TEMPLATE_ID_PAYMENT) {
+        await sendWhatsApp(mobile, process.env.MSG91_WHATSAPP_TEMPLATE_ID_PAYMENT, {
+            amount: amount.toString(),
+            order_id: orderId
+        });
+    }
+    */
 };

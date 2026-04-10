@@ -78,14 +78,6 @@ export const requireRole = (roles: string[]) => {
         }
         
         const userRole = req.user.role.toUpperCase();
-        
-        // --- MIMIC AWARENESS ---
-        // If the user is a Super Admin (even if currently in mimic mode as a Customer),
-        // we grant them access to all Administrative routes.
-        if (req.user.isSuperAdmin) {
-            return next();
-        }
-
         if (!normalizedTargetRoles.includes(userRole)) {
             console.warn(`[Auth] Access Denied. User role: ${userRole}, Required: ${normalizedTargetRoles}`);
             return res.status(403).json({ error: 'Forbidden: Insufficient role' });
