@@ -13,13 +13,7 @@ router.get('/dashboard', requireAuth, async (req, res) => {
         const [bookings, paymentsRaw, user] = await Promise.all([
             prisma.booking.findMany({
                 where: { userId },
-                include: { 
-                    event: true,
-                    refundRecords: {
-                        orderBy: { createdAt: 'desc' },
-                        take: 1
-                    }
-                },
+                include: { event: true },
                 orderBy: { event: { date: 'asc' } },
                 take: 20
             }),
