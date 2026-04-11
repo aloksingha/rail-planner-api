@@ -1,4 +1,4 @@
-import { Router } from 'express';
+﻿import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { prisma } from '../prisma';
 
@@ -104,7 +104,7 @@ router.get('/notifications', requireAuth, async (req, res) => {
                 where: { status: 'PENDING' }
             });
         } else {
-            // Customers see count of UPDATED requests that הם haven't seen yet? 
+            // Customers see count of UPDATED requests that ×”× haven't seen yet? 
             // For now, just count UPDATED status for this user.
             count = await prisma.priceRequest.count({
                 where: {
@@ -121,3 +121,4 @@ router.get('/notifications', requireAuth, async (req, res) => {
 });
 
 export default router;
+
