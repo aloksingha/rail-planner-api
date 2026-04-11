@@ -74,7 +74,10 @@ router.get('/stats', requireAuth, async (req, res) => {
         const [totalBookings, activeTickets, user] = await Promise.all([
             prisma.booking.count({ where: { userId } }),
             prisma.booking.count({ where: { userId, status: 'CONFIRMED' } }),
-            prisma.user.findUnique({ where: { id: userId }, select: { walletBalance: true } })
+            prisma.user.findUnique({ 
+                where: { id: userId }, 
+                select: { walletBalance: true } 
+            })
         ]);
 
         return res.json({
