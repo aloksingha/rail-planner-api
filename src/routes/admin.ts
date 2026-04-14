@@ -424,19 +424,14 @@ router.get('/transactions', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'S
     try {
         let where: any = {};
 
-        if (role === 'ADMIN') {
+        if (role === 'SUPER_ADMIN') {
             const scope = req.query.scope as string;
-            if (scope === 'me') {
-                where = { userId };
+            if (scope === 'all') {
+                where = {}; // No filter = See everything
             } else {
-                where = {
-                    user: {
-                        createdByUserId: userId,
-                        role: 'SALES_MANAGER'
-                    }
-                };
+                where = { userId }; // Default: Only self
             }
-        } else if (role === 'SALES_MANAGER') {
+        } else if (role === 'ADMIN') {
             const scope = req.query.scope as string;
             if (scope === 'team') {
                 const currentUser = await prisma.user.findUnique({
