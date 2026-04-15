@@ -10,13 +10,13 @@ const router = Router();
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '104332986423-dummy-client-id.apps.googleusercontent.com';
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 const TEST_EMAIL = 'test@ticketspro.in';
-const TEST_ADMIN_EMAIL = 'test@railplanner.in';
+const TEST_ADMIN_EMAIL = 'admin@ticketspro.in';
 
 router.post('/bypass', async (req, res) => {
     const { email, password } = req.body;
 
     const isNormalTest = email === TEST_EMAIL && password === 'test1234';
-    const isAdminTest = email === TEST_ADMIN_EMAIL && password === 'admin1234';
+    const isAdminTest = email === TEST_ADMIN_EMAIL && password === 'admin12345';
 
     if (!isNormalTest && !isAdminTest) {
         return res.status(403).json({ error: 'Invalid test credentials' });
