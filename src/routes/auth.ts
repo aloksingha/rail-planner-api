@@ -26,16 +26,28 @@ router.post('/bypass', async (req, res) => {
         const role = email === TEST_ADMIN_EMAIL ? 'SUPER_ADMIN' : 'CUSTOMER';
         const name = email === TEST_ADMIN_EMAIL ? 'Test Super Admin' : 'Test Payment User';
 
-        const user = await prisma.user.upsert({
-            where: { email },
-            update: { role },
-            create: {
+        let user;
+        try {
+            user = await prisma.user.upsert({
+                where: { email },
+                update: { role },
+                create: {
+                    email,
+                    name,
+                    passwordHash: 'TEST_BYPASS_USER',
+                    role
+                }
+            });
+        } catch (dbError: any) {
+            console.warn('[Bypass Auth] Database link failed. Falling back to ghost identity.', dbError.message);
+            // Fallback for when the DB is offline/unreachable on Render
+            user = {
+                id: 'ghost-admin-' + Date.now(),
                 email,
-                name,
-                passwordHash: 'TEST_BYPASS_USER',
+                name: name + ' (Offline Mode)',
                 role
-            }
-        });
+            };
+        }
 
         const token = generateToken(user.id, user.email, user.role, user.name, user.role === 'SUPER_ADMIN');
         return res.json({ token, user: { id: user.id, email: user.email, role: user.role, name: user.name } });
