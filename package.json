@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon src/index.ts",
-    "build": "npx rimraf dist && npx prisma generate && npx tsc && npx prisma db push",
+    "build": "npx rimraf dist && npx prisma generate && npx tsc",
     "start": "node dist/index.js",
     "seed": "ts-node src/seed.ts",
     "db:cleanup": "ts-node prisma/cleanup.ts"
