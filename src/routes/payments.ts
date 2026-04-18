@@ -123,11 +123,17 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
                 where: { id: req.user!.userId },
                 select: { email: true, mobile: true }
             });
-            if (user && trainNo) {
+            const targetEmail = (mobile && email) ? email : user?.email; // Simple check if form provided
+            const targetMobile = (mobile) || user?.mobile;
+
+            if (targetEmail) {
+                console.log(`[WalletPay] Triggering notification for: ${targetEmail}`);
                 const eventName = `Train ${trainNo}: ${fromStation} → ${toStation}`;
-                await notifyBookingConfirmed(user.email, eventName, user.mobile || undefined);
+                await notifyBookingConfirmed(targetEmail, eventName, targetMobile || undefined);
             }
-        } catch (notifErr) { console.error('Notification error:', notifErr); }
+        } catch (notifErr) { 
+            console.error('❌ Wallet Notification Error:', notifErr); 
+        }
 
         return res.json({ success: true, message: 'Payment successful via Wallet' });
     } catch (error: any) {
@@ -474,10 +480,16 @@ router.post('/verify', requireAuth, async (req, res) => {
         // 3. Notify (Non-blocking)
         try {
             const user = await prisma.user.findUnique({ where: { id: req.user!.userId } });
-            if (user?.email) {
-                await notifyBookingConfirmed(user.email, result.eventName, user.mobile || mobile);
+            const targetEmail = (email) || user?.email;
+            const targetMobile = (mobile) || user?.mobile;
+            
+            if (targetEmail) {
+                console.log(`[RazorpayVerify] Triggering notification for: ${targetEmail}`);
+                await notifyBookingConfirmed(targetEmail, result.eventName, targetMobile);
             }
-        } catch (e) { console.error('Notification log error:', e); }
+        } catch (e) { 
+            console.error('❌ Razorpay Notification Log Error:', e); 
+        }
 
         return res.json({ success: true, bookingId: result.booking.id });
 
