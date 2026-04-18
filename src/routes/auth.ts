@@ -96,20 +96,30 @@ router.post('/google', async (req, res) => {
 
         // 2. Map existing user or Register
         console.time('[Auth] DB Upsert');
-        const user = await prisma.user.upsert({
-            where: { email },
-            update: {
-                name, // Update name if it changed or was missing
-                // If email is in initial admin list, force role upgrade even for existing users
-                role: INITIAL_SUPER_ADMINS.includes(email) ? 'SUPER_ADMIN' : undefined
-            },
-            create: {
+        let user;
+        try {
+            user = await prisma.user.upsert({
+                where: { email },
+                update: {
+                    name, // Update name if it changed or was missing
+                    role: INITIAL_SUPER_ADMINS.includes(email) ? 'SUPER_ADMIN' : undefined
+                },
+                create: {
+                    email,
+                    name,
+                    passwordHash: 'GOOGLE_OAUTH_USER',
+                    role: INITIAL_SUPER_ADMINS.includes(email) ? 'SUPER_ADMIN' : 'CUSTOMER'
+                }
+            });
+        } catch (dbError: any) {
+            console.warn('[Google Auth] Database link failed. Falling back to ghost identity.', dbError.message);
+            user = {
+                id: 'ghost-google-' + Date.now(),
                 email,
-                name,
-                passwordHash: 'GOOGLE_OAUTH_USER',
+                name: (name || 'Google User') + ' (Offline Mode)',
                 role: INITIAL_SUPER_ADMINS.includes(email) ? 'SUPER_ADMIN' : 'CUSTOMER'
-            }
-        });
+            };
+        }
         console.timeEnd('[Auth] DB Upsert');
 
         // 3. Issue our app's JWT Session
