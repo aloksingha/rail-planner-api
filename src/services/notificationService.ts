@@ -270,3 +270,17 @@ export const notifyPaymentReceived = async (mobile: string, amount: number, orde
     }
     */
 };
+
+// Diagnostic: Verify SMTP on startup
+export const verifySMTP = async () => {
+    console.log(`[Diagnostic] Testing SMTP connection for: ${FROM}`);
+    try {
+        await transporter.verify();
+        console.log('✅ SMTP Connection Verified: Zoho is ready to send emails.');
+    } catch (error: any) {
+        console.error('❌ SMTP Connection Failed (Zoho):', error.message);
+        if (error.code === 'EAUTH') {
+            console.error('👉 Tip: Check your ZOHO_MAIL_PASSWORD. It must be an App-Specific Password.');
+        }
+    }
+};
