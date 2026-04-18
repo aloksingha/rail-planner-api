@@ -365,11 +365,21 @@ router.post('/offline-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), 
 
         // 6. Notify (Non-blocking)
         try {
+            // Priority 1: Email/Mobile provided in the booking form
+            // Priority 2: Email/Mobile from the logged-in user account
             const user = await prisma.user.findUnique({ where: { id: req.user!.userId } });
-            if (user?.email) {
-                await notifyBookingConfirmed(user.email, result.eventName, user.mobile || mobile);
+            const targetEmail = (req.body.email || user?.email);
+            const targetMobile = (req.body.mobile || user?.mobile);
+
+            if (targetEmail) {
+                console.log(`[OfflinePay] Triggering notification for: ${targetEmail} / ${targetMobile}`);
+                await notifyBookingConfirmed(targetEmail, result.eventName, targetMobile);
+            } else {
+                console.warn('[OfflinePay] No email found for notification trigger.');
             }
-        } catch (notifErr) { console.error('Offline Notif Error:', notifErr); }
+        } catch (notifErr) { 
+            console.error('❌ Offline Notif Error:', notifErr); 
+        }
 
         return res.json({ success: true, bookingId: result.booking.id, message: 'Offline booking provisioned successfully' });
 
