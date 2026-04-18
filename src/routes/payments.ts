@@ -25,6 +25,7 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
         journeyDate,
         passengers,
         mobile,
+        email,
         passengerList
     } = req.body;
 
@@ -123,8 +124,8 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
                 where: { id: req.user!.userId },
                 select: { email: true, mobile: true }
             });
-            const targetEmail = (mobile && email) ? email : user?.email; // Simple check if form provided
-            const targetMobile = (mobile) || user?.mobile;
+            const targetEmail = email || user?.email;
+            const targetMobile = mobile || user?.mobile;
 
             if (targetEmail) {
                 console.log(`[WalletPay] Triggering notification for: ${targetEmail}`);
@@ -409,6 +410,7 @@ router.post('/verify', requireAuth, async (req, res) => {
         mobile,
         amount,
         trainClass,
+        email,
         passengerList
     } = req.body;
 
