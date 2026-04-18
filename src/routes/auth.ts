@@ -44,7 +44,7 @@ router.post('/bypass', async (req, res) => {
             user = {
                 id: 'ghost-admin-' + Date.now(),
                 email,
-                name: name + ' (Offline Mode)',
+                name: name,
                 role
             };
         }
@@ -116,7 +116,7 @@ router.post('/google', async (req, res) => {
             user = {
                 id: 'ghost-google-' + Date.now(),
                 email,
-                name: (name || 'Google User') + ' (Offline Mode)',
+                name: (name || 'Google User'),
                 role: INITIAL_SUPER_ADMINS.includes(email) ? 'SUPER_ADMIN' : 'CUSTOMER'
             };
         }
