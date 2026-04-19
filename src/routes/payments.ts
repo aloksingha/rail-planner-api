@@ -130,7 +130,7 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
             if (targetEmail) {
                 console.log(`[WalletPay] Triggering notification for: ${targetEmail}`);
                 const eventName = `Train ${trainNo}: ${fromStation} → ${toStation}`;
-                await notifyBookingConfirmed(targetEmail, eventName, targetMobile || undefined);
+                await notifyBookingConfirmed(targetEmail, eventName, targetMobile || undefined, req.body);
             }
         } catch (notifErr) { 
             console.error('❌ Wallet Notification Error:', notifErr); 

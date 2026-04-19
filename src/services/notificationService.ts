@@ -105,9 +105,20 @@ export const sendWhatsApp = async (mobile: string, templateId: string, params: R
 };
 
 // ─── Booking Confirmed ────────────────────────────────────────────────────────
-export const notifyBookingConfirmed = async (email: string, eventName: string, mobile?: string) => {
+// ─── Booking Confirmed ────────────────────────────────────────────────────────
+export const notifyBookingConfirmed = async (email: string, eventName: string, mobile?: string, details?: any) => {
     try {
         if (email) {
+            const passengerRows = Array.isArray(details?.passengerList) 
+                ? details.passengerList.map((p: any) => `
+                    <tr>
+                        <td style="padding:12px;border-bottom:1px solid #334155;color:#f1f5f9;font-size:14px;font-weight:600;">${p.name}</td>
+                        <td style="padding:12px;border-bottom:1px solid #334155;color:#94a3b8;font-size:13px;text-align:center;">${p.age}</td>
+                        <td style="padding:12px;border-bottom:1px solid #334155;color:#94a3b8;font-size:13px;text-align:center;">${p.gender === 'M' ? 'Male' : (p.gender === 'F' ? 'Female' : 'Other')}</td>
+                    </tr>
+                `).join('')
+                : `<tr><td colspan="3" style="padding:12px;text-align:center;color:#94a3b8;">${details?.passengers || 1} Passenger(s)</td></tr>`;
+
             await transporter.sendMail({
                 from: FROM,
                 to: email,
@@ -130,13 +141,45 @@ export const notifyBookingConfirmed = async (email: string, eventName: string, m
         <!-- Body -->
         <tr>
           <td style="padding:32px;">
-            <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:24px;">
+            <div style="background:rgba(15,23,42,0.5);border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:24px;">
               <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Journey Details</p>
               <p style="color:#f1f5f9;font-size:18px;font-weight:800;margin:0;">${eventName}</p>
+              <div style="margin-top:16px;display:flex;gap:20px;">
+                <div>
+                  <p style="color:#94a3b8;font-size:10px;text-transform:uppercase;margin:0;">Journey Date</p>
+                  <p style="color:#fff;font-size:14px;font-weight:700;margin:4px 0 0;">${details?.journeyDate ? new Date(details.journeyDate).toLocaleDateString() : 'N/A'}</p>
+                </div>
+                <div style="margin-left:24px;">
+                  <p style="color:#94a3b8;font-size:10px;text-transform:uppercase;margin:0;">Class</p>
+                  <p style="color:#fff;font-size:14px;font-weight:700;margin:4px 0 0;">${details?.trainClass || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Passengers Section -->
+            <div style="margin-bottom:24px;">
+              <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;margin:0 0 12px;text-align:center;">Passenger Manifest</p>
+              <table width="100%" cellpadding="0" cellspacing="0" style="background:#1e293b;border-radius:12px;overflow:hidden;border:1px solid #334155;">
+                <thead>
+                  <tr style="background:rgba(51,65,85,0.5);">
+                    <th style="padding:12px;text-align:left;color:#94a3b8;font-size:11px;text-transform:uppercase;">Name</th>
+                    <th style="padding:12px;text-align:center;color:#94a3b8;font-size:11px;text-transform:uppercase;">Age</th>
+                    <th style="padding:12px;text-align:center;color:#94a3b8;font-size:11px;text-transform:uppercase;">Gen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${passengerRows}
+                </tbody>
+              </table>
+            </div>
+
+            <div style="background:linear-gradient(to right, rgba(16,185,129,0.1), rgba(16,185,129,0.05));border:1px solid rgba(16,185,129,0.2);border-radius:12px;padding:20px;margin-bottom:24px;text-align:center;">
+               <p style="color:#10b981;font-size:10px;text-transform:uppercase;font-weight:900;letter-spacing:2px;margin:0 0 4px;">Total Paid</p>
+               <p style="color:#fff;font-size:24px;font-weight:900;margin:0;font-style:italic;">₹${Number(details?.amount || 0).toLocaleString()}</p>
             </div>
             
-            <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 24px;">
-              Your booking has been confirmed and payment processed successfully. Please carry a valid photo ID during your journey.
+            <p style="color:#94a3b8;font-size:13px;line-height:1.6;margin:0 0 24px;text-align:center;">
+              Please carry a <span style="color:#fff;font-weight:700;">valid original photo ID</span> during your journey. Safe travels!
             </p>
             
             <div style="text-align:center;">
@@ -159,7 +202,7 @@ export const notifyBookingConfirmed = async (email: string, eventName: string, m
 </body>
 </html>`,
             });
-            console.log(`✅ Booking confirmation email sent to ${email}`);
+            console.log(`✅ Detailed booking confirmation email sent to ${email}`);
         } else {
             console.warn('⚠️ No email provided for notifyBookingConfirmed');
         }
