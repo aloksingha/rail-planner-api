@@ -186,6 +186,7 @@ router.get('/team', requireAuth, requireRole(['ADMIN']), async (req, res) => {
 
 // CACHE for statistics
 const statsCache = new Map<string, { data: any, expiry: number }>();
+statsCache.clear(); // FORCE CLEAR ON STARTUP FOR DATA PURGE
 const STATS_CACHE_TTL = 60 * 1000; // 1 minute cache for stats
 
 // Get system stats for dashboard
