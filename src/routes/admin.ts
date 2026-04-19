@@ -633,14 +633,27 @@ router.post('/bookings/:id/ticket', requireAuth, requireRole(['SUPER_ADMIN', 'AD
 
     try {
         const ticketPath = `/uploads/${req.file.filename}`;
-
-        await prisma.booking.update({
+        const booking = await prisma.booking.update({
             where: { id },
             data: {
                 ticketUrl: ticketPath,
                 status: 'CONFIRMED'
+            },
+            include: {
+                user: { select: { email: true, mobile: true } },
+                event: { select: { name: true } }
             }
         });
+
+        // Trigger Notification
+        if (booking.user) {
+            await notifyBookingConfirmed(
+                booking.user.email, 
+                booking.event.name, 
+                booking.user.mobile || undefined,
+                booking
+            );
+        }
 
         return res.json({ success: true, ticketUrl: ticketPath });
     } catch (error) {
@@ -727,7 +740,11 @@ router.patch('/bookings/:id/status', requireAuth, requireRole(['SUPER_ADMIN', 'A
     try {
         const booking = await prisma.booking.update({
             where: { id },
-            data: { status }
+            data: { status },
+            include: {
+                user: { select: { email: true, mobile: true } },
+                event: { select: { name: true } }
+            }
         });
 
         await prisma.auditLog.create({
@@ -740,15 +757,13 @@ router.patch('/bookings/:id/status', requireAuth, requireRole(['SUPER_ADMIN', 'A
         });
 
         // Trigger Notification if status becomes CONFIRMED
-        if (status === 'CONFIRMED') {
-            const user = await prisma.user.findUnique({ 
-                where: { id: booking.userId },
-                select: { email: true, mobile: true }
-            });
-            const event = await prisma.event.findUnique({ where: { id: booking.eventId } });
-            if (user && event) {
-                await notifyBookingConfirmed(user.email, event.name, user.mobile || undefined);
-            }
+        if (status === 'CONFIRMED' && booking.user) {
+            await notifyBookingConfirmed(
+                booking.user.email, 
+                booking.event.name, 
+                booking.user.mobile || undefined,
+                booking
+            );
         }
 
         return res.json({ success: true, booking });
