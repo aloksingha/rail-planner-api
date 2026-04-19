@@ -60,6 +60,7 @@ model Booking {
   user  User  @relation(fields: [userId], references: [id])
   event Event @relation(fields: [eventId], references: [id])
 
+  paymentRecord PaymentRecord? @relation(fields: [paymentId], references: [paymentId])
   refundRecords RefundRecord[]
 
   @@index([createdAt])
@@ -79,6 +80,7 @@ model PaymentRecord {
   createdAt DateTime @default(now())
   
   user User @relation(fields: [userId], references: [id])
+  bookings Booking[]
 
   @@index([status])
   @@index([createdAt])

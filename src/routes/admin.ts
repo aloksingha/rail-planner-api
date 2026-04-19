@@ -191,29 +191,6 @@ const STATS_CACHE_TTL = 60 * 1000; // 1 minute cache for stats
 
 // Get system stats for dashboard
 router.get('/stats', requireAuth, async (req, res) => {
-    // ─── ONE-TIME OFFLINE PURGE ───
-    (async () => {
-        try {
-            const offPayments = await prisma.paymentRecord.findMany({
-                where: { OR: [{ paymentId: { startsWith: 'OFF_' } }, { orderId: { startsWith: 'ORD_OFF_' } }] }
-            });
-            const pIds = offPayments.map(p => p.paymentId);
-            if (pIds.length > 0) {
-                const bookings = await prisma.booking.findMany({ where: { paymentId: { in: pIds } } });
-                const bIds = bookings.map(b => b.id);
-                const eIds = bookings.map(b => b.eventId);
-                await prisma.refundRecord.deleteMany({ where: { bookingId: { in: bIds } } });
-                await prisma.walletTransaction.deleteMany({ where: { bookingId: { in: bIds } } });
-                await prisma.booking.deleteMany({ where: { id: { in: bIds } } });
-                await prisma.event.deleteMany({ where: { id: { in: eIds } } });
-                await prisma.paymentRecord.deleteMany({ where: { paymentId: { in: pIds } } });
-                statsCache.clear();
-                console.log(`[OfflinePurge] Deleted ${bIds.length} records.`);
-            }
-        } catch (e) { console.error('[OfflinePurge] Error:', e); }
-    })();
-    // ──────────────────────────────
-
     const { role, userId } = req.user!;
     
     // Check cache
