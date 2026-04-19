@@ -110,21 +110,29 @@ export const notifyBookingConfirmed = async (email: string, eventName: string, m
     try {
         if (email) {
             // Data Normalization Helpers
-            const jDate = details?.journeyDate || details?.journey_date || details?.date || null;
-            const tClass = details?.trainClass || details?.train_class || details?.class || details?.category || 'N/A';
+            const jDate = details?.journeyDate || details?.journey_date || details?.date || details?.event?.date || null;
+            const tClass = details?.trainClass || details?.class || details?.category || 'N/A';
             const pList = Array.isArray(details?.passengerList) ? details.passengerList : (Array.isArray(details?.passengers) ? details.passengers : []);
-            const rawAmount = details?.amount || details?.totalAmount || details?.paidAmount || 0;
-            const displayAmount = Number(rawAmount).toLocaleString();
+            
+            // Amount can be in details.amount or passed separately
+            const rawAmount = details?.amount || details?.totalAmount || details?.amountPaid || 0;
+            const displayAmount = Number(rawAmount).toLocaleString('en-IN');
 
             const passengerRows = pList.length > 0
-                ? pList.map((p: any) => `
+                ? pList.map((p: any) => {
+                    const name = p.name || p.passengerName || 'Unknown';
+                    const age = p.age || p.passengerAge || '?';
+                    const gender = (p.gender || p.passengerGender || 'N/A').toUpperCase();
+                    const genderLabel = gender.startsWith('M') ? 'Male' : (gender.startsWith('F') ? 'Female' : (gender.startsWith('O') ? 'Other' : 'N/A'));
+                    
+                    return `
                     <tr>
-                        <td style="padding:12px;border-bottom:1px solid #334155;color:#f1f5f9;font-size:14px;font-weight:600;">${p.name || p.passengerName || 'Unknown'}</td>
-                        <td style="padding:12px;border-bottom:1px solid #334155;color:#94a3b8;font-size:13px;text-align:center;">${p.age || p.passengerAge || '?'}</td>
-                        <td style="padding:12px;border-bottom:1px solid #334155;color:#94a3b8;font-size:13px;text-align:center;">${(p.gender || p.passengerGender || '').toUpperCase().startsWith('M') ? 'Male' : ((p.gender || p.passengerGender || '').toUpperCase().startsWith('F') ? 'Female' : 'Other')}</td>
-                    </tr>
-                `).join('')
-                : `<tr><td colspan="3" style="padding:12px;text-align:center;color:#94a3b8;">${details?.passengers && !Array.isArray(details.passengers) ? details.passengers : 1} Passenger(s)</td></tr>`;
+                        <td style="padding:12px;border-bottom:1px solid #334155;color:#f1f5f9;font-size:14px;font-weight:600;">${name}</td>
+                        <td style="padding:12px;border-bottom:1px solid #334155;color:#94a3b8;font-size:13px;text-align:center;">${age}</td>
+                        <td style="padding:12px;border-bottom:1px solid #334155;color:#94a3b8;font-size:13px;text-align:center;">${genderLabel}</td>
+                    </tr>`;
+                }).join('')
+                : `<tr><td colspan="3" style="padding:12px;text-align:center;color:#94a3b8;">${details?.passengerCount || 1} Passenger(s)</td></tr>`;
 
             await transporter.sendMail({
                 from: FROM,
