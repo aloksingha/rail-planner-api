@@ -141,12 +141,14 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                     running_days![key] = t.runningDays?.allDays === true || (t.runningDays?.days || []).includes(dayNames[i]);
                 });
 
+                const isHumsafar = /HUMSAFAR/i.test(t.trainName);
+                
                 let available_classes: string[] = [];
                 const classesSource = t.classes || t.availableClasses || t.train_class_details || [];
                 if (Array.isArray(classesSource)) {
                     available_classes = classesSource.map((c: any) =>
                         (typeof c === 'string' ? c : (c.code || c.classCode || c.class_cd || '')).toUpperCase()
-                    ).filter(Boolean);
+                    ).filter(c => Boolean(c) && (!isHumsafar || c !== 'SL'));
                 }
 
                 // INJECT PRICING — Correctly calculate cumulative segment travel time
@@ -168,6 +170,9 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                 const travelTimeStr = formatTravelTime(segmentMins);
                 const prices: Record<string, number> = {};
                 ['SL', '3A', '2A', 'CC'].forEach(cls => {
+                    // Force zero price for Humsafar Sleeper
+                    if (isHumsafar && cls === 'SL') return;
+
                     prices[cls] = getTicketPrice(
                         from as string, 
                         to as string, 
