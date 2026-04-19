@@ -191,20 +191,6 @@ const STATS_CACHE_TTL = 60 * 1000; // 1 minute cache for stats
 
 // Get system stats for dashboard
 router.get('/stats', requireAuth, async (req, res) => {
-    // ─── FINAL LEDGER PURGE ───
-    (async () => {
-        try {
-            const result = await prisma.paymentRecord.deleteMany({
-                where: { OR: [{ paymentId: { startsWith: 'OFF_' } }, { orderId: { startsWith: 'ORD_OFF_' } }] }
-            });
-            if (result.count > 0) {
-                statsCache.clear();
-                console.log(`[LedgerPurge] Deleted ${result.count} payment logs.`);
-            }
-        } catch (e) { console.error('[LedgerPurge] Error:', e); }
-    })();
-    // ──────────────────────────
-
     const { role, userId } = req.user!;
     
     // Check cache
