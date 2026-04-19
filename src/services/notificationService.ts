@@ -21,18 +21,23 @@ const FROM = `"Tickets Pro" <${process.env.ZOHO_MAIL_USER || 'noreply@ticketspro
 export const sendSMS = async (mobile: string, templateId: string, params: Record<string, string>) => {
     const authKey = process.env.MSG91_AUTH_KEY;
     if (!authKey) {
-        console.warn('⚠️ Msg91 Auth Key not found. SMS skipped.');
+        console.warn('⚠️ Msg91 Auth Key not found in Environment Variables. SMS skipped.');
         return;
     }
 
     try {
         // Msg91 expects mobile with country code without +
-        const cleanMobile = mobile.replace(/\D/g, ''); 
+        let cleanMobile = mobile.replace(/\D/g, ''); 
+        // Force Indian country code if missing
+        if (cleanMobile.length === 10) {
+            cleanMobile = '91' + cleanMobile;
+        }
         
+        console.log(`[Msg91] Debug: Prepared payload for ${cleanMobile} using template ${templateId}`);
+
         const response = await axios.post('https://api.msg91.com/api/v5/flow/', {
             template_id: templateId,
             sender: process.env.MSG91_SENDER_ID || 'TKTSPR',
-            short_url: '1', // Ensure links are short if any
             recipients: [
                 {
                     mobiles: cleanMobile,
@@ -46,13 +51,15 @@ export const sendSMS = async (mobile: string, templateId: string, params: Record
             }
         });
 
+        console.log(`[Msg91] API Raw Response:`, JSON.stringify(response.data));
+
         if (response.data?.type === 'success') {
-            console.log(`✅ SMS successfully triggered for ${mobile} via template ${templateId}`);
+            console.log(`✅ SMS successfully triggered for ${cleanMobile}`);
         } else {
-            console.warn(`⚠️ SMS trigger failed for ${mobile}:`, response.data);
+            console.warn(`⚠️ SMS trigger failed for ${cleanMobile}:`, response.data);
         }
     } catch (error: any) {
-        console.error('❌ Msg91 API Error:', error?.response?.data || error.message);
+        console.error('❌ Msg91 API Error Details:', error?.response?.data || error.message);
     }
 };
 
@@ -100,24 +107,24 @@ export const sendWhatsApp = async (mobile: string, templateId: string, params: R
 // ─── Booking Confirmed ────────────────────────────────────────────────────────
 export const notifyBookingConfirmed = async (email: string, eventName: string, mobile?: string) => {
     try {
-        // Email
-        await transporter.sendMail({
-            from: FROM,
-            to: email,
-            subject: '✅ Booking Confirmed — Tickets Pro',
-            html: `
+        if (email) {
+            await transporter.sendMail({
+                from: FROM,
+                to: email,
+                subject: '✅ Booking Confirmed — Tickets Pro',
+                html: `
 <!DOCTYPE html>
 <html>
 <body style="margin:0;padding:0;background:#0f172a;font-family:'Segoe UI',sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#0f172a;padding:40px 20px;">
     <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:16px;border:1px solid #1e3a5f;overflow:hidden;">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:linear-gradient(135deg,#1e293b,#0f172a);border-radius:16px;border:1px solid #1e293b;overflow:hidden;box-shadow:0 10px 25px rgba(0,0,0,0.5);">
         <!-- Header -->
         <tr>
-          <td style="background:linear-gradient(135deg,#0d9488,#0ea5e9);padding:32px;text-align:center;">
-            <div style="font-size:32px;">🎫</div>
-            <h1 style="color:#fff;margin:8px 0 0;font-size:24px;font-weight:900;letter-spacing:-0.5px;">Booking Confirmed!</h1>
-            <p style="color:rgba(255,255,255,0.8);margin:6px 0 0;font-size:14px;">Your train ticket is booked successfully.</p>
+          <td style="background:linear-gradient(135deg,#0ea5e9,#0c4a6e);padding:32px;text-align:center;">
+            <div style="font-size:40px;margin-bottom:12px;">✅</div>
+            <h1 style="color:#fff;margin:0;font-size:24px;font-weight:900;text-transform:uppercase;tracking:1px;">Booking Confirmed</h1>
+            <p style="color:rgba(255,255,255,0.8);margin:6px 0 0;font-size:14px;">Thank you for choosing Tickets Pro</p>
           </td>
         </tr>
         <!-- Body -->
@@ -127,12 +134,13 @@ export const notifyBookingConfirmed = async (email: string, eventName: string, m
               <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Journey Details</p>
               <p style="color:#f1f5f9;font-size:18px;font-weight:800;margin:0;">${eventName}</p>
             </div>
+            
             <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 24px;">
-              Your booking has been confirmed and payment processed successfully. 
-              Please carry a valid photo ID during your journey.
+              Your booking has been confirmed and payment processed successfully. Please carry a valid photo ID during your journey.
             </p>
+            
             <div style="text-align:center;">
-              <a href="https://ticketspro.in/bookings" style="background:linear-gradient(135deg,#0d9488,#0ea5e9);color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:700;font-size:15px;display:inline-block;">
+              <a href="https://rail-planner-pro.web.app/bookings" style="background:linear-gradient(135deg,#0ea5e9,#2563eb);color:#fff;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:700;font-size:15px;display:inline-block;box-shadow:0 4px 12px rgba(14,165,233,0.3);">
                 View My Bookings →
               </a>
             </div>
@@ -140,8 +148,8 @@ export const notifyBookingConfirmed = async (email: string, eventName: string, m
         </tr>
         <!-- Footer -->
         <tr>
-          <td style="padding:20px 32px;border-top:1px solid #1e293b;text-align:center;">
-            <p style="color:#475569;font-size:12px;margin:0;">© 2026 Tickets Pro · <a href="https://ticketspro.in" style="color:#0ea5e9;text-decoration:none;">ticketspro.in</a></p>
+          <td style="padding:24px 32px;border-top:1px solid #1e293b;text-align:center;background:rgba(15,23,42,0.5);">
+            <p style="color:#475569;font-size:12px;margin:0;">© 2026 Tickets Pro · <a href="https://rail-planner-pro.web.app" style="color:#0ea5e9;text-decoration:none;">ticketspro.in</a></p>
             <p style="color:#334155;font-size:11px;margin:6px 0 0;">This is an automated email. Please do not reply.</p>
           </td>
         </tr>
@@ -150,15 +158,21 @@ export const notifyBookingConfirmed = async (email: string, eventName: string, m
   </table>
 </body>
 </html>`,
-        });
-        console.log(`✅ Booking confirmation email sent to ${email}`);
+            });
+            console.log(`✅ Booking confirmation email sent to ${email}`);
+        } else {
+            console.warn('⚠️ No email provided for notifyBookingConfirmed');
+        }
 
         // SMS (Optional)
         if (mobile && process.env.MSG91_TEMPLATE_ID_CONFIRMED) {
+            console.log(`[NotificationService] Attempting SMS for ${mobile} with template ${process.env.MSG91_TEMPLATE_ID_CONFIRMED}`);
             await sendSMS(mobile, process.env.MSG91_TEMPLATE_ID_CONFIRMED, {
                 event_name: eventName,
                 status: 'Confirmed'
             });
+        } else {
+            console.log(`[NotificationService] SMS skipped: Mobile=${!!mobile}, TemplateID=${!!process.env.MSG91_TEMPLATE_ID_CONFIRMED}`);
         }
 
         /* 

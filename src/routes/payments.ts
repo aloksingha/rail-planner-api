@@ -375,14 +375,15 @@ router.post('/offline-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), 
             // Priority 1: Email/Mobile provided in the booking form
             // Priority 2: Email/Mobile from the logged-in user account
             const user = await prisma.user.findUnique({ where: { id: req.user!.userId } });
-            const targetEmail = (req.body.email || user?.email);
-            const targetMobile = (req.body.mobile || user?.mobile);
+            // Priority: Explicitly provided, then fallback to user profile
+            const targetEmail = req.body.email || user?.email;
+            const targetMobile = req.body.mobile || user?.mobile;
 
-            if (targetEmail) {
-                console.log(`[OfflinePay] Triggering notification for: ${targetEmail} / ${targetMobile}`);
+            if (targetEmail || targetMobile) {
+                console.log(`[OfflinePay] Debugging SMS/Email: TargetEmail=${targetEmail}, TargetMobile=${targetMobile}`);
                 await notifyBookingConfirmed(targetEmail, result.eventName, targetMobile);
             } else {
-                console.warn('[OfflinePay] No email found for notification trigger.');
+                console.warn('[OfflinePay] No contact info found for notification trigger.');
             }
         } catch (notifErr) { 
             console.error('❌ Offline Notif Error:', notifErr); 
@@ -482,12 +483,15 @@ router.post('/verify', requireAuth, async (req, res) => {
         // 3. Notify (Non-blocking)
         try {
             const user = await prisma.user.findUnique({ where: { id: req.user!.userId } });
-            const targetEmail = (email) || user?.email;
-            const targetMobile = (mobile) || user?.mobile;
+            // Priority: Explicitly provided, then fallback to user profile
+            const targetEmail = email || req.body.email || user?.email;
+            const targetMobile = mobile || req.body.mobile || user?.mobile;
             
             if (targetEmail) {
-                console.log(`[RazorpayVerify] Triggering notification for: ${targetEmail}`);
+                console.log(`[RazorpayVerify] Triggering notification for: ${targetEmail} / ${targetMobile}`);
                 await notifyBookingConfirmed(targetEmail, result.eventName, targetMobile);
+            } else {
+                console.warn('[RazorpayVerify] No email found for notification trigger.');
             }
         } catch (e) { 
             console.error('❌ Razorpay Notification Log Error:', e); 
