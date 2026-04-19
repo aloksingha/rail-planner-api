@@ -129,7 +129,7 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
 
             if (targetEmail) {
                 console.log(`[WalletPay] Triggering notification for: ${targetEmail}`);
-                const eventName = `Train ${trainNo}: ${fromStation} → ${toStation}`;
+                const eventName = `${trainName || 'Express'} (${trainNo}) - ${fromStation} to ${toStation}`;
                 await notifyBookingConfirmed(targetEmail, eventName, targetMobile || undefined, req.body);
             }
         } catch (notifErr) { 
@@ -381,7 +381,7 @@ router.post('/offline-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), 
 
             if (targetEmail || targetMobile) {
                 console.log(`[OfflinePay] Debugging SMS/Email: TargetEmail=${targetEmail}, TargetMobile=${targetMobile}`);
-                await notifyBookingConfirmed(targetEmail, result.eventName, targetMobile);
+                await notifyBookingConfirmed(targetEmail, result.eventName, targetMobile, req.body);
             } else {
                 console.warn('[OfflinePay] No contact info found for notification trigger.');
             }
@@ -489,7 +489,7 @@ router.post('/verify', requireAuth, async (req, res) => {
             
             if (targetEmail) {
                 console.log(`[RazorpayVerify] Triggering notification for: ${targetEmail} / ${targetMobile}`);
-                await notifyBookingConfirmed(targetEmail, result.eventName, targetMobile);
+                await notifyBookingConfirmed(targetEmail, result.eventName, targetMobile, req.body);
             } else {
                 console.warn('[RazorpayVerify] No email found for notification trigger.');
             }
