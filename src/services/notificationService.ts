@@ -109,15 +109,22 @@ export const sendWhatsApp = async (mobile: string, templateId: string, params: R
 export const notifyBookingConfirmed = async (email: string, eventName: string, mobile?: string, details?: any) => {
     try {
         if (email) {
-            const passengerRows = Array.isArray(details?.passengerList) 
-                ? details.passengerList.map((p: any) => `
+            // Data Normalization Helpers
+            const jDate = details?.journeyDate || details?.journey_date || details?.date || null;
+            const tClass = details?.trainClass || details?.train_class || details?.class || details?.category || 'N/A';
+            const pList = Array.isArray(details?.passengerList) ? details.passengerList : (Array.isArray(details?.passengers) ? details.passengers : []);
+            const rawAmount = details?.amount || details?.totalAmount || details?.paidAmount || 0;
+            const displayAmount = Number(rawAmount).toLocaleString();
+
+            const passengerRows = pList.length > 0
+                ? pList.map((p: any) => `
                     <tr>
-                        <td style="padding:12px;border-bottom:1px solid #334155;color:#f1f5f9;font-size:14px;font-weight:600;">${p.name}</td>
-                        <td style="padding:12px;border-bottom:1px solid #334155;color:#94a3b8;font-size:13px;text-align:center;">${p.age}</td>
-                        <td style="padding:12px;border-bottom:1px solid #334155;color:#94a3b8;font-size:13px;text-align:center;">${p.gender === 'M' ? 'Male' : (p.gender === 'F' ? 'Female' : 'Other')}</td>
+                        <td style="padding:12px;border-bottom:1px solid #334155;color:#f1f5f9;font-size:14px;font-weight:600;">${p.name || p.passengerName || 'Unknown'}</td>
+                        <td style="padding:12px;border-bottom:1px solid #334155;color:#94a3b8;font-size:13px;text-align:center;">${p.age || p.passengerAge || '?'}</td>
+                        <td style="padding:12px;border-bottom:1px solid #334155;color:#94a3b8;font-size:13px;text-align:center;">${(p.gender || p.passengerGender || '').toUpperCase().startsWith('M') ? 'Male' : ((p.gender || p.passengerGender || '').toUpperCase().startsWith('F') ? 'Female' : 'Other')}</td>
                     </tr>
                 `).join('')
-                : `<tr><td colspan="3" style="padding:12px;text-align:center;color:#94a3b8;">${details?.passengers || 1} Passenger(s)</td></tr>`;
+                : `<tr><td colspan="3" style="padding:12px;text-align:center;color:#94a3b8;">${details?.passengers && !Array.isArray(details.passengers) ? details.passengers : 1} Passenger(s)</td></tr>`;
 
             await transporter.sendMail({
                 from: FROM,
@@ -147,11 +154,11 @@ export const notifyBookingConfirmed = async (email: string, eventName: string, m
               <div style="margin-top:16px;display:flex;gap:20px;">
                 <div>
                   <p style="color:#94a3b8;font-size:10px;text-transform:uppercase;margin:0;">Journey Date</p>
-                  <p style="color:#fff;font-size:14px;font-weight:700;margin:4px 0 0;">${details?.journeyDate ? new Date(details.journeyDate).toLocaleDateString() : 'N/A'}</p>
+                  <p style="color:#fff;font-size:14px;font-weight:700;margin:4px 0 0;">${jDate ? new Date(jDate).toLocaleDateString() : 'N/A'}</p>
                 </div>
                 <div style="margin-left:24px;">
                   <p style="color:#94a3b8;font-size:10px;text-transform:uppercase;margin:0;">Class</p>
-                  <p style="color:#fff;font-size:14px;font-weight:700;margin:4px 0 0;">${details?.trainClass || 'N/A'}</p>
+                  <p style="color:#fff;font-size:14px;font-weight:700;margin:4px 0 0;">${tClass}</p>
                 </div>
               </div>
             </div>
@@ -175,7 +182,7 @@ export const notifyBookingConfirmed = async (email: string, eventName: string, m
 
             <div style="background:linear-gradient(to right, rgba(16,185,129,0.1), rgba(16,185,129,0.05));border:1px solid rgba(16,185,129,0.2);border-radius:12px;padding:20px;margin-bottom:24px;text-align:center;">
                <p style="color:#10b981;font-size:10px;text-transform:uppercase;font-weight:900;letter-spacing:2px;margin:0 0 4px;">Total Paid</p>
-               <p style="color:#fff;font-size:24px;font-weight:900;margin:0;font-style:italic;">₹${Number(details?.amount || 0).toLocaleString()}</p>
+               <p style="color:#fff;font-size:24px;font-weight:900;margin:0;font-style:italic;">₹${displayAmount}</p>
             </div>
             
             <p style="color:#94a3b8;font-size:13px;line-height:1.6;margin:0 0 24px;text-align:center;">
