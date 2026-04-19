@@ -200,10 +200,10 @@ export const getTicketPrice = (
     }
     totalHours = Math.max(2, totalHours);
 
-    // Standard Formulas
-    const price = (cls === '3A' || cls === '3E' || cls === 'CC') ? Math.round(300 + (80 * totalHours)) :
-                   (cls === '2A' || cls === '1A' || cls === 'FC') ? Math.round(450 + (125 * totalHours)) :
-                   Math.round(150 + (35 * totalHours));
+    // Standard Fixed Pricing
+    const price = (cls === '3A' || cls === '3E' || cls === 'CC') ? 4500 :
+                   (cls === '2A' || cls === '1A' || cls === 'FC') ? 5500 :
+                   3000;
 
     console.log(`[PRICING_DEBUG] FALLTHROUGH: Using formula for ${src}->${dst}. Price: ${price}`);
     return price;
