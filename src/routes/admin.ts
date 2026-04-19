@@ -189,26 +189,6 @@ const statsCache = new Map<string, { data: any, expiry: number }>();
 statsCache.clear(); // FORCE CLEAR ON STARTUP FOR DATA PURGE
 const STATS_CACHE_TTL = 60 * 1000; // 1 minute cache for stats
 
-// ─── ONE-TIME PRODUCTION PURGE (REMOVE AFTER CONFIRMATION) ───
-(async () => {
-    console.log('🚀 [Critical] Executing One-Time Production Data Purge...');
-    try {
-        await prisma.refundRecord.deleteMany();
-        await prisma.booking.deleteMany();
-        await prisma.paymentRecord.deleteMany();
-        await prisma.walletTransaction.deleteMany();
-        await prisma.withdrawalRequest.deleteMany();
-        await prisma.auditLog.deleteMany();
-        await prisma.failedBooking.deleteMany();
-        await prisma.priceRequest.deleteMany();
-        await prisma.user.updateMany({ data: { walletBalance: 0 } });
-        console.log('✅ [Critical] Production Purge Successful. Database is CLEAN.');
-    } catch (e) {
-        console.error('❌ [Critical] Purge Failed:', e);
-    }
-})();
-// ─────────────────────────────────────────────────────────────
-
 // Get system stats for dashboard
 router.get('/stats', requireAuth, async (req, res) => {
     const { role, userId } = req.user!;
