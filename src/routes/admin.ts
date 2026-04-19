@@ -355,13 +355,18 @@ router.get('/bookings', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES
         let where: any = {};
 
         if (role === 'ADMIN') {
-            // Only see bookings from Sales Managers created by this Admin
-            where = {
-                user: {
-                    createdByUserId: userId,
-                    role: 'SALES_MANAGER'
-                }
-            };
+            const scope = req.query.scope as string;
+            if (scope === 'all') {
+                where = {}; // Super view for management
+            } else {
+                // Default: See bookings from Sales Managers created by this Admin
+                where = {
+                    user: {
+                        createdByUserId: userId,
+                        role: 'SALES_MANAGER'
+                    }
+                };
+            }
         } else if (role === 'SALES_MANAGER') {
             const scope = req.query.scope as string;
 
