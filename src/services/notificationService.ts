@@ -137,7 +137,7 @@ export const notifyBookingConfirmed = async (email: string, eventName: string, m
             await transporter.sendMail({
                 from: FROM,
                 to: email,
-                subject: '✅ Booking Confirmed — Tickets Pro',
+                subject: '📩 Booking Request Received — Tickets Pro',
                 html: `
 <!DOCTYPE html>
 <html>
@@ -149,7 +149,7 @@ export const notifyBookingConfirmed = async (email: string, eventName: string, m
         <tr>
           <td style="background:linear-gradient(135deg,#0ea5e9,#0c4a6e);padding:32px;text-align:center;">
             <div style="font-size:40px;margin-bottom:12px;">✅</div>
-            <h1 style="color:#fff;margin:0;font-size:24px;font-weight:900;text-transform:uppercase;tracking:1px;">Booking Confirmed</h1>
+            <h1 style="color:#fff;margin:0;font-size:24px;font-weight:900;text-transform:uppercase;tracking:1px;">Booking Request Received</h1>
             <p style="color:rgba(255,255,255,0.8);margin:6px 0 0;font-size:14px;">Thank you for choosing Tickets Pro</p>
           </td>
         </tr>
