@@ -409,6 +409,7 @@ router.get('/bookings', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES
                 include: {
                     user: { select: { email: true, mobile: true } },
                     event: { select: { name: true, date: true, description: true } },
+                    paymentRecord: { select: { amount: true } },
                     refundRecords: {
                         orderBy: { createdAt: 'desc' },
                         take: 1
@@ -417,7 +418,12 @@ router.get('/bookings', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES
             }),
             prisma.booking.count({ where })
         ]);
-        return res.json({ bookings, total, page, limit });
+        const transformedBookings = (bookings as any[]).map(b => ({
+            ...b,
+            amount: b.paymentRecord?.amount || 0
+        }));
+
+        return res.json({ bookings: transformedBookings, total, page, limit });
     } catch (error) {
         console.error('Fetch bookings error:', error);
         return res.status(500).json({ error: 'Internal Server Error' });
