@@ -23,6 +23,10 @@ const formatTravelTime = (minutes: number) => {
 const trainCache = new Map<string, { data: any, expiry: number }>();
 const scheduleCache = new Map<string, { data: any, expiry: number }>();
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+const SEARCH_VERSION = 'V20'; // Increment this to force clear cache globally
+
+trainCache.clear(); // Clear on startup
+scheduleCache.clear();
 
 import { NEARBY_STATIONS, getTicketPrice } from '../utils/pricing';
 import { prisma } from '../prisma';
@@ -42,7 +46,7 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             return res.json({ success: true, data: [] });
         }
 
-        const cacheKey = `${from}-${to}-${date}-${reqClass || 'ALL'}`;
+        const cacheKey = `${SEARCH_VERSION}-${from}-${to}-${date}-${reqClass || 'ALL'}`;
         const cached = trainCache.get(cacheKey);
         if (cached && cached.expiry > Date.now()) {
             console.log(`[TrainCache] HIT for ${cacheKey}`);
