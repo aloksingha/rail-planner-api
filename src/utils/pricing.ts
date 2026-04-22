@@ -5,14 +5,21 @@ export const NEARBY_STATIONS: Record<string, string[]> = {
     'NZM': ['NDLS', 'DLI', 'DEC', 'DEE', 'ANVT', 'GZB', 'SZM', 'DSA', 'SSB'],
     'ANVT': ['NDLS', 'DLI', 'NZM', 'GZB', 'DEE', 'SZM', 'DSA'],
     
-    // Kolkata
+    // Kolkata Hub (SDAH, HWH, KOAA, SHM, SRC, DKAE)
     'HWH': ['SDAH', 'KOAA', 'SHM', 'SRC', 'BDC', 'DKAE', 'NH', 'BWN'],
     'SDAH': ['HWH', 'KOAA', 'SHM', 'SRC', 'BDC', 'DKAE', 'NH', 'BWN'],
     'KOAA': ['HWH', 'SDAH', 'SHM', 'SRC', 'BDC', 'DKAE', 'NH', 'BWN'],
-    'SHM': ['HWH', 'SDAH', 'KOAA', 'SRC', 'DKAE'],
+    'SHM': ['HWH', 'SDAH', 'KOAA', 'SRC', 'DKAE', 'SRC'],
     'DKAE': ['HWH', 'SDAH', 'KOAA', 'SHM', 'SRC'],
     'SRC': ['HWH', 'SDAH', 'KOAA', 'SHM', 'DKAE'],
     
+    // Jaipur Hub (JP, GADJ, KWP, DPA, FL)
+    'JP': ['GADJ', 'KWP', 'DPA', 'FL', 'ASV'],
+    'GADJ': ['JP', 'KWP', 'DPA', 'FL', 'ASV'],
+    'KWP': ['JP', 'GADJ', 'DPA', 'FL', 'ASV'],
+    'DPA': ['JP', 'GADJ', 'KWP', 'FL'],
+    'FL': ['JP', 'GADJ', 'KWP', 'DPA'],
+
     // North Bengal
     'NJP': ['SGUJ', 'SGUT', 'SGU'],
     'SGUJ': ['NJP', 'SGUT', 'SGU'],

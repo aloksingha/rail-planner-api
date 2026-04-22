@@ -96,9 +96,9 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         // 1. Primary Direct Search
         let allRemoteTrains = await fetchRemote(from as string, to as string, false);
 
-        // 2. Proximity Search - Expanding reach to capture all city-area terminals (e.g. DEC, DEE, SBIB, DKAE)
-        const sourceAlts = [from as string, ...(NEARBY_STATIONS[from as string] || [])].slice(0, 10);
-        const destAlts = [to as string, ...(NEARBY_STATIONS[to as string] || [])].slice(0, 10);
+        // 2. Proximity Search - Expanding reach to capture all city-area terminals (e.g. DEC, DEE, SBIB, DKAE, KWP)
+        const sourceAlts = [from as string, ...(NEARBY_STATIONS[from as string] || [])].slice(0, 15);
+        const destAlts = [to as string, ...(NEARBY_STATIONS[to as string] || [])].slice(0, 15);
 
         const pairs: {s: string, d: string}[] = [];
         for (const s of sourceAlts) {
