@@ -22,10 +22,10 @@ const formatTravelTime = (minutes: number) => {
 // SIMPLE IN-MEMORY CACHE for Train Search
 const trainCache = new Map<string, { data: any, expiry: number }>();
 const scheduleCache = new Map<string, { data: any, expiry: number }>();
-const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
-const SEARCH_VERSION = 'V22'; // Increment this to force clear cache globally
+const CACHE_TTL = 1; // Effectively disabled for V23 debugging
+const SEARCH_VERSION = 'V23'; // Force refresh
 
-trainCache.clear(); // Clear on startup
+trainCache.clear(); 
 scheduleCache.clear();
 
 import { NEARBY_STATIONS, getTicketPrice } from '../utils/pricing';
@@ -38,6 +38,8 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         if (!from || !to || !date) {
             return res.status(400).json({ success: false, data: "Missing query parameters" });
         }
+
+        console.log(`[DEBUG_V23] Triggering Search: ${from}->${to} on ${date} (Class: ${reqClass})`);
 
         const cacheKey = `${SEARCH_VERSION}-${from}-${to}-${date}-${reqClass || 'ALL'}`;
         const cached = trainCache.get(cacheKey);
