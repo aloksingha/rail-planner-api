@@ -96,9 +96,9 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         // 1. Primary Direct Search
         let allRemoteTrains = await fetchRemote(from as string, to as string, false);
 
-        // 2. Proximity Search - Expanding reach to capture all city-area terminals (e.g. DEC, DEE, SBIB)
-        const sourceAlts = [from as string, ...(NEARBY_STATIONS[from as string] || [])].slice(0, 5);
-        const destAlts = [to as string, ...(NEARBY_STATIONS[to as string] || [])].slice(0, 5);
+        // 2. Proximity Search - Expanding reach to capture all city-area terminals (e.g. DEC, DEE, SBIB, DKAE)
+        const sourceAlts = [from as string, ...(NEARBY_STATIONS[from as string] || [])].slice(0, 10);
+        const destAlts = [to as string, ...(NEARBY_STATIONS[to as string] || [])].slice(0, 10);
 
         const pairs: {s: string, d: string}[] = [];
         for (const s of sourceAlts) {
@@ -124,8 +124,23 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             }
         });
 
-        // Combine nearby and direct results (Direct results at the end so they overwrite alternative ones in the Map)
-        allRemoteTrains = [...fallbackResults, ...allRemoteTrains];
+        // Combine nearby and direct results
+        // Use a Map to de-duplicate by train_no, keeping the "Direct" (non-alternative) versions when available
+        const dedupMap = new Map<string, any>();
+        
+        // Load alternatives first
+        fallbackResults.forEach(t => {
+            const key = t.train_no || t.trainNumber;
+            dedupMap.set(key, t);
+        });
+
+        // Overwrite with direct results (to prefer non-alternative status)
+        allRemoteTrains.forEach(t => {
+            const key = t.train_no || t.trainNumber;
+            dedupMap.set(key, t);
+        });
+
+        allRemoteTrains = Array.from(dedupMap.values());
 
         const adaptedTrains = allRemoteTrains
             .filter((t: any) => {

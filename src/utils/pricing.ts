@@ -6,10 +6,11 @@ export const NEARBY_STATIONS: Record<string, string[]> = {
     'ANVT': ['NDLS', 'DLI', 'NZM', 'GZB', 'DEE', 'SZM', 'DSA'],
     
     // Kolkata
-    'HWH': ['SDAH', 'KOAA', 'SHM', 'SRC', 'BDC'],
-    'SDAH': ['HWH', 'KOAA', 'SHM', 'SRC', 'BDC'],
-    'KOAA': ['HWH', 'SDAH', 'SHM', 'SRC', 'BDC'],
-    'SHM': ['HWH', 'SDAH', 'KOAA', 'SRC'],
+    'HWH': ['SDAH', 'KOAA', 'SHM', 'SRC', 'BDC', 'DKAE', 'NH', 'BWN'],
+    'SDAH': ['HWH', 'KOAA', 'SHM', 'SRC', 'BDC', 'DKAE', 'NH', 'BWN'],
+    'KOAA': ['HWH', 'SDAH', 'SHM', 'SRC', 'BDC', 'DKAE', 'NH', 'BWN'],
+    'SHM': ['HWH', 'SDAH', 'KOAA', 'SRC', 'DKAE'],
+    'DKAE': ['HWH', 'SDAH', 'KOAA', 'SHM', 'SRC'],
     
     // North Bengal
     'NJP': ['SGUJ', 'SGUT', 'SGU'],
