@@ -129,19 +129,18 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         });
 
         // Combine nearby and direct results
-        // Use a Map to de-duplicate by train_no, keeping the "Direct" (non-alternative) versions when available
+        // Use a Map to de-duplicate by train_no
         const dedupMap = new Map<string, any>();
         
-        // Load alternatives first
-        fallbackResults.forEach(t => {
-            const key = t.train_no || t.trainNumber;
-            dedupMap.set(key, t);
-        });
-
-        // Overwrite with direct results (to prefer non-alternative status)
-        allRemoteTrains.forEach(t => {
-            const key = t.train_no || t.trainNumber;
-            dedupMap.set(key, t);
+        // Load ALL results into the map
+        // If a train exists in both lists, the one with isAlternative: false (Direct) wins
+        [...fallbackResults, ...allRemoteTrains].forEach(t => {
+            const trainNo = t.train_no || t.trainNumber;
+            const existing = dedupMap.get(trainNo);
+            
+            if (!existing || (existing.isAlternative && !t.isAlternative)) {
+                dedupMap.set(trainNo, t);
+            }
         });
 
         allRemoteTrains = Array.from(dedupMap.values());
@@ -151,6 +150,20 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                 const rd = t.runningDays;
                 if (!rd || rd.allDays === true) return true;
                 return (rd.days || []).includes(dayFullName);
+            })
+            .filter((t: any) => {
+                // SERVER SIDE CLASS FILTERING - CATEGORY BASED
+                if (!reqClass || reqClass === 'ALL') return true;
+                const available = (t.availableClasses || []).map((c: string) => c.toUpperCase());
+                const query = (reqClass as string).toUpperCase();
+
+                if (available.includes(query)) return true;
+                
+                // Fallbacks
+                if (query === '3A' && (available.includes('3E') || available.includes('CC'))) return true;
+                if (query === '2A' && (available.includes('1A') || available.includes('FC'))) return true;
+                
+                return false;
             })
             .map((t: any) => {
                 const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
