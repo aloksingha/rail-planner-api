@@ -22,14 +22,17 @@ const formatTravelTime = (minutes: number) => {
 // SIMPLE IN-MEMORY CACHE for Train Search
 const trainCache = new Map<string, { data: any, expiry: number }>();
 const scheduleCache = new Map<string, { data: any, expiry: number }>();
-const CACHE_TTL = 1; // Effectively disabled for V23 debugging
-const SEARCH_VERSION = 'V23'; // Force refresh
+const CACHE_TTL = 15 * 60 * 1000; // Restore 15m cache for V24 stability
+const SEARCH_VERSION = 'V24'; // Reset all caches
 
 trainCache.clear(); 
 scheduleCache.clear();
 
 import { NEARBY_STATIONS, getTicketPrice } from '../utils/pricing';
 import { prisma } from '../prisma';
+
+// Helper for rate-limiting
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 router.get('/getTrainOn', async (req: Request, res: Response) => {
     try {
@@ -38,8 +41,6 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         if (!from || !to || !date) {
             return res.status(400).json({ success: false, data: "Missing query parameters" });
         }
-
-        console.log(`[DEBUG_V23] Triggering Search: ${from}->${to} on ${date} (Class: ${reqClass})`);
 
         const cacheKey = `${SEARCH_VERSION}-${from}-${to}-${date}-${reqClass || 'ALL'}`;
         const cached = trainCache.get(cacheKey);
@@ -63,7 +64,7 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         const dayFullNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const dayFullName = dayFullNames[journeyDate.getDay()];
 
-        console.log(`[TrainSearch] ${from} to ${to} on ${date} [Day: ${dayFullName}]`);
+        console.log(`[TrainSearch V24] ${from}->${to} on ${date}`);
 
         // Helper to fetch from API with automatic key failover
         const fetchRemote = async (src: string, dst: string, isFallback = false) => {
@@ -81,23 +82,22 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                 } catch (e: any) {
                     lastError = e;
                     const status = e.response?.status;
-                    console.error(`[RailRadar] Key ${key.substring(0, 8)}... failed with status ${status}: ${e.message}`);
                     if (status === 401 || status === 403 || status === 429) {
-                        console.log(`[RailRadar] Throttled or Invalid. Trying next key...`);
+                        console.warn(`[RailRadar] Key ${key.substring(0, 8)} failed (${status}). Retrying...`);
                         continue; // Try next key
                     }
-                    throw e; // Critical error
+                    throw e; 
                 }
             }
-            throw lastError || new Error('All API retries failed');
+            return []; // Return empty on hard failure to prevent crash
         };
 
         // 1. Primary Direct Search
         let allRemoteTrains = await fetchRemote(from as string, to as string, false);
 
-        // 2. Proximity Search - Expanding reach to capture all city-area terminals (e.g. DEC, DEE, SBIB, DKAE, KWP)
-        const sourceAlts = [from as string, ...(NEARBY_STATIONS[from as string] || [])].slice(0, 15);
-        const destAlts = [to as string, ...(NEARBY_STATIONS[to as string] || [])].slice(0, 15);
+        // 2. Proximity Search - Optimized depth to stay under rate limits
+        const sourceAlts = [from as string, ...(NEARBY_STATIONS[from as string] || [])].slice(0, 10);
+        const destAlts = [to as string, ...(NEARBY_STATIONS[to as string] || [])].slice(0, 10);
 
         const pairs: {s: string, d: string}[] = [];
         for (const s of sourceAlts) {
@@ -107,21 +107,21 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             }
         }
 
-        console.log(`[TrainSearch] Proactively searching ${pairs.length} proximity pairs...`);
+        console.log(`[TrainSearch] Querying ${pairs.length} proximity pairs with V24 throttling...`);
         
-        // Execute fallback searches in parallel for better performance
         const fallbackResults: any[] = [];
-        const proximityResults = await Promise.allSettled(
-            pairs.map(pair => fetchRemote(pair.s, pair.d, true))
-        );
-
-        proximityResults.forEach((res, idx) => {
-            if (res.status === 'fulfilled') {
-                fallbackResults.push(...res.value);
-            } else {
-                console.warn(`[TrainSearch] Proximity pair ${pairs[idx].s}->${pairs[idx].d} failed: ${res.reason?.message}`);
+        // Execute in small batches to respect rate limits
+        for (let i = 0; i < pairs.length; i++) {
+            const pair = pairs[i];
+            try {
+                const results = await fetchRemote(pair.s, pair.d, true);
+                fallbackResults.push(...results);
+                // 100ms micro-delay between calls to avoid 429 errors
+                if (i % 3 === 0) await delay(100); 
+            } catch (err) {
+                console.error(`[TrainSearch] Pair ${pair.s}->${pair.d} failed: ${err}`);
             }
-        });
+        }
 
         // Combine nearby and direct results
         // Use a Map to de-duplicate by train_no
