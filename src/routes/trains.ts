@@ -147,9 +147,15 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                 return (rd.days || []).includes(dayFullName);
             })
             .filter((t: any) => {
-                // SERVER SIDE CLASS FILTERING - CORRECTED FIELD NAME
+                // SERVER SIDE CLASS FILTERING - BULLETPROOF EXTRACTOR
                 if (!reqClass || reqClass === 'ALL') return true;
-                const available = (t.available_classes || []).map((c: string) => c.toUpperCase());
+                
+                // Extract class name safely (handles strings OR objects)
+                const available = (t.available_classes || []).map((c: any) => {
+                    const raw = (typeof c === 'object' ? (c.class || c.className) : c);
+                    return String(raw || '').toUpperCase();
+                });
+                
                 const query = (reqClass as string).toUpperCase();
 
                 if (available.includes(query)) return true;
