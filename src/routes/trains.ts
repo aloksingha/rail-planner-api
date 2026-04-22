@@ -23,7 +23,7 @@ const formatTravelTime = (minutes: number) => {
 const trainCache = new Map<string, { data: any, expiry: number }>();
 const scheduleCache = new Map<string, { data: any, expiry: number }>();
 const CACHE_TTL = 15 * 60 * 1000; // Restore 15m cache for V24 stability
-const SEARCH_VERSION = 'V27'; // Nuclear purge version
+const SEARCH_VERSION = 'V28'; // Depth optimization
 
 trainCache.clear(); 
 scheduleCache.clear();
@@ -95,9 +95,9 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         // 1. Primary Direct Search
         let allRemoteTrains = await fetchRemote(from as string, to as string, false);
 
-        // 2. Proximity Search - Optimized depth to stay under rate limits
-        const sourceAlts = [from as string, ...(NEARBY_STATIONS[from as string] || [])].slice(0, 10);
-        const destAlts = [to as string, ...(NEARBY_STATIONS[to as string] || [])].slice(0, 10);
+        // 2. Proximity Search - Optimized depth (Top 5) to finish under 30s timeout
+        const sourceAlts = [from as string, ...(NEARBY_STATIONS[from as string] || [])].slice(0, 5);
+        const destAlts = [to as string, ...(NEARBY_STATIONS[to as string] || [])].slice(0, 5);
 
         const pairs: {s: string, d: string}[] = [];
         for (const s of sourceAlts) {
@@ -107,20 +107,23 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             }
         }
 
-        console.log(`[TrainSearch] Querying ${pairs.length} proximity pairs with V24 throttling...`);
+        console.log(`[TrainSearch V28] Batching ${pairs.length} pairs for fast delivery...`);
         
         const fallbackResults: any[] = [];
-        // Execute in small batches to respect rate limits
-        for (let i = 0; i < pairs.length; i++) {
-            const pair = pairs[i];
-            try {
-                const results = await fetchRemote(pair.s, pair.d, true);
-                fallbackResults.push(...results);
-                // 100ms micro-delay between calls to avoid 429 errors
-                if (i % 3 === 0) await delay(100); 
-            } catch (err) {
-                console.error(`[TrainSearch] Pair ${pair.s}->${pair.d} failed: ${err}`);
-            }
+        // Execute in parallel batches to respect speed and rate limits
+        const batchSize = 5;
+        for (let i = 0; i < pairs.length; i += batchSize) {
+            const batch = pairs.slice(i, i + batchSize);
+            const results = await Promise.allSettled(
+                batch.map(p => fetchRemote(p.s, p.d, true))
+            );
+            
+            results.forEach(res => {
+                if (res.status === 'fulfilled') fallbackResults.push(...res.value);
+            });
+            
+            // Tiny gap between batches to protect API keys
+            await delay(50);
         }
 
         // Combine nearby and direct results
