@@ -11,6 +11,7 @@ export const NEARBY_STATIONS: Record<string, string[]> = {
     'KOAA': ['HWH', 'SDAH', 'SHM', 'SRC', 'BDC', 'DKAE', 'NH', 'BWN'],
     'SHM': ['HWH', 'SDAH', 'KOAA', 'SRC', 'DKAE'],
     'DKAE': ['HWH', 'SDAH', 'KOAA', 'SHM', 'SRC'],
+    'SRC': ['HWH', 'SDAH', 'KOAA', 'SHM', 'DKAE'],
     
     // North Bengal
     'NJP': ['SGUJ', 'SGUT', 'SGU'],
