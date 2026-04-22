@@ -147,9 +147,9 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                 return (rd.days || []).includes(dayFullName);
             })
             .filter((t: any) => {
-                // SERVER SIDE CLASS FILTERING - CATEGORY BASED
+                // SERVER SIDE CLASS FILTERING - CORRECTED FIELD NAME
                 if (!reqClass || reqClass === 'ALL') return true;
-                const available = (t.availableClasses || []).map((c: string) => c.toUpperCase());
+                const available = (t.available_classes || []).map((c: string) => c.toUpperCase());
                 const query = (reqClass as string).toUpperCase();
 
                 if (available.includes(query)) return true;
