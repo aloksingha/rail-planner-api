@@ -23,7 +23,7 @@ const formatTravelTime = (minutes: number) => {
 const trainCache = new Map<string, { data: any, expiry: number }>();
 const scheduleCache = new Map<string, { data: any, expiry: number }>();
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
-const SEARCH_VERSION = 'V20'; // Increment this to force clear cache globally
+const SEARCH_VERSION = 'V22'; // Increment this to force clear cache globally
 
 trainCache.clear(); // Clear on startup
 scheduleCache.clear();
@@ -37,13 +37,6 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
 
         if (!from || !to || !date) {
             return res.status(400).json({ success: false, data: "Missing query parameters" });
-        }
-
-        // ❌ Block "Intra-City" searches to prevent confusion (e.g. NDLS to NDLS / DLI)
-        const isSameCluster = from === to || (NEARBY_STATIONS[from as string] || []).includes(to as string);
-        if (isSameCluster) {
-            console.log(`[TrainSearch] BLOCKED: Intra-city search detected (${from} -> ${to})`);
-            return res.json({ success: true, data: [] });
         }
 
         const cacheKey = `${SEARCH_VERSION}-${from}-${to}-${date}-${reqClass || 'ALL'}`;
