@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const router = express.Router();
 
-import { getRailRadarKey } from '../utils/keys';
+import { getRailRadarKey, NEW_API_BASE_URL, NEW_API_KEY } from '../utils/keys';
 const RAILRADAR_BASE_URL = 'https://api.railradar.org/api/v1';
 
 const formatTime = (minutes: number) => {
@@ -22,17 +22,11 @@ const formatTravelTime = (minutes: number) => {
 // SIMPLE IN-MEMORY CACHE for Train Search
 const trainCache = new Map<string, { data: any, expiry: number }>();
 const scheduleCache = new Map<string, { data: any, expiry: number }>();
-const CACHE_TTL = 15 * 60 * 1000; // Restore 15m cache for V24 stability
-const SEARCH_VERSION = 'V35'; // Super-Cluster Reset
-
-trainCache.clear(); 
-scheduleCache.clear();
+const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+const SEARCH_VERSION = 'v3.3-extreme-proximity'; // Bump for proximity expansion
 
 import { NEARBY_STATIONS, getTicketPrice } from '../utils/pricing';
 import { prisma } from '../prisma';
-
-// Helper for rate-limiting
-const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 router.get('/getTrainOn', async (req: Request, res: Response) => {
     try {
@@ -42,7 +36,14 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, data: "Missing query parameters" });
         }
 
-        const cacheKey = `${SEARCH_VERSION}-${from}-${to}-${date}-${reqClass || 'ALL'}`;
+        // ❌ Block "Intra-City" searches to prevent confusion (e.g. NDLS to NDLS / DLI)
+        const isSameCluster = from === to || (NEARBY_STATIONS[from as string] || []).includes(to as string);
+        if (isSameCluster) {
+            console.log(`[TrainSearch] BLOCKED: Intra-city search detected (${from} -> ${to})`);
+            return res.json({ success: true, data: [] });
+        }
+
+        const cacheKey = `${from}-${to}-${date}-${reqClass || 'ALL'}-${SEARCH_VERSION}`;
         const cached = trainCache.get(cacheKey);
         if (cached && cached.expiry > Date.now()) {
             console.log(`[TrainCache] HIT for ${cacheKey}`);
@@ -64,10 +65,65 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         const dayFullNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const dayFullName = dayFullNames[journeyDate.getDay()];
 
-        console.log(`[TrainSearch V24] ${from}->${to} on ${date}`);
+        console.log(`[TrainSearch] ${from} to ${to} on ${date} [Day: ${dayFullName}]`);
 
-        // Helper to fetch from API with automatic key failover
+        // Helper to fetch from API with dual-engine failover
         const fetchRemote = async (src: string, dst: string, isFallback = false) => {
+            // --- ENGINE 1: RAPIDAPI (Primary) ---
+            try {
+                // RapidAPI V3 expects YYYY-MM-DD
+                const [d, m, y] = date.split('-');
+                const rapidDate = `${y}-${m}-${d}`;
+                
+                const response = await axios.get(`${NEW_API_BASE_URL}/trainBetweenStations?fromStationCode=${src}&toStationCode=${dst}&dateOfJourney=${rapidDate}`, {
+                    headers: { 
+                        'x-rapidapi-key': NEW_API_KEY,
+                        'x-rapidapi-host': 'irctc1.p.rapidapi.com',
+                        'Accept': 'application/json' 
+                    },
+                    timeout: 8000 
+                });
+                
+                if (response.data?.status && response.data?.data?.length > 0) {
+                    console.log(`[SearchEngine] RapidAPI HIT for ${src}->${dst}`);
+                    // Map RapidAPI schema to internal schema
+                    const mapped = response.data.data.map((t: any) => {
+                        const depMins = (parseInt(t.from_std.split(':')[0]) * 60) + parseInt(t.from_std.split(':')[1]);
+                        const arrMins = (parseInt(t.to_sta.split(':')[0]) * 60) + parseInt(t.to_sta.split(':')[1]);
+                        
+                        // Parse duration "HH:MM"
+                        const [durH, durM] = t.duration.split(':').map(Number);
+                        const durTotalMins = (durH * 60) + durM;
+                        
+                        return {
+                            trainNumber: String(t.train_number),
+                            trainName: t.train_name,
+                            sourceStationName: t.from_station_name,
+                            destinationStationName: t.to_station_name,
+                            fromStationSchedule: {
+                                departureMinutes: depMins,
+                                day: (t.from_day || 0) + 1
+                            },
+                            toStationSchedule: {
+                                arrivalMinutes: arrMins,
+                                day: (t.from_day || 0) + 1 + Math.floor((depMins + durTotalMins) / 1440)
+                            },
+                            runningDays: {
+                                allDays: t.run_days?.length === 7,
+                                days: t.run_days || []
+                            },
+                            classes: t.class_type || [],
+                            isAlternative: isFallback,
+                            travelTimeMinutes: durTotalMins
+                        };
+                    });
+                    return mapped;
+                }
+            } catch (e: any) {
+                console.warn(`[SearchEngine] RapidAPI failed for ${src}->${dst}: ${e.message}. Falling back to RailRadar...`);
+            }
+
+            // --- ENGINE 2: RAILRADAR (Fallback) ---
             const maxRetries = 3;
             let lastError: any = null;
 
@@ -78,26 +134,28 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                         headers: { 'X-Api-Key': key, 'Accept': 'application/json' }
                     });
                     const externalTrains = response.data?.data?.trains || [];
+                    console.log(`[SearchEngine] RailRadar ${isFallback ? 'Proximity' : 'Direct'} HIT for ${src}->${dst} (${externalTrains.length} trains)`);
                     return externalTrains.map((t: any) => ({ ...t, isAlternative: isFallback }));
                 } catch (e: any) {
                     lastError = e;
                     const status = e.response?.status;
                     if (status === 401 || status === 403 || status === 429) {
-                        console.warn(`[RailRadar] Key ${key.substring(0, 8)} failed (${status}). Retrying...`);
-                        continue; // Try next key
+                        console.log(`[RailRadar] Key ${key.substring(0, 8)} throttled/invalid. Trying next...`);
+                        continue; 
                     }
                     throw e; 
                 }
             }
-            return []; // Return empty on hard failure to prevent crash
+            throw lastError || new Error('All engines failed');
         };
 
         // 1. Primary Direct Search
         let allRemoteTrains = await fetchRemote(from as string, to as string, false);
 
-        // 2. Proximity Search - Optimized depth (Top 5)
-        const sourceAlts = [from as string, ...(NEARBY_STATIONS[from as string] || [])].slice(0, 5);
-        const destAlts = [to as string, ...(NEARBY_STATIONS[to as string] || [])].slice(0, 5);
+        // 2. Proximity Search - Expanding reach to capture all city-area terminals (e.g. DEC, DEE, SBIB)
+        // 2. Proximity Search - Expanding reach to capture all city-area terminals
+        const sourceAlts = [from as string, ...(NEARBY_STATIONS[from as string] || [])].slice(0, 10);
+        const destAlts = [to as string, ...(NEARBY_STATIONS[to as string] || [])].slice(0, 10);
 
         const pairs: {s: string, d: string}[] = [];
         for (const s of sourceAlts) {
@@ -107,45 +165,24 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             }
         }
 
-        console.log(`[TrainSearch V32] Persistent discovery for ${pairs.length} pairs...`);
+        console.log(`[TrainSearch] Proactively searching ${pairs.length} proximity pairs...`);
         
+        // Execute fallback searches in parallel for better performance
         const fallbackResults: any[] = [];
-        // Execute in parallel batches to respect speed and rate limits
-        const batchSize = 5;
-        for (let i = 0; i < pairs.length; i += batchSize) {
-            const batch = pairs.slice(i, i + batchSize);
-            const results = await Promise.allSettled(
-                batch.map(p => fetchRemote(p.s, p.d, true))
-            );
-            
-            results.forEach(res => {
-                if (res.status === 'fulfilled' && Array.isArray(res.value)) {
-                    fallbackResults.push(...res.value);
-                }
-            });
-            
-            // Hard gap between batches to protect API keys (100ms for V34 stability)
-            await delay(100);
-        }
+        const proximityResults = await Promise.allSettled(
+            pairs.map(pair => fetchRemote(pair.s, pair.d, true))
+        );
 
-        // Combine nearby and direct results
-        // Use a Map to de-duplicate by train_no
-        const dedupMap = new Map<string, any>();
-        
-        // Load ALL results into the map
-        // If a train exists in both lists, the one with isAlternative: false (Direct) wins
-        [...fallbackResults, ...allRemoteTrains].forEach(t => {
-            if (!t) return;
-            const trainNo = t.train_no || t.trainNumber || t.train_base?.train_no;
-            if (!trainNo) return;
-
-            const existing = dedupMap.get(trainNo);
-            if (!existing || (existing.isAlternative && !t.isAlternative)) {
-                dedupMap.set(trainNo, t);
+        proximityResults.forEach((res, idx) => {
+            if (res.status === 'fulfilled') {
+                fallbackResults.push(...res.value);
+            } else {
+                console.warn(`[TrainSearch] Proximity pair ${pairs[idx].s}->${pairs[idx].d} failed: ${res.reason?.message}`);
             }
         });
 
-        allRemoteTrains = Array.from(dedupMap.values());
+        // Combine nearby and direct results (Direct results at the end so they overwrite alternative ones in the Map)
+        allRemoteTrains = [...fallbackResults, ...allRemoteTrains];
 
         const adaptedTrains = allRemoteTrains
             .filter((t: any) => {
@@ -153,69 +190,45 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                 if (!rd || rd.allDays === true) return true;
                 return (rd.days || []).includes(dayFullName);
             })
-            .filter((t: any) => {
-                // SERVER SIDE CLASS FILTERING
-                if (!reqClass || reqClass === 'ALL') return true;
-                
-                const available = (t.available_classes || []).map((c: any) => {
-                    const raw = (typeof c === 'object' ? (c.class || c.className) : c);
-                    return String(raw || '').toUpperCase();
-                });
-                
-                const query = (reqClass as string).toUpperCase();
-
-                if (available.includes(query)) return true;
-                if (query === '3A' && (available.includes('3E') || available.includes('CC'))) return true;
-                if (query === '2A' && (available.includes('1A') || available.includes('FC'))) return true;
-                
-                return false;
-            })
-            // ACCEPT ALL TRAINS (No strict route validation to allow HWH/KOAA hub results)
             .map((t: any) => {
                 const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                 const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-                let running_days: Record<string, boolean> | null = {};
+                let running_days: Record<string, boolean> = {};
                 dayKeys.forEach((key, i) => {
-                    running_days![key] = t.runningDays?.allDays === true || (t.runningDays?.days || []).includes(dayNames[i]);
+                    const targetDay = dayNames[i];
+                    const isRunning = t.runningDays?.allDays === true || 
+                                     (t.runningDays?.days || []).includes(targetDay) ||
+                                     (t.running_days?.days || []).includes(targetDay);
+                    running_days[key] = isRunning;
                 });
 
-                const isHumsafar = /HUMSAFAR/i.test(t.trainName);
-                
                 let available_classes: string[] = [];
                 const classesSource = t.classes || t.availableClasses || t.train_class_details || [];
                 if (Array.isArray(classesSource)) {
                     available_classes = classesSource.map((c: any) =>
                         (typeof c === 'string' ? c : (c.code || c.classCode || c.class_cd || '')).toUpperCase()
-                    ).filter(c => Boolean(c) && (!isHumsafar || c !== 'SL'));
+                    ).filter(Boolean);
                 }
 
-                // INJECT PRICING — Correctly calculate cumulative segment travel time
-                // The API provides minutes (0-1439) for each day. We MUST add (day - 1) * 1440.
-                const depDay = t.fromStationSchedule?.day || 1;
-                const arrDay = t.toStationSchedule?.day || depDay;
-                
-                const depMinsBase = t.fromStationSchedule?.departureMinutes || 0;
-                const arrMinsBase = t.toStationSchedule?.arrivalMinutes || 0;
+                // RapidAPI mapping vs RailRadar mapping
+                const depMinsBase = t.fromStationSchedule?.departureMinutes ?? t.from_std_mins ?? 0;
+                const arrMinsBase = t.toStationSchedule?.arrivalMinutes ?? t.to_sta_mins ?? 0;
+                const depDay = t.fromStationSchedule?.day ?? 1;
+                const arrDay = t.toStationSchedule?.day ?? depDay;
                 
                 const depMinsTotal = ((depDay - 1) * 1440) + depMinsBase;
                 const arrMinsTotal = ((arrDay - 1) * 1440) + arrMinsBase;
-                
                 let segmentMins = arrMinsTotal - depMinsTotal;
-                
-                // Fallback to t.travelTimeMinutes if segment calculation is impossible/zero
                 if (segmentMins <= 0) segmentMins = t.travelTimeMinutes || 0;
 
                 const travelTimeStr = formatTravelTime(segmentMins);
                 const prices: Record<string, number> = {};
                 ['SL', '3A', '2A', 'CC'].forEach(cls => {
-                    // Force zero price for Humsafar Sleeper
-                    if (isHumsafar && cls === 'SL') return;
-
                     prices[cls] = getTicketPrice(
                         from as string, 
                         to as string, 
                         cls, 
-                        t.trainName, 
+                        t.trainName || t.train_name, 
                         travelTimeStr, 
                         corridors, 
                         customPrices
@@ -225,17 +238,17 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                 return {
                     isAlternative: t.isAlternative,
                     train_base: {
-                        train_no: t.trainNumber,
-                        train_name: t.trainName,
-                        train_type: t.type || t.train_type || t.trainType || 'EXPRESS',
-                        from_stn_name: t.sourceStationName,
-                        to_stn_name: t.destinationStationName,
+                        train_no: t.trainNumber || t.train_no,
+                        train_name: t.trainName || t.train_name,
+                        train_type: t.type || t.train_type || 'EXPRESS',
+                        from_stn_name: t.sourceStationName || t.from_stn_name,
+                        to_stn_name: t.destinationStationName || t.to_stn_name,
                         from_time: formatTime(depMinsBase),
                         to_time: formatTime(arrMinsBase),
                         travel_time: travelTimeStr,
                         running_days,
                         available_classes,
-                        prices // New field for frontend to consume
+                        prices 
                     }
                 };
             });

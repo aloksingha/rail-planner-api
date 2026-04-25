@@ -186,8 +186,7 @@ router.get('/team', requireAuth, requireRole(['ADMIN']), async (req, res) => {
 
 // CACHE for statistics
 const statsCache = new Map<string, { data: any, expiry: number }>();
-statsCache.clear(); // FORCE CLEAR ON STARTUP FOR DATA PURGE
-const STATS_CACHE_TTL = 15 * 60 * 1000; // 15 minute cache for stats
+const STATS_CACHE_TTL = 60 * 1000; // 1 minute cache for stats
 
 // Get system stats for dashboard
 router.get('/stats', requireAuth, async (req, res) => {
@@ -217,7 +216,9 @@ router.get('/stats', requireAuth, async (req, res) => {
                 teamMembersCount,
                 todayBookings, totalBookings,
                 recentPayments,
-                revenueStats
+                revenueStats,
+                failedBookingCount,
+                priceRequestCount
             ] = await Promise.all([
                 prisma.user.count({ where: { role: 'SUPER_ADMIN' } }),
                 prisma.user.count({ where: { role: 'ADMIN' } }),
@@ -237,7 +238,9 @@ router.get('/stats', requireAuth, async (req, res) => {
                 prisma.paymentRecord.aggregate({
                     where: { ...paymentWhere, status: 'CAPTURED', createdAt: { gte: todayStart } },
                     _sum: { amount: true }
-                })
+                }),
+                prisma.failedBooking.count({ where: { status: 'PENDING' } }),
+                prisma.priceRequest.count({ where: { status: 'PENDING' } })
             ]);
 
             const todayAmount = revenueStats._sum.amount || 0;
@@ -268,6 +271,8 @@ router.get('/stats', requireAuth, async (req, res) => {
                 bookingCount: totalBookings,
                 todayAmount,
                 timeline,
+                failedBookingCount,
+                priceRequestCount,
                 SUPER_ADMIN: superAdmins,
                 ADMIN: admins,
                 SALES_MANAGER: salesMgrs,
@@ -409,7 +414,6 @@ router.get('/bookings', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES
                 include: {
                     user: { select: { email: true, mobile: true } },
                     event: { select: { name: true, date: true, description: true } },
-                    paymentRecord: { select: { amount: true } },
                     refundRecords: {
                         orderBy: { createdAt: 'desc' },
                         take: 1
@@ -418,12 +422,7 @@ router.get('/bookings', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES
             }),
             prisma.booking.count({ where })
         ]);
-        const transformedBookings = (bookings as any[]).map(b => ({
-            ...b,
-            amount: b.paymentRecord?.amount || 0
-        }));
-
-        return res.json({ bookings: transformedBookings, total, page, limit });
+        return res.json({ bookings, total, page, limit });
     } catch (error) {
         console.error('Fetch bookings error:', error);
         return res.status(500).json({ error: 'Internal Server Error' });
@@ -436,14 +435,19 @@ router.get('/transactions', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'S
     try {
         let where: any = {};
 
-        if (role === 'SUPER_ADMIN') {
+        if (role === 'ADMIN') {
             const scope = req.query.scope as string;
-            if (scope === 'all') {
-                where = {}; // No filter = See everything
+            if (scope === 'me') {
+                where = { userId };
             } else {
-                where = { userId }; // Default: Only self
+                where = {
+                    user: {
+                        createdByUserId: userId,
+                        role: 'SALES_MANAGER'
+                    }
+                };
             }
-        } else if (role === 'ADMIN') {
+        } else if (role === 'SALES_MANAGER') {
             const scope = req.query.scope as string;
             if (scope === 'team') {
                 const currentUser = await prisma.user.findUnique({
@@ -619,27 +623,14 @@ router.post('/bookings/:id/ticket', requireAuth, requireRole(['SUPER_ADMIN', 'AD
 
     try {
         const ticketPath = `/uploads/${req.file.filename}`;
-        const booking = await prisma.booking.update({
+
+        await prisma.booking.update({
             where: { id },
             data: {
                 ticketUrl: ticketPath,
                 status: 'CONFIRMED'
-            },
-            include: {
-                user: { select: { email: true, mobile: true } },
-                event: { select: { name: true } }
             }
         });
-
-        // Trigger Notification
-        if (booking.user) {
-            await notifyBookingConfirmed(
-                booking.user.email, 
-                booking.event.name, 
-                booking.user.mobile || undefined,
-                booking
-            );
-        }
 
         return res.json({ success: true, ticketUrl: ticketPath });
     } catch (error) {
@@ -726,11 +717,7 @@ router.patch('/bookings/:id/status', requireAuth, requireRole(['SUPER_ADMIN', 'A
     try {
         const booking = await prisma.booking.update({
             where: { id },
-            data: { status },
-            include: {
-                user: { select: { email: true, mobile: true } },
-                event: { select: { name: true } }
-            }
+            data: { status }
         });
 
         await prisma.auditLog.create({
@@ -743,13 +730,15 @@ router.patch('/bookings/:id/status', requireAuth, requireRole(['SUPER_ADMIN', 'A
         });
 
         // Trigger Notification if status becomes CONFIRMED
-        if (status === 'CONFIRMED' && booking.user) {
-            await notifyBookingConfirmed(
-                booking.user.email, 
-                booking.event.name, 
-                booking.user.mobile || undefined,
-                booking
-            );
+        if (status === 'CONFIRMED') {
+            const user = await prisma.user.findUnique({ 
+                where: { id: booking.userId },
+                select: { email: true, mobile: true }
+            });
+            const event = await prisma.event.findUnique({ where: { id: booking.eventId } });
+            if (user && event) {
+                await notifyBookingConfirmed(user.email, event.name, user.mobile || undefined);
+            }
         }
 
         return res.json({ success: true, booking });

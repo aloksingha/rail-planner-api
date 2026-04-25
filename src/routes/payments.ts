@@ -25,7 +25,6 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
         journeyDate,
         passengers,
         mobile,
-        email,
         passengerList
     } = req.body;
 
@@ -124,17 +123,11 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
                 where: { id: req.user!.userId },
                 select: { email: true, mobile: true }
             });
-            const targetEmail = email || user?.email;
-            const targetMobile = mobile || user?.mobile;
-
-            if (targetEmail) {
-                console.log(`[WalletPay] Triggering notification for: ${targetEmail}`);
-                const eventName = `${trainName || 'Express'} (${trainNo}) - ${fromStation} to ${toStation}`;
-                await notifyBookingConfirmed(targetEmail, eventName, targetMobile || undefined, req.body);
+            if (user && trainNo) {
+                const eventName = `Train ${trainNo}: ${fromStation} → ${toStation}`;
+                await notifyBookingConfirmed(user.email, eventName, user.mobile || undefined);
             }
-        } catch (notifErr) { 
-            console.error('❌ Wallet Notification Error:', notifErr); 
-        }
+        } catch (notifErr) { console.error('Notification error:', notifErr); }
 
         return res.json({ success: true, message: 'Payment successful via Wallet' });
     } catch (error: any) {
@@ -290,113 +283,6 @@ router.post('/create-order', requireAuth, async (req, res) => {
  * POST /api/payments/verify
  * Verifies Razorpay ticket booking payment and creates the Booking record.
  */
-/**
- * POST /api/payments/offline-pay
- * Admin-only: Creates a booking WITHOUT processing via external gateway.
- * Used for manual provisioning, Cash payments, or Testing.
- */
-router.post('/offline-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
-    const {
-        amount,
-        trainNo,
-        trainName,
-        fromStation,
-        toStation,
-        journeyDate,
-        passengers,
-        mobile,
-        trainClass,
-        passengerList
-    } = req.body;
-
-    try {
-        const result = await prisma.$transaction(async (tx) => {
-            // 1. Create Event/Journey Record
-            const pDesc = Array.isArray(passengerList) 
-                ? passengerList.map((p: any) => `${p.name} (${p.age}), ${p.gender}`).join('; ')
-                : `Passengers: ${passengers || 1}`;
-
-            const journeyDateObj = journeyDate ? new Date(journeyDate) : new Date();
-            const eventName = `${trainName || 'Express'} (${trainNo}) - ${fromStation} to ${toStation}`;
-            const description = `OFFLINE/ADMIN BOOKING. Train: ${trainNo}. Route: ${fromStation} → ${toStation} on ${journeyDateObj.toDateString()}. Passengers: ${pDesc}. Mobile: ${mobile}. Value: ₹${amount || 0}`;
-
-            const event = await tx.event.create({
-                data: {
-                    name: eventName,
-                    description,
-                    date: journeyDateObj,
-                }
-            });
-
-            // 2. Create Payment Record (Internal)
-            const offlinePaymentId = `OFF_${Date.now()}`;
-            await tx.paymentRecord.create({
-                data: {
-                    orderId: `ORD_OFF_${Date.now()}`,
-                    paymentId: offlinePaymentId,
-                    amount: Number(amount || 0),
-                    status: 'CAPTURED',
-                    userId: req.user!.userId
-                }
-            });
-
-            // 3. Resolve Class Category
-            let category = 'SLEEPER';
-            if (['2A', '3A', 'CC', '1A', '3E', 'FC', 'EC'].includes(String(trainClass || '').toUpperCase())) {
-                category = 'AC';
-            }
-
-            // 4. Create Booking
-            const booking = await tx.booking.create({
-                data: {
-                    userId: req.user!.userId,
-                    eventId: event.id,
-                    paymentId: offlinePaymentId,
-                    status: 'CONFIRMED',
-                    class: category
-                }
-            });
-
-            // 5. Audit Log
-            await tx.auditLog.create({
-                data: {
-                    action: 'OFFLINE_PAYMENT',
-                    targetUserId: req.user!.userId,
-                    performedByUserId: req.user!.userId,
-                    details: `Created offline booking for Train ${trainNo} (₹${amount})`
-                }
-            });
-
-            return { booking, eventName };
-        });
-
-        // 6. Notify (Non-blocking)
-        try {
-            // Priority 1: Email/Mobile provided in the booking form
-            // Priority 2: Email/Mobile from the logged-in user account
-            const user = await prisma.user.findUnique({ where: { id: req.user!.userId } });
-            // Priority: Explicitly provided, then fallback to user profile
-            const targetEmail = req.body.email || user?.email;
-            const targetMobile = req.body.mobile || user?.mobile;
-
-            if (targetEmail || targetMobile) {
-                console.log(`[OfflinePay] Debugging SMS/Email: TargetEmail=${targetEmail}, TargetMobile=${targetMobile}`);
-                await notifyBookingConfirmed(targetEmail, result.eventName, targetMobile, req.body);
-            } else {
-                console.warn('[OfflinePay] No contact info found for notification trigger.');
-            }
-        } catch (notifErr) { 
-            console.error('❌ Offline Notif Error:', notifErr); 
-        }
-
-        return res.json({ success: true, bookingId: result.booking.id, message: 'Offline booking provisioned successfully' });
-
-    } catch (error: any) {
-        console.error('Offline booking error:', error);
-        return res.status(500).json({ error: error.message || 'Failed to create offline booking' });
-    }
-});
-
 router.post('/verify', requireAuth, async (req, res) => {
     const { 
         razorpay_order_id, 
@@ -411,7 +297,6 @@ router.post('/verify', requireAuth, async (req, res) => {
         mobile,
         amount,
         trainClass,
-        email,
         passengerList
     } = req.body;
 
@@ -483,19 +368,10 @@ router.post('/verify', requireAuth, async (req, res) => {
         // 3. Notify (Non-blocking)
         try {
             const user = await prisma.user.findUnique({ where: { id: req.user!.userId } });
-            // Priority: Explicitly provided, then fallback to user profile
-            const targetEmail = email || req.body.email || user?.email;
-            const targetMobile = mobile || req.body.mobile || user?.mobile;
-            
-            if (targetEmail) {
-                console.log(`[RazorpayVerify] Triggering notification for: ${targetEmail} / ${targetMobile}`);
-                await notifyBookingConfirmed(targetEmail, result.eventName, targetMobile, req.body);
-            } else {
-                console.warn('[RazorpayVerify] No email found for notification trigger.');
+            if (user?.email) {
+                await notifyBookingConfirmed(user.email, result.eventName, user.mobile || mobile);
             }
-        } catch (e) { 
-            console.error('❌ Razorpay Notification Log Error:', e); 
-        }
+        } catch (e) { console.error('Notification log error:', e); }
 
         return res.json({ success: true, bookingId: result.booking.id });
 

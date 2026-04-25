@@ -1,11 +1,11 @@
 const KEYS = [
-    'rr_f3kw8cdiu6tmfmg2mnq6zlbuoo9ff4p3', // NEW FRESH KEY 1
-    'rr_7qvr30o4au0u7mbkpx1ybuycxa5fi9z9', // NEW FRESH KEY 2
-    'rr_b9bkpypd0wv94nokax545bbubtjf7t88', // NEW FRESH KEY 3
     'rr_b8bkpypd0wv94nokax545bbubtjf7tru',
-    'rr_3qvr30o4au0u7mbkpx1ybuycxa5fiupc',
-    'rr_l5kw3cdiu6tmfmg2mnq6zlbuoo9ff4pw'
+    'rr_3qvr30o4au0u7mbkpx1ybuycxa5fiupc', // Corrected from trains.ts
+    'rr_l5kw3cdiu6tmfmg2mnq6zlbuoo9ff4pw'  // Fallback
 ];
+
+export const NEW_API_BASE_URL = 'https://irctc1.p.rapidapi.com/api/v3';
+export const NEW_API_KEY = 'bf2a3e5aebmsh47dd2454d86a94ep16d33ejsnbc06de274f3b';
 
 let currentIndex = 0;
 

@@ -10,13 +10,13 @@ const router = Router();
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '104332986423-dummy-client-id.apps.googleusercontent.com';
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 const TEST_EMAIL = 'test@ticketspro.in';
-const TEST_ADMIN_EMAIL = 'admin@ticketspro.in';
+const TEST_ADMIN_EMAIL = 'test@railplanner.in';
 
 router.post('/bypass', async (req, res) => {
     const { email, password } = req.body;
 
     const isNormalTest = email === TEST_EMAIL && password === 'test1234';
-    const isAdminTest = email === TEST_ADMIN_EMAIL && password === 'admin12345';
+    const isAdminTest = email === TEST_ADMIN_EMAIL && password === 'admin1234';
 
     if (!isNormalTest && !isAdminTest) {
         return res.status(403).json({ error: 'Invalid test credentials' });
@@ -26,28 +26,16 @@ router.post('/bypass', async (req, res) => {
         const role = email === TEST_ADMIN_EMAIL ? 'SUPER_ADMIN' : 'CUSTOMER';
         const name = email === TEST_ADMIN_EMAIL ? 'Test Super Admin' : 'Test Payment User';
 
-        let user;
-        try {
-            user = await prisma.user.upsert({
-                where: { email },
-                update: { role },
-                create: {
-                    email,
-                    name,
-                    passwordHash: 'TEST_BYPASS_USER',
-                    role
-                }
-            });
-        } catch (dbError: any) {
-            console.warn('[Bypass Auth] Database link failed. Falling back to ghost identity.', dbError.message);
-            // Fallback for when the DB is offline/unreachable on Render
-            user = {
-                id: 'ghost-admin-' + Date.now(),
+        const user = await prisma.user.upsert({
+            where: { email },
+            update: { role },
+            create: {
                 email,
-                name: name,
+                name,
+                passwordHash: 'TEST_BYPASS_USER',
                 role
-            };
-        }
+            }
+        });
 
         const token = generateToken(user.id, user.email, user.role, user.name, user.role === 'SUPER_ADMIN');
         return res.json({ token, user: { id: user.id, email: user.email, role: user.role, name: user.name } });
@@ -96,30 +84,20 @@ router.post('/google', async (req, res) => {
 
         // 2. Map existing user or Register
         console.time('[Auth] DB Upsert');
-        let user;
-        try {
-            user = await prisma.user.upsert({
-                where: { email },
-                update: {
-                    name, // Update name if it changed or was missing
-                    role: INITIAL_SUPER_ADMINS.includes(email) ? 'SUPER_ADMIN' : undefined
-                },
-                create: {
-                    email,
-                    name,
-                    passwordHash: 'GOOGLE_OAUTH_USER',
-                    role: INITIAL_SUPER_ADMINS.includes(email) ? 'SUPER_ADMIN' : 'CUSTOMER'
-                }
-            });
-        } catch (dbError: any) {
-            console.warn('[Google Auth] Database link failed. Falling back to ghost identity.', dbError.message);
-            user = {
-                id: 'ghost-google-' + Date.now(),
+        const user = await prisma.user.upsert({
+            where: { email },
+            update: {
+                name, // Update name if it changed or was missing
+                // If email is in initial admin list, force role upgrade even for existing users
+                role: INITIAL_SUPER_ADMINS.includes(email) ? 'SUPER_ADMIN' : undefined
+            },
+            create: {
                 email,
-                name: (name || 'Google User'),
+                name,
+                passwordHash: 'GOOGLE_OAUTH_USER',
                 role: INITIAL_SUPER_ADMINS.includes(email) ? 'SUPER_ADMIN' : 'CUSTOMER'
-            };
-        }
+            }
+        });
         console.timeEnd('[Auth] DB Upsert');
 
         // 3. Issue our app's JWT Session

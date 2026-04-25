@@ -21,8 +21,6 @@ import couponRoutes from './routes/coupons';
 import failedBookingRoutes from './routes/failedBookings';
 import adminBookingRoutes from './routes/adminBookings';
 import walletRoutes from './routes/wallet';
-import notificationsRoutes from './routes/notifications';
-
 
 const app = express();
 
@@ -55,7 +53,5 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/failed-bookings', failedBookingRoutes);
 app.use('/api/admin/bookings/manual', adminBookingRoutes);
 app.use('/api/wallet', walletRoutes);
-app.use('/api/notifications', notificationsRoutes);
-
 
 export default app;
