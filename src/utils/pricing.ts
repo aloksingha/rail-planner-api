@@ -6,12 +6,18 @@ export const NEARBY_STATIONS: Record<string, string[]> = {
     'ANVT': ['NDLS', 'DLI', 'NZM', 'GZB', 'DEE', 'SZM', 'DSA'],
     
     // Kolkata Hub (SDAH, HWH, KOAA, SHM, SRC, DKAE)
-    'HWH': ['SDAH', 'KOAA', 'SHM', 'SRC', 'BDC', 'DKAE', 'NH', 'BWN'],
-    'SDAH': ['HWH', 'KOAA', 'SHM', 'SRC', 'BDC', 'DKAE', 'NH', 'BWN'],
-    'KOAA': ['HWH', 'SDAH', 'SHM', 'SRC', 'BDC', 'DKAE', 'NH', 'BWN'],
-    'SHM': ['HWH', 'SDAH', 'KOAA', 'SRC', 'DKAE', 'SRC'],
+    'HWH': ['SDAH', 'KOAA', 'SHM', 'SRC', 'DKAE', 'NH', 'BWN', 'BDC'],
+    'SDAH': ['HWH', 'KOAA', 'SHM', 'SRC', 'DKAE', 'NH', 'BWN', 'BDC'],
+    'KOAA': ['HWH', 'SDAH', 'SHM', 'SRC', 'DKAE', 'NH', 'BWN', 'BDC'],
+    'SHM': ['HWH', 'SDAH', 'KOAA', 'SRC', 'DKAE'],
     'DKAE': ['HWH', 'SDAH', 'KOAA', 'SHM', 'SRC'],
     'SRC': ['HWH', 'SDAH', 'KOAA', 'SHM', 'DKAE'],
+
+    // Kerala / Tamil Nadu Hubs
+    'PGT': ['CBE', 'OTP', 'SRR', 'TCR'],
+    'CBE': ['PGT', 'TUP', 'ED', 'MTP', 'PLNI'],
+    'SRR': ['PGT', 'OTP', 'TCR', 'CLT'],
+    'OTP': ['PGT', 'SRR'],
     
     // Jaipur Hub (JP, GADJ, KWP, DPA, FL)
     'JP': ['GADJ', 'KWP', 'DPA', 'FL', 'ASV'],

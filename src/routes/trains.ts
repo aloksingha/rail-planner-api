@@ -23,7 +23,7 @@ const formatTravelTime = (minutes: number) => {
 const trainCache = new Map<string, { data: any, expiry: number }>();
 const scheduleCache = new Map<string, { data: any, expiry: number }>();
 const CACHE_TTL = 15 * 60 * 1000; // Restore 15m cache for V24 stability
-const SEARCH_VERSION = 'V32'; // Persistent discovery
+const SEARCH_VERSION = 'V33'; // Hub Expansion Version
 
 trainCache.clear(); 
 scheduleCache.clear();
