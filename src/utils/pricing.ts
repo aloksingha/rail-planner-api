@@ -126,9 +126,7 @@ const resolveToCode = (str: string) => {
         'GUWAHATI': 'GHY',
         'PATNA': 'PNBE',
         'DHANBAD': 'DHN',
-        'RANCHI': 'RNC',
-        'SECUNDERABAD JN': 'SC',
-        'NEW JALPAIGURI JN': 'NJP'
+        'RANCHI': 'RNC'
     };
     
     return NAME_TO_CODE[rawClean] || NAME_TO_CODE[raw] || raw;

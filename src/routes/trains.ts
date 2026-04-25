@@ -72,7 +72,7 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             // --- ENGINE 1: RAPIDAPI (Primary) ---
             try {
                 // RapidAPI V3 expects YYYY-MM-DD
-                const [d, m, y] = date.split('-');
+                const [d, m, y] = (date as string).split('-');
                 const rapidDate = `${y}-${m}-${d}`;
                 
                 const response = await axios.get(`${NEW_API_BASE_URL}/trainBetweenStations?fromStationCode=${src}&toStationCode=${dst}&dateOfJourney=${rapidDate}`, {
