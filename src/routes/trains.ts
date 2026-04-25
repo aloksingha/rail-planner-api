@@ -23,7 +23,7 @@ const formatTravelTime = (minutes: number) => {
 const trainCache = new Map<string, { data: any, expiry: number }>();
 const scheduleCache = new Map<string, { data: any, expiry: number }>();
 const CACHE_TTL = 15 * 60 * 1000; // Restore 15m cache for V24 stability
-const SEARCH_VERSION = 'V34'; // Merger Hardening Version
+const SEARCH_VERSION = 'V35'; // Super-Cluster Reset
 
 trainCache.clear(); 
 scheduleCache.clear();

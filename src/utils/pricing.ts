@@ -5,19 +5,19 @@ export const NEARBY_STATIONS: Record<string, string[]> = {
     'NZM': ['NDLS', 'DLI', 'DEC', 'DEE', 'ANVT', 'GZB', 'SZM', 'DSA', 'SSB'],
     'ANVT': ['NDLS', 'DLI', 'NZM', 'GZB', 'DEE', 'SZM', 'DSA'],
     
-    // Kolkata Hub (SDAH, HWH, KOAA, SHM, SRC, DKAE)
+    // Kolkata Super-Cluster (HWH, SDAH, KOAA, SHM, SRC, DKAE)
     'HWH': ['SDAH', 'KOAA', 'SHM', 'SRC', 'DKAE', 'NH', 'BWN', 'BDC'],
     'SDAH': ['HWH', 'KOAA', 'SHM', 'SRC', 'DKAE', 'NH', 'BWN', 'BDC'],
     'KOAA': ['HWH', 'SDAH', 'SHM', 'SRC', 'DKAE', 'NH', 'BWN', 'BDC'],
-    'SHM': ['HWH', 'SDAH', 'KOAA', 'SRC', 'DKAE'],
+    'SHM': ['HWH', 'SDAH', 'KOAA', 'SRC', 'DKAE', 'SRC'],
     'DKAE': ['HWH', 'SDAH', 'KOAA', 'SHM', 'SRC'],
     'SRC': ['HWH', 'SDAH', 'KOAA', 'SHM', 'DKAE'],
 
-    // Kerala / Tamil Nadu Hubs
-    'PGT': ['CBE', 'OTP', 'SRR', 'TCR'],
-    'CBE': ['PGT', 'TUP', 'ED', 'MTP', 'PLNI'],
-    'SRR': ['PGT', 'OTP', 'TCR', 'CLT'],
-    'OTP': ['PGT', 'SRR'],
+    // Southern Super-Cluster (Palakkad / Coimbatore / Ernakulam)
+    'PGT': ['CBE', 'OTP', 'SRR', 'TCR', 'ERS', 'ERN'],
+    'CBE': ['PGT', 'TUP', 'ED', 'MTP', 'PLNI', 'ERS', 'ERN'],
+    'ERS': ['ERN', 'AWY', 'IPL', 'PGT', 'CBE'],
+    'ERN': ['ERS', 'AWY', 'IPL', 'PGT', 'CBE'],
     
     // Jaipur Hub (JP, GADJ, KWP, DPA, FL)
     'JP': ['GADJ', 'KWP', 'DPA', 'FL', 'ASV'],
