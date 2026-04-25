@@ -23,7 +23,7 @@ const formatTravelTime = (minutes: number) => {
 const trainCache = new Map<string, { data: any, expiry: number }>();
 const scheduleCache = new Map<string, { data: any, expiry: number }>();
 const CACHE_TTL = 15 * 60 * 1000; // Restore 15m cache for V24 stability
-const SEARCH_VERSION = 'V33'; // Hub Expansion Version
+const SEARCH_VERSION = 'V34'; // Merger Hardening Version
 
 trainCache.clear(); 
 scheduleCache.clear();
@@ -119,11 +119,13 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             );
             
             results.forEach(res => {
-                if (res.status === 'fulfilled') fallbackResults.push(...res.value);
+                if (res.status === 'fulfilled' && Array.isArray(res.value)) {
+                    fallbackResults.push(...res.value);
+                }
             });
             
-            // Tiny gap between batches to protect API keys
-            await delay(50);
+            // Hard gap between batches to protect API keys (100ms for V34 stability)
+            await delay(100);
         }
 
         // Combine nearby and direct results
@@ -133,9 +135,11 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         // Load ALL results into the map
         // If a train exists in both lists, the one with isAlternative: false (Direct) wins
         [...fallbackResults, ...allRemoteTrains].forEach(t => {
-            const trainNo = t.train_no || t.trainNumber;
+            if (!t) return;
+            const trainNo = t.train_no || t.trainNumber || t.train_base?.train_no;
+            if (!trainNo) return;
+
             const existing = dedupMap.get(trainNo);
-            
             if (!existing || (existing.isAlternative && !t.isAlternative)) {
                 dedupMap.set(trainNo, t);
             }
