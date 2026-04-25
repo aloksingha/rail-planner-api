@@ -23,7 +23,7 @@ const formatTravelTime = (minutes: number) => {
 const trainCache = new Map<string, { data: any, expiry: number }>();
 const scheduleCache = new Map<string, { data: any, expiry: number }>();
 const CACHE_TTL = 15 * 60 * 1000; // Restore 15m cache for V24 stability
-const SEARCH_VERSION = 'V28'; // Depth optimization
+const SEARCH_VERSION = 'V32'; // Persistent discovery
 
 trainCache.clear(); 
 scheduleCache.clear();
@@ -95,7 +95,7 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         // 1. Primary Direct Search
         let allRemoteTrains = await fetchRemote(from as string, to as string, false);
 
-        // 2. Proximity Search - Optimized depth (Top 5) to finish under 30s timeout
+        // 2. Proximity Search - Optimized depth (Top 5)
         const sourceAlts = [from as string, ...(NEARBY_STATIONS[from as string] || [])].slice(0, 5);
         const destAlts = [to as string, ...(NEARBY_STATIONS[to as string] || [])].slice(0, 5);
 
@@ -107,7 +107,7 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             }
         }
 
-        console.log(`[TrainSearch V28] Batching ${pairs.length} pairs for fast delivery...`);
+        console.log(`[TrainSearch V32] Persistent discovery for ${pairs.length} pairs...`);
         
         const fallbackResults: any[] = [];
         // Execute in parallel batches to respect speed and rate limits
