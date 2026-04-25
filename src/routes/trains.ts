@@ -150,10 +150,9 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                 return (rd.days || []).includes(dayFullName);
             })
             .filter((t: any) => {
-                // SERVER SIDE CLASS FILTERING - BULLETPROOF EXTRACTOR
+                // SERVER SIDE CLASS FILTERING
                 if (!reqClass || reqClass === 'ALL') return true;
                 
-                // Extract class name safely (handles strings OR objects)
                 const available = (t.available_classes || []).map((c: any) => {
                     const raw = (typeof c === 'object' ? (c.class || c.className) : c);
                     return String(raw || '').toUpperCase();
@@ -162,13 +161,12 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                 const query = (reqClass as string).toUpperCase();
 
                 if (available.includes(query)) return true;
-                
-                // Fallbacks
                 if (query === '3A' && (available.includes('3E') || available.includes('CC'))) return true;
                 if (query === '2A' && (available.includes('1A') || available.includes('FC'))) return true;
                 
                 return false;
             })
+            // ACCEPT ALL TRAINS (No strict route validation to allow HWH/KOAA hub results)
             .map((t: any) => {
                 const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                 const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
