@@ -189,7 +189,7 @@ export const getTicketPrice = (
         }
     }
 
-    // 3. Fractional Formula Logic (Fallback)
+    // 3. Fractional Formula Logic (Fallback & Route Overrides)
     let totalHours = 8;
     if (tTravelTime) {
         const parts = tTravelTime.split(':');
@@ -198,6 +198,23 @@ export const getTicketPrice = (
         }
     }
     totalHours = Math.max(2, totalHours);
+
+    // Specific Override: PGT to Kolkata Region
+    const pgtCluster = ['PGT'];
+    const kolkataCluster = ['SHM', 'SRC', 'HWH', 'SDAH', 'KOAA', 'KGP'];
+    const isPgtToKolkata = (pgtCluster.includes(src) && kolkataCluster.includes(dst)) || 
+                           (pgtCluster.includes(dst) && kolkataCluster.includes(src));
+                           
+    if (isPgtToKolkata) {
+        const baseSL = 150 + (35 * totalHours);
+        const base3A = 300 + (80 * totalHours);
+        const base2A = 450 + (125 * totalHours);
+
+        console.log(`[Pricing] Applied PGT-Kolkata custom formula for ${cls}`);
+        if (cls === 'SL') return Math.round(baseSL + 200 + 1200); // Base + Tatkal + 1200
+        if (cls === '3A' || cls === '3E' || cls === 'CC') return Math.round(base3A + 400 + 1000); // Base + Tatkal + 1000
+        if (cls === '2A' || cls === '1A' || cls === 'FC') return Math.round(base2A + 500 + 800); // Base + Tatkal + 800
+    }
 
     // Standard Formulas
     const price = (cls === '3A' || cls === '3E' || cls === 'CC') ? Math.round(300 + (80 * totalHours)) :
