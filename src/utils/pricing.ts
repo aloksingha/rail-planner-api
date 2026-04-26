@@ -199,28 +199,23 @@ export const getTicketPrice = (
     }
     totalHours = Math.max(2, totalHours);
 
-    // Specific Override: PGT to Kolkata Region
-    const pgtCluster = ['PGT'];
-    const kolkataCluster = ['SHM', 'SRC', 'HWH', 'SDAH', 'KOAA', 'KGP'];
-    const isPgtToKolkata = (pgtCluster.includes(src) && kolkataCluster.includes(dst)) || 
-                           (pgtCluster.includes(dst) && kolkataCluster.includes(src));
-                           
-    if (isPgtToKolkata) {
-        const baseSL = 150 + (35 * totalHours);
-        const base3A = 300 + (80 * totalHours);
-        const base2A = 450 + (125 * totalHours);
+    // Standard Global Formula (Base + Tatkal Charge + Margin)
+    const baseSL = 150 + (35 * totalHours);
+    const base3A = 300 + (80 * totalHours);
+    const base2A = 450 + (125 * totalHours);
 
-        console.log(`[Pricing] Applied PGT-Kolkata custom formula for ${cls}`);
-        if (cls === 'SL') return Math.round(baseSL + 200 + 1200); // Base + Tatkal + 1200
-        if (cls === '3A' || cls === '3E' || cls === 'CC') return Math.round(base3A + 400 + 1000); // Base + Tatkal + 1000
-        if (cls === '2A' || cls === '1A' || cls === 'FC') return Math.round(base2A + 500 + 800); // Base + Tatkal + 800
+    let price = 0;
+    if (cls === 'SL') {
+        price = Math.round(baseSL + 200 + 1200); // Base + Tatkal + 1200
+    } else if (cls === '3A' || cls === '3E' || cls === 'CC') {
+        price = Math.round(base3A + 400 + 1000); // Base + Tatkal + 1000
+    } else if (cls === '2A' || cls === '1A' || cls === 'FC') {
+        price = Math.round(base2A + 500 + 800); // Base + Tatkal + 800
+    } else {
+        // Fallback for unhandled classes
+        price = Math.round(baseSL + 1200);
     }
 
-    // Standard Formulas
-    const price = (cls === '3A' || cls === '3E' || cls === 'CC') ? Math.round(300 + (80 * totalHours)) :
-                   (cls === '2A' || cls === '1A' || cls === 'FC') ? Math.round(450 + (125 * totalHours)) :
-                   Math.round(150 + (35 * totalHours));
-
-    console.log(`[PRICING_DEBUG] FALLTHROUGH: Using formula for ${src}->${dst}. Price: ${price}`);
+    console.log(`[PRICING_DEBUG] FALLTHROUGH: Using global formula for ${src}->${dst}. Price: ${price}`);
     return price;
 };
