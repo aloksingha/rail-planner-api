@@ -68,62 +68,8 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         console.log(`[TrainSearch] ${from} to ${to} on ${date} [Day: ${dayFullName}]`);
 
         // Helper to fetch from API with dual-engine failover
+        // Helper to fetch from API using RailRadar (Primary)
         const fetchRemote = async (src: string, dst: string, isFallback = false) => {
-            // --- ENGINE 1: RAPIDAPI (Primary) ---
-            try {
-                // RapidAPI V3 expects YYYY-MM-DD
-                const [d, m, y] = (date as string).split('-');
-                const rapidDate = `${y}-${m}-${d}`;
-                
-                const response = await axios.get(`${NEW_API_BASE_URL}/trainBetweenStations?fromStationCode=${src}&toStationCode=${dst}&dateOfJourney=${rapidDate}`, {
-                    headers: { 
-                        'x-rapidapi-key': NEW_API_KEY,
-                        'x-rapidapi-host': 'irctc1.p.rapidapi.com',
-                        'Accept': 'application/json' 
-                    },
-                    timeout: 8000 
-                });
-                
-                if (response.data?.status && response.data?.data?.length > 0) {
-                    console.log(`[SearchEngine] RapidAPI HIT for ${src}->${dst}`);
-                    // Map RapidAPI schema to internal schema
-                    const mapped = response.data.data.map((t: any) => {
-                        const depMins = (parseInt(t.from_std.split(':')[0]) * 60) + parseInt(t.from_std.split(':')[1]);
-                        const arrMins = (parseInt(t.to_sta.split(':')[0]) * 60) + parseInt(t.to_sta.split(':')[1]);
-                        
-                        // Parse duration "HH:MM"
-                        const [durH, durM] = t.duration.split(':').map(Number);
-                        const durTotalMins = (durH * 60) + durM;
-                        
-                        return {
-                            trainNumber: String(t.train_number),
-                            trainName: t.train_name,
-                            sourceStationName: t.from_station_name,
-                            destinationStationName: t.to_station_name,
-                            fromStationSchedule: {
-                                departureMinutes: depMins,
-                                day: (t.from_day || 0) + 1
-                            },
-                            toStationSchedule: {
-                                arrivalMinutes: arrMins,
-                                day: (t.from_day || 0) + 1 + Math.floor((depMins + durTotalMins) / 1440)
-                            },
-                            runningDays: {
-                                allDays: t.run_days?.length === 7,
-                                days: t.run_days || []
-                            },
-                            classes: t.class_type || [],
-                            isAlternative: isFallback,
-                            travelTimeMinutes: durTotalMins
-                        };
-                    });
-                    return mapped;
-                }
-            } catch (e: any) {
-                console.warn(`[SearchEngine] RapidAPI failed for ${src}->${dst}: ${e.message}. Falling back to RailRadar...`);
-            }
-
-            // --- ENGINE 2: RAILRADAR (Fallback) ---
             const maxRetries = 3;
             let lastError: any = null;
 
@@ -146,7 +92,7 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                     throw e; 
                 }
             }
-            throw lastError || new Error('All engines failed');
+            throw lastError || new Error('All search engines failed');
         };
 
         // 1. Primary Direct Search
