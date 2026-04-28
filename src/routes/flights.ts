@@ -3,94 +3,158 @@ import axios from 'axios';
 
 const router = express.Router();
 
-const RAPIDAPI_KEY = 'bf2a3e5aebmsh47dd2454d86a94ep16d33ejsnbc06de274f3b';
+// ── Amadeus for Developers (Free Sandbox) ──────────────────────────────────────
+// Free tier: 2,000 calls/month. Register at: https://developers.amadeus.com
+const AMADEUS_CLIENT_ID = process.env.AMADEUS_CLIENT_ID || 'BEItMbNByJnlE0lERJBW3NjrNKBPjhDr';
+const AMADEUS_CLIENT_SECRET = process.env.AMADEUS_CLIENT_SECRET || 'MHF0tWbFi0GJH2Di';
+const AMADEUS_BASE = 'https://test.api.amadeus.com';
 
-const SKYSCRAPPER_HEADERS = {
-    'x-rapidapi-host': 'sky-scrapper.p.rapidapi.com',
-    'x-rapidapi-key': RAPIDAPI_KEY,
-};
+// Token cache (expires every 30 min)
+let amadeusToken: { token: string; expiry: number } | null = null;
 
-// SIMPLE IN-MEMORY CACHE for Flight Search
-const flightCache = new Map<string, { data: any, expiry: number }>();
+async function getAmadeusToken(): Promise<string> {
+    if (amadeusToken && amadeusToken.expiry > Date.now()) return amadeusToken.token;
+    const res = await axios.post(
+        `${AMADEUS_BASE}/v1/security/oauth2/token`,
+        new URLSearchParams({
+            grant_type: 'client_credentials',
+            client_id: AMADEUS_CLIENT_ID,
+            client_secret: AMADEUS_CLIENT_SECRET,
+        }),
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 10000 }
+    );
+    const { access_token, expires_in } = res.data;
+    amadeusToken = { token: access_token, expiry: Date.now() + (expires_in - 60) * 1000 };
+    return access_token;
+}
+
+// ── In-memory cache ────────────────────────────────────────────────────────────
+const flightCache = new Map<string, { data: any; expiry: number }>();
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 
-/**
- * Confirmed SkyScanner response structure (from live API test):
- *  response.data = { context, itineraries, filterStats, flightsSessionId, ... }
- *  Each itinerary:
- *    { id, score, tags[], price{raw, formatted}, legs[], farePolicy, isSelfTransfer, hasFlexibleOptions }
- *  Each leg:
- *    { id, origin{id/displayCode/name/city/country}, destination{...}, departure, arrival,
- *      durationInMinutes, stopCount, segments[], carriers{marketing[]} }
- *  Each segment:
- *    { id, origin{flightPlaceId/displayCode/name}, destination{...},
- *      departure, arrival, durationInMinutes, flightNumber, marketingCarrier{id/name}, operatingCarrier{name} }
- *
- * Popular SkyIds / EntityIds:
- *   LOND / 27544008  NYCA / 27537542  DXBA / 27539733  BLRA / 27536878
- *   MUMB / 27536669  PARI / 27539793  SINS / 27536538  SGNA / 27535731
- *   DEHA / 27536268  LHRA / 95565050
- */
+// ── Airport metadata (IATA codes Amadeus accepts natively) ─────────────────────
+const AIRPORT_META: Record<string, { city: string; code: string; name: string }> = {
+    DEL: { city: 'Delhi',          code: 'DEL', name: 'Indira Gandhi International' },
+    BOM: { city: 'Mumbai',         code: 'BOM', name: 'Chhatrapati Shivaji Maharaj' },
+    BLR: { city: 'Bangalore',      code: 'BLR', name: 'Kempegowda International' },
+    MAA: { city: 'Chennai',        code: 'MAA', name: 'Chennai International' },
+    HYD: { city: 'Hyderabad',      code: 'HYD', name: 'Rajiv Gandhi International' },
+    CCU: { city: 'Kolkata',        code: 'CCU', name: 'NSCBI Airport' },
+    COK: { city: 'Kochi',          code: 'COK', name: 'Cochin International' },
+    GOI: { city: 'Goa',            code: 'GOI', name: 'Goa International' },
+    JAI: { city: 'Jaipur',         code: 'JAI', name: 'Jaipur International' },
+    AMD: { city: 'Ahmedabad',      code: 'AMD', name: 'Sardar Vallabhbhai Patel' },
+    DXB: { city: 'Dubai',          code: 'DXB', name: 'Dubai International' },
+    LHR: { city: 'London',         code: 'LHR', name: 'London Heathrow' },
+    JFK: { city: 'New York',       code: 'JFK', name: 'John F. Kennedy International' },
+    CDG: { city: 'Paris',          code: 'CDG', name: 'Charles de Gaulle' },
+    SIN: { city: 'Singapore',      code: 'SIN', name: 'Singapore Changi' },
+    BKK: { city: 'Bangkok',        code: 'BKK', name: 'Suvarnabhumi Airport' },
+    LAX: { city: 'Los Angeles',    code: 'LAX', name: 'Los Angeles International' },
+    AUH: { city: 'Abu Dhabi',      code: 'AUH', name: 'Abu Dhabi International' },
+    DOH: { city: 'Doha',           code: 'DOH', name: 'Hamad International' },
+    KUL: { city: 'Kuala Lumpur',   code: 'KUL', name: 'Kuala Lumpur International' },
+    SYD: { city: 'Sydney',         code: 'SYD', name: 'Kingsford Smith International' },
+    FRA: { city: 'Frankfurt',      code: 'FRA', name: 'Frankfurt Airport' },
+};
 
-// Airport → SkyId + EntityId lookup
-// EntityIds verified via SkyScanner's /api/v1/flights/searchAirport endpoint
-const AIRPORT_IDS: Record<string, { skyId: string; entityId: string; city: string; code: string }> = {
-    // ── India ── (entity IDs verified via searchAirport API)
-    'DEL': { skyId: 'DEL', entityId: '95673498', city: 'Delhi', code: 'DEL' },
-    'BOM': { skyId: 'IBOM', entityId: '27539520', city: 'Mumbai', code: 'BOM' },
-    'BLR': { skyId: 'BLR', entityId: '95673351', city: 'Bangalore', code: 'BLR' },
-    'MAA': { skyId: 'MAA', entityId: '95673493', city: 'Chennai', code: 'MAA' },
-    'HYD': { skyId: 'HYD', entityId: '95673354', city: 'Hyderabad', code: 'HYD' },
-    'CCU': { skyId: 'CCU', entityId: '95673493', city: 'Kolkata', code: 'CCU' },
-    'COK': { skyId: 'COK', entityId: '95673487', city: 'Kochi', code: 'COK' },
-    'GOI': { skyId: 'GOI', entityId: '95673359', city: 'Goa', code: 'GOI' },
-    'JAI': { skyId: 'JAI', entityId: '95673352', city: 'Jaipur', code: 'JAI' },
-    'AMD': { skyId: 'AMD', entityId: '95673349', city: 'Ahmedabad', code: 'AMD' },
-    // ── International ──
-    'DXB': { skyId: 'DXB', entityId: '95673506', city: 'Dubai', code: 'DXB' },
-    'LHR': { skyId: 'LOND', entityId: '27544008', city: 'London', code: 'LHR' },
-    'JFK': { skyId: 'NYCA', entityId: '27537542', city: 'New York', code: 'JFK' },
-    'CDG': { skyId: 'PARI', entityId: '27539793', city: 'Paris', code: 'CDG' },
-    'SIN': { skyId: 'SIN', entityId: '95673529', city: 'Singapore', code: 'SIN' },
-    'BKK': { skyId: 'BKK', entityId: '95673472', city: 'Bangkok', code: 'BKK' },
-    'LAX': { skyId: 'LAXA', entityId: '27536489', city: 'Los Angeles', code: 'LAX' },
-    'AUH': { skyId: 'AUH', entityId: '95673503', city: 'Abu Dhabi', code: 'AUH' },
-    'DOH': { skyId: 'DOH', entityId: '95673510', city: 'Doha', code: 'DOH' },
-    'KUL': { skyId: 'KUL', entityId: '95673462', city: 'Kuala Lumpur', code: 'KUL' },
-    'SYD': { skyId: 'SYD', entityId: '95673512', city: 'Sydney', code: 'SYD' },
-    'FRA': { skyId: 'FRA', entityId: '95673397', city: 'Frankfurt', code: 'FRA' },
+// Airline IATA → name lookup (top carriers)
+const AIRLINE_NAMES: Record<string, string> = {
+    AI: 'Air India',     '6E': 'IndiGo',       UK: 'Vistara',
+    SG: 'SpiceJet',      G8: 'Go First',        IX: 'Air Asia India',
+    EK: 'Emirates',      EY: 'Etihad',          QR: 'Qatar Airways',
+    SQ: 'Singapore Air', TG: 'Thai Airways',    MH: 'Malaysia Airlines',
+    BA: 'British Airways', AF: 'Air France',    LH: 'Lufthansa',
+    AA: 'American',      UA: 'United Airlines', DL: 'Delta Airlines',
+    '9W': 'Jet Airways', '2T': 'TruJet',
 };
 
 const formatTime = (isoDateTime: string): string => {
     if (!isoDateTime) return '—';
-    try {
-        // Format: "2026-03-20T13:00:00" → "13:00"
-        const t = isoDateTime.split('T')[1];
-        return t ? t.substring(0, 5) : '—';
-    } catch { return '—'; }
+    try { return isoDateTime.split('T')[1]?.substring(0, 5) || '—'; }
+    catch { return '—'; }
 };
+
+const durationToStr = (iso: string): string => {
+    // Amadeus uses ISO 8601 duration: PT2H30M
+    const match = iso?.match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
+    if (!match) return '—';
+    const h = parseInt(match[1] || '0');
+    const m = parseInt(match[2] || '0');
+    return `${h}h ${m}m`;
+};
+
+const durationToMinutes = (iso: string): number => {
+    const match = iso?.match(/PT(?:(\d+)H)?(?:(\d+)M)?/);
+    if (!match) return 0;
+    return parseInt(match[1] || '0') * 60 + parseInt(match[2] || '0');
+};
+
+// ── Cabin class mapping ────────────────────────────────────────────────────────
+const CABIN_MAP: Record<string, string> = {
+    economy: 'ECONOMY',
+    business: 'BUSINESS',
+    first: 'FIRST',
+    premium_economy: 'PREMIUM_ECONOMY',
+};
+
+// ── Mock generator ─────────────────────────────────────────────────────────────
+function generateMockFlights(
+    srcCode: string, dstCode: string,
+    flightDate: string, currency: string, count = 10
+): any[] {
+    const src = AIRPORT_META[srcCode] || { city: srcCode, code: srcCode, name: srcCode };
+    const dst = AIRPORT_META[dstCode] || { city: dstCode, code: dstCode, name: dstCode };
+    const mockAirlines = [
+        { code: 'AI', name: 'Air India' }, { code: '6E', name: 'IndiGo' },
+        { code: 'UK', name: 'Vistara' }, { code: 'SG', name: 'SpiceJet' },
+        { code: 'G8', name: 'Go First' },
+    ];
+    const INR_BASE = 3500;
+    const mult = currency.toUpperCase() === 'INR' ? 1 : (1 / 83);
+
+    return Array.from({ length: count }).map((_, i) => {
+        const al = mockAirlines[i % mockAirlines.length];
+        const depHour = 5 + (i * 2);
+        const durMin = 90 + i * 20;
+        const depStr = `${flightDate}T${String(depHour % 24).padStart(2, '0')}:${i % 2 === 0 ? '00' : '30'}:00`;
+        const arrStr = new Date(new Date(depStr).getTime() + durMin * 60000).toISOString().replace(/\.\d+Z$/, '');
+        const basePrice = Math.round((INR_BASE + i * 450) * mult);
+
+        return {
+            id: `MOCK-${srcCode}-${dstCode}-${i}`,
+            airline: al.name,
+            airlineCode: al.code,
+            flightNo: `${al.code}${200 + i * 13}`,
+            sourceCity: src.city,
+            sourceCode: src.code,
+            destCity: dst.city,
+            destCode: dst.code,
+            departure: formatTime(depStr),
+            arrival: formatTime(arrStr),
+            duration: `${Math.floor(durMin / 60)}h ${durMin % 60}m`,
+            stops: i % 3 === 0 ? 1 : 0,
+            price: basePrice,
+            currency: currency.toUpperCase(),
+            priceFormatted: `${currency.toUpperCase()} ${basePrice.toLocaleString('en-IN')}`,
+            isRefundable: i % 2 === 0,
+            seatsLeft: 2 + (i % 8),
+            score: 0.9 - i * 0.05,
+            tags: i === 0 ? ['cheapest'] : (i === 1 ? ['best'] : []),
+            isMock: true,
+        };
+    });
+}
 
 /**
  * GET /api/flights/search
- * Proxy to SkyScanner (sky-scrapper) flight search API.
- * 
- * Query params:
- *   - sourceCode     : IATA code or name (e.g. DEL)
- *   - destCode       : IATA code or name (e.g. BOM)
- *   - date           : YYYY-MM-DD (outbound)
- *   - returnDate     : YYYY-MM-DD (for roundtrip)
- *   - tripType       : oneway | roundtrip | multicity
- *   - adults         : number
- *   - cabinClass     : economy | business | first
- *   - currency       : default INR
- *   - directOnly     : boolean (true/false)
- *   - sortBy         : best | price | fastest
+ * Uses Amadeus for Developers sandbox API.
  */
 router.get('/search', async (req: Request, res: Response) => {
     try {
         const {
-            sourceCode = '',
-            destCode = '',
+            sourceCode = 'DEL',
+            destCode = 'BOM',
             date,
             returnDate,
             tripType = 'oneway',
@@ -101,155 +165,109 @@ router.get('/search', async (req: Request, res: Response) => {
             sortBy = 'best',
         } = req.query as Record<string, string>;
 
-        // Simple helper to find airport info from text input
-        const findAirport = (input: string) => {
-            const clean = input.toUpperCase();
-            if (AIRPORT_IDS[clean]) return AIRPORT_IDS[clean];
-            // Fuzzy search by city/code if not exact match
-            const found = Object.values(AIRPORT_IDS).find(a =>
-                a.code.toUpperCase() === clean || a.city.toUpperCase() === clean
-            );
-            return found || null;
-        };
-
-        const srcInfo = findAirport(sourceCode) || AIRPORT_IDS['DEL'];
-        const dstInfo = findAirport(destCode) || AIRPORT_IDS['BOM'];
+        const srcUpper = sourceCode.toUpperCase().trim();
+        const dstUpper = destCode.toUpperCase().trim();
         const flightDate = date || new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0];
+        const isRoundTrip = tripType === 'roundtrip' && !!returnDate;
 
-        // Market/Country fixed for reliability
-        const market = 'en-US';
-        const countryCode = 'US';
-
-        let itineraries: any[] = [];
-        let isMock = false;
-
-        try {
-            const apiParams = new URLSearchParams({
-                originSkyId: srcInfo.skyId,
-                destinationSkyId: dstInfo.skyId,
-                originEntityId: srcInfo.entityId,
-                destinationEntityId: dstInfo.entityId,
-                date: flightDate,
-                cabinClass: cabinClass.toLowerCase(),
-                adults,
-                sortBy: sortBy === 'price' ? 'price_low' : (sortBy === 'fastest' ? 'fastest' : 'best'),
-                currency: currency.toUpperCase(),
-                market,
-                countryCode,
-            });
-
-            if (tripType === 'roundtrip' && returnDate) {
-                apiParams.append('returnDate', returnDate);
-            }
-
-            const endpoint = tripType === 'roundtrip' ? 'searchFlightsRoundtrip' : 'searchFlights';
-            const response = await axios.get(
-                `https://sky-scrapper.p.rapidapi.com/api/v1/flights/${endpoint}?${apiParams.toString()}`,
-                { headers: SKYSCRAPPER_HEADERS, timeout: 25000 }
-            );
-
-            if (response.data?.status) {
-                itineraries = response.data?.data?.itineraries || [];
-            } else {
-                isMock = true;
-            }
-        } catch (error: any) {
-            console.error('[FlightSearch] API Error:', error.message);
-            isMock = true;
-        }
-
-        // Filter and map results
-        let filteredItineraries = itineraries;
-        if (directOnly === 'true') {
-            filteredItineraries = itineraries.filter((it: any) =>
-                it.legs?.every((leg: any) => (leg.stopCount || 0) === 0)
-            );
-        }
-
-        // Mock Fallback
-        if (isMock || filteredItineraries.length === 0) {
-            isMock = true;
-            // Simplified mock generator for brevity in this edit, but maintaining the contract
-            const airlines = [{ name: 'Air India', code: 'AI' }, { name: 'IndiGo', code: '6E' }, { name: 'Vistara', code: 'UK' }];
-            const conversionRate = currency.toUpperCase() === 'INR' ? 83 : 1;
-
-            filteredItineraries = Array.from({ length: 10 }).map((_, i) => {
-                const depHour = (6 + i) % 24;
-                const duration = 120 + (i * 15);
-                const depTime = `${flightDate}T${depHour.toString().padStart(2, '0')}:00:00`;
-                const arrivalDate = new Date(new Date(depTime).getTime() + duration * 60000);
-                const arrTime = arrivalDate.toISOString().replace(/\.\d+Z$/, '');
-
-                return {
-                    id: `MOCK-${srcInfo.code}-${dstInfo.code}-${i}`,
-                    isMock: true,
-                    price: { raw: Math.round((100 + i * 20) * conversionRate), formatted: `${currency} ${Math.round((100 + i * 20) * conversionRate).toLocaleString()}` },
-                    legs: [{
-                        origin: { displayCode: srcInfo.code, city: srcInfo.city },
-                        destination: { displayCode: dstInfo.code, city: dstInfo.city },
-                        departure: depTime,
-                        arrival: arrTime,
-                        durationInMinutes: duration,
-                        stopCount: directOnly === 'true' ? 0 : (i % 2),
-                        segments: [{ marketingCarrier: { name: airlines[i % 3].name, id: airlines[i % 3].code }, flightNumber: `${100 + i}` }]
-                    }],
-                    farePolicy: { isCancellationAllowed: true },
-                    score: 0.9,
-                    tags: i === 0 ? ['cheapest'] : []
-                };
-            });
-        }
-
-        const cacheKey = `${sourceCode}-${destCode}-${date}-${adults}-${cabinClass}-${tripType}`;
+        const cacheKey = `${srcUpper}-${dstUpper}-${flightDate}-${adults}-${cabinClass}-${tripType}-${returnDate || ''}`;
         const cached = flightCache.get(cacheKey);
         if (cached && cached.expiry > Date.now()) {
-            console.log(`[FlightCache] HIT for ${cacheKey}`);
+            console.log(`[FlightCache] HIT: ${cacheKey}`);
             return res.json(cached.data);
         }
 
-        const results = filteredItineraries.map((it: any) => {
-            const price = Math.round(it.price?.raw || 0);
-            const leg = it.legs?.[0] || {};
-            const firstSeg = leg.segments?.[0] || {};
-            const airline = firstSeg.marketingCarrier?.name || 'Unknown Airline';
-            const airlineCode = String(firstSeg.marketingCarrier?.id || '').replace(/^-/, '');
+        let results: any[] = [];
+        let isMock = false;
 
-            return {
-                id: it.id,
-                airline,
-                airlineCode,
-                flightNo: `${airlineCode}${firstSeg.flightNumber || '—'}`,
-                sourceCity: leg.origin?.city || srcInfo.city,
-                sourceCode: leg.origin?.displayCode || srcInfo.code,
-                destCity: leg.destination?.city || dstInfo.city,
-                destCode: leg.destination?.displayCode || dstInfo.code,
-                departure: formatTime(leg.departure),
-                arrival: formatTime(leg.arrival),
-                duration: `${Math.floor(leg.durationInMinutes / 60)}h ${leg.durationInMinutes % 60}m`,
-                stops: leg.stopCount ?? 0,
-                price,
-                currency,
-                priceFormatted: it.price?.formatted,
-                isRefundable: it.farePolicy?.isCancellationAllowed ?? false,
-                score: it.score,
-                tags: it.tags || [],
-                isMock: !!it.isMock,
+        try {
+            const token = await getAmadeusToken();
+
+            const params: Record<string, string> = {
+                originLocationCode: srcUpper,
+                destinationLocationCode: dstUpper,
+                departureDate: flightDate,
+                adults,
+                travelClass: CABIN_MAP[cabinClass.toLowerCase()] || 'ECONOMY',
+                currencyCode: currency.toUpperCase(),
+                max: '20',
+                nonStop: directOnly === 'true' ? 'true' : 'false',
             };
-        });
+            if (isRoundTrip) params.returnDate = returnDate!;
 
-        // Backend sort as fallback
-        if (sortBy === 'price') results.sort((a: any, b: any) => a.price - b.price);
+            const amRes = await axios.get(`${AMADEUS_BASE}/v2/shopping/flight-offers`, {
+                headers: { Authorization: `Bearer ${token}` },
+                params,
+                timeout: 20000,
+            });
+
+            const offers: any[] = amRes.data?.data || [];
+
+            results = offers.map((offer: any) => {
+                const price = parseFloat(offer.price?.grandTotal || offer.price?.total || '0');
+                const itinerary = offer.itineraries?.[0];
+                const segments: any[] = itinerary?.segments || [];
+                const firstSeg = segments[0];
+                const lastSeg = segments[segments.length - 1];
+
+                const alCode = firstSeg?.carrierCode || '';
+                const alName = AIRLINE_NAMES[alCode] || offer.validatingAirlineCodes?.[0] || alCode;
+
+                const srcMeta = AIRPORT_META[srcUpper];
+                const dstMeta = AIRPORT_META[dstUpper];
+
+                return {
+                    id: offer.id,
+                    airline: alName,
+                    airlineCode: alCode,
+                    flightNo: `${alCode}${firstSeg?.number || '—'}`,
+                    sourceCity: srcMeta?.city || firstSeg?.departure?.iataCode || srcUpper,
+                    sourceCode: firstSeg?.departure?.iataCode || srcUpper,
+                    destCity: dstMeta?.city || lastSeg?.arrival?.iataCode || dstUpper,
+                    destCode: lastSeg?.arrival?.iataCode || dstUpper,
+                    departure: formatTime(firstSeg?.departure?.at),
+                    arrival: formatTime(lastSeg?.arrival?.at),
+                    duration: durationToStr(itinerary?.duration || ''),
+                    durationMinutes: durationToMinutes(itinerary?.duration || ''),
+                    stops: segments.length - 1,
+                    price: Math.round(price),
+                    currency: currency.toUpperCase(),
+                    priceFormatted: `${currency.toUpperCase()} ${Math.round(price).toLocaleString('en-IN')}`,
+                    isRefundable: offer.pricingOptions?.includedCheckedBagsOnly ?? false,
+                    seatsLeft: offer.numberOfBookableSeats ?? '—',
+                    score: 0.9,
+                    tags: [],
+                    isMock: false,
+                };
+            });
+
+            // Sort
+            if (sortBy === 'price') results.sort((a, b) => a.price - b.price);
+            else if (sortBy === 'fastest') results.sort((a, b) => (a.durationMinutes || 999) - (b.durationMinutes || 999));
+
+            if (results.length === 0) {
+                console.warn('[FlightSearch] Amadeus returned 0 results, using mock.');
+                results = generateMockFlights(srcUpper, dstUpper, flightDate, currency);
+                isMock = true;
+            }
+        } catch (apiErr: any) {
+            const detail = apiErr.response?.data?.errors?.[0]?.detail || apiErr.message;
+            console.error('[FlightSearch] Amadeus error:', detail);
+            results = generateMockFlights(srcUpper, dstUpper, flightDate, currency);
+            isMock = true;
+        }
 
         const finalResponse = { success: true, count: results.length, data: results, isMock };
+
         if (!isMock) {
             flightCache.set(cacheKey, { data: finalResponse, expiry: Date.now() + CACHE_TTL });
         }
+
         return res.json(finalResponse);
-    } catch (error: any) {
-        console.error('[FlightSearch] Fatal Error:', error);
+    } catch (err: any) {
+        console.error('[FlightSearch] Fatal:', err.message);
         return res.status(500).json({ success: false, error: 'Internal server error' });
     }
 });
 
 export default router;
-
