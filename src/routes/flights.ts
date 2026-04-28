@@ -3,7 +3,12 @@ import axios from 'axios';
 
 const router = express.Router();
 
-// ── RapidAPI sky-scrapper (existing working key) ────────────────────────────────
+// ── FlightAPI.io (New Primary API) ──────────────────────────────────────────
+// Primary: https://api.flightapi.io/onewaytrip/{API_KEY}/{ORIGIN}/{DESTINATION}/{DATE}/{ADULTS}/{CHILDREN}/{INFANTS}/{CABIN}/{CURRENCY}
+const FLIGHTAPI_KEY = '69ed152c276f54b7f4206a2f';
+const FLIGHTAPI_BASE = 'https://api.flightapi.io';
+
+// ── RapidAPI sky-scrapper (Held temporarily) ────────────────────────────────
 const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || 'bf2a3e5aebmsh47dd2454d86a94ep16d33ejsnbc06de274f3b';
 const SKYSCRAPPER_HEADERS = {
     'x-rapidapi-host': 'sky-scrapper.p.rapidapi.com',
@@ -60,20 +65,16 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): nu
     return Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 }
 
-// ── Route-accurate realistic estimations ───────────────────────────────────────
-// Known real BLR-CCU: SpiceJet SG direct ~2h25m from ₹8,179; Akasa Air ~2h45m ₹10,137
-// Our formula: (distKm/750*60)+20 min = BLR-CCU = (1724/750*60)+20 = 158 min = 2h38m ≈ correct
+// ── Route-accurate realistic estimations (Fallback only) ───────────────────────
 function generateSmartMock(srcCode: string, dstCode: string, flightDate: string, currency: string, cabinClass: string): any[] {
     const src = AIRPORT_META[srcCode] || { city: srcCode, lat: 20, lon: 78, skyId: srcCode, entityId: '', };
     const dst = AIRPORT_META[dstCode] || { city: dstCode, lat: 22, lon: 88, skyId: dstCode, entityId: '', };
 
     const distKm = haversineKm(src.lat, src.lon, dst.lat, dst.lon);
-    // Base flight time: distance/750kmh + 20min overhead
     const baseFlightMin = Math.round((distKm / 750) * 60) + 20;
 
     const classMulti: Record<string, number> = { economy: 1, business: 3.2, first: 5.5 };
     const cm = classMulti[cabinClass.toLowerCase()] || 1;
-    // Price: ~₹4.8/km base + ₹800 fixed + class multiplier
     const baseFareINR = Math.round(((distKm * 4.8 + 800) * cm) / 50) * 50;
 
     const currencyRates: Record<string, number> = { INR: 1, USD: 0.012, EUR: 0.011, GBP: 0.0095, AED: 0.044 };
@@ -92,7 +93,6 @@ function generateSmartMock(srcCode: string, dstCode: string, flightDate: string,
             { code: 'UK', name: 'Vistara' },
           ];
 
-    // Real-world departure times for domestic Indian routes
     const depTimes = [
         [6, 5], [7, 30], [9, 0], [10, 40], [12, 15],
         [14, 35], [16, 0], [18, 20],
@@ -102,7 +102,6 @@ function generateSmartMock(srcCode: string, dstCode: string, flightDate: string,
 
     return depTimes.map(([depH, depM], i) => {
         const al = airlines[i % airlines.length];
-        // Direct flights are shorter routes; longer routes may have 1 stop on some timings
         const stops = (distKm < 1000) ? 0 : (i % 4 === 0 ? 1 : 0);
         const durMin = stops === 1 ? baseFlightMin + 75 : baseFlightMin + (i % 3) * 8;
 
@@ -114,7 +113,6 @@ function generateSmartMock(srcCode: string, dstCode: string, flightDate: string,
         const arrStr = `${pad(arrDate.getHours())}:${pad(arrDate.getMinutes())}`;
         const durStr = `${Math.floor(durMin / 60)}h ${durMin % 60}m`;
 
-        // Price increases for later/peak timings, and for i
         const peakIdx = [0, 3, 5].includes(i) ? 1.12 : 1;
         const priceINR = Math.round((baseFareINR * (1 + i * 0.07) * peakIdx) / 50) * 50;
         const price = currency.toUpperCase() === 'INR' ? priceINR : parseFloat((priceINR * rate).toFixed(2));
@@ -147,13 +145,16 @@ function generateSmartMock(srcCode: string, dstCode: string, flightDate: string,
 
 const formatTime = (isoDateTime: string): string => {
     if (!isoDateTime) return '—';
-    try { return isoDateTime.split('T')[1]?.substring(0, 5) || '—'; }
-    catch { return '—'; }
+    try {
+        // Format: "2026-04-30T20:20:00" -> "20:20"
+        return isoDateTime.split('T')[1]?.substring(0, 5) || '—';
+    } catch { return '—'; }
 };
 
 /**
  * GET /api/flights/search
- * Primary: sky-scrapper via RapidAPI (cached 6h to protect quota)
+ * Primary: FlightAPI.io (requested by user)
+ * Secondary: sky-scrapper via RapidAPI (held temporarily)
  * Fallback: Route-accurate estimated prices
  */
 router.get('/search', async (req: Request, res: Response) => {
@@ -174,9 +175,8 @@ router.get('/search', async (req: Request, res: Response) => {
         const srcUpper = sourceCode.toUpperCase().trim();
         const dstUpper = destCode.toUpperCase().trim();
         const flightDate = date || new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0];
-        const isRoundTrip = tripType === 'roundtrip' && !!returnDate;
 
-        // Cache check — VERY important to protect the limited quota
+        // Cache check
         const cacheKey = `${srcUpper}-${dstUpper}-${flightDate}-${adults}-${cabinClass}-${tripType}-${returnDate || ''}`;
         const cached = flightCache.get(cacheKey);
         if (cached && cached.expiry > Date.now()) {
@@ -187,91 +187,146 @@ router.get('/search', async (req: Request, res: Response) => {
         let results: any[] = [];
         let isMock = false;
 
-        const srcInfo = AIRPORT_META[srcUpper];
-        const dstInfo = AIRPORT_META[dstUpper];
+        // ── 1. TRY FlightAPI.io (New Primary) ──────────────────────────────────
+        try {
+            // URL: https://api.flightapi.io/onewaytrip/{API_KEY}/{ORIGIN}/{DESTINATION}/{DATE}/{ADULTS}/{CHILDREN}/{INFANTS}/{CABIN}/{CURRENCY}
+            const cabin = cabinClass.charAt(0).toUpperCase() + cabinClass.slice(1).toLowerCase();
+            const url = `${FLIGHTAPI_BASE}/onewaytrip/${FLIGHTAPI_KEY}/${srcUpper}/${dstUpper}/${flightDate}/${adults}/0/0/${cabin}/${currency.toUpperCase()}`;
+            
+            console.log(`[FlightSearch] Calling FlightAPI.io: ${url}`);
+            const response = await axios.get(url, { timeout: 25000 });
+            const data = response.data;
 
-        if (srcInfo && dstInfo) {
-            try {
-                const apiParams = new URLSearchParams({
-                    originSkyId: srcInfo.skyId,
-                    destinationSkyId: dstInfo.skyId,
-                    originEntityId: srcInfo.entityId,
-                    destinationEntityId: dstInfo.entityId,
-                    date: flightDate,
-                    cabinClass: cabinClass.toLowerCase(),
-                    adults,
-                    sortBy: sortBy === 'price' ? 'price_low' : (sortBy === 'fastest' ? 'fastest' : 'best'),
-                    currency: currency.toUpperCase(),
-                    market: 'en-IN',
-                    countryCode: 'IN',
-                });
+            if (data && data.itineraries && Array.isArray(data.itineraries)) {
+                const itineraries = data.itineraries;
+                const legsMap = new Map(data.legs?.map((l: any) => [l.id, l]) || []);
+                const carriersMap = new Map(data.carriers?.map((c: any) => [c.id, c]) || []);
 
-                if (isRoundTrip) apiParams.append('returnDate', returnDate!);
+                results = itineraries.map((it: any) => {
+                    const legId = it.leg_ids?.[0];
+                    const leg = legsMap.get(legId) as any;
+                    if (!leg) return null;
 
-                const endpoint = isRoundTrip ? 'searchFlightsRoundtrip' : 'searchFlights';
-                const response = await axios.get(
-                    `https://sky-scrapper.p.rapidapi.com/api/v1/flights/${endpoint}?${apiParams.toString()}`,
-                    { headers: SKYSCRAPPER_HEADERS, timeout: 25000 }
-                );
+                    const carrierId = leg.marketing_carrier_ids?.[0];
+                    const carrier = carriersMap.get(carrierId) as any;
+                    const alCode = carrier?.display_code || '';
+                    const alName = carrier?.name || alCode;
 
-                if (response.data?.status) {
-                    let itineraries: any[] = response.data?.data?.itineraries || [];
+                    const price = Math.round(it.cheapest_price?.amount || it.pricing_options?.[0]?.price?.amount || 0);
 
-                    // Apply directOnly filter
-                    if (directOnly === 'true') {
-                        itineraries = itineraries.filter((it: any) =>
-                            it.legs?.every((leg: any) => (leg.stopCount || 0) === 0)
-                        );
-                    }
+                    return {
+                        id: it.id,
+                        airline: alName,
+                        airlineCode: alCode,
+                        flightNo: `${alCode}${leg.segment_ids?.length ? '—' : '—'}`, // Flight Number not easily exposed in top-level leg
+                        sourceCity: srcUpper, // Simplified
+                        sourceCode: srcUpper,
+                        destCity: dstUpper, // Simplified
+                        destCode: dstUpper,
+                        departure: formatTime(leg.departure),
+                        arrival: formatTime(leg.arrival),
+                        duration: `${Math.floor((leg.duration || 0) / 60)}h ${(leg.duration || 0) % 60}m`,
+                        durationMinutes: leg.duration || 0,
+                        stops: leg.stop_count ?? 0,
+                        price,
+                        currency: currency.toUpperCase(),
+                        priceFormatted: `${currency.toUpperCase()} ${price.toLocaleString('en-IN')}`,
+                        isRefundable: false,
+                        seatsLeft: '—',
+                        score: it.score || 0.8,
+                        tags: [],
+                        isMock: false,
+                    };
+                }).filter(Boolean);
 
-                    results = itineraries.map((it: any) => {
-                        const leg = it.legs?.[0] || {};
-                        const firstSeg = leg.segments?.[0] || {};
-                        const alCode = String(firstSeg.marketingCarrier?.id || '').replace(/^-/, '');
-                        const alName = AIRLINE_NAMES[alCode] || firstSeg.marketingCarrier?.name || alCode;
-
-                        return {
-                            id: it.id,
-                            airline: alName,
-                            airlineCode: alCode,
-                            flightNo: `${alCode}${firstSeg.flightNumber || '—'}`,
-                            sourceCity: leg.origin?.city || srcInfo.city,
-                            sourceCode: leg.origin?.displayCode || srcUpper,
-                            destCity: leg.destination?.city || dstInfo.city,
-                            destCode: leg.destination?.displayCode || dstUpper,
-                            departure: formatTime(leg.departure),
-                            arrival: formatTime(leg.arrival),
-                            duration: `${Math.floor((leg.durationInMinutes || 0) / 60)}h ${(leg.durationInMinutes || 0) % 60}m`,
-                            durationMinutes: leg.durationInMinutes || 0,
-                            stops: leg.stopCount ?? 0,
-                            price: Math.round(it.price?.raw || 0),
-                            currency: currency.toUpperCase(),
-                            priceFormatted: it.price?.formatted,
-                            isRefundable: it.farePolicy?.isCancellationAllowed ?? false,
-                            seatsLeft: it.legs?.[0]?.segments?.length ? '—' : '—',
-                            score: it.score || 0.8,
-                            tags: it.tags || [],
-                            isMock: false,
-                        };
-                    });
+                if (results.length > 0) {
+                    console.log(`[FlightSearch] FlightAPI.io SUCCESS: ${results.length} flights`);
                 }
-            } catch (apiErr: any) {
-                console.error('[FlightSearch] sky-scrapper error:', apiErr.response?.status, apiErr.message);
+            }
+        } catch (apiErr: any) {
+            console.error('[FlightSearch] FlightAPI.io error:', apiErr.message);
+        }
+
+        // ── 2. FALLBACK to sky-scrapper (Held temporarily) ─────────────────────
+        if (results.length === 0) {
+            const srcInfo = AIRPORT_META[srcUpper];
+            const dstInfo = AIRPORT_META[dstUpper];
+            if (srcInfo && dstInfo) {
+                try {
+                    const apiParams = new URLSearchParams({
+                        originSkyId: srcInfo.skyId,
+                        destinationSkyId: dstInfo.skyId,
+                        originEntityId: srcInfo.entityId,
+                        destinationEntityId: dstInfo.entityId,
+                        date: flightDate,
+                        cabinClass: cabinClass.toLowerCase(),
+                        adults,
+                        sortBy: sortBy === 'price' ? 'price_low' : (sortBy === 'fastest' ? 'fastest' : 'best'),
+                        currency: currency.toUpperCase(),
+                        market: 'en-IN',
+                        countryCode: 'IN',
+                    });
+
+                    const response = await axios.get(
+                        `https://sky-scrapper.p.rapidapi.com/api/v1/flights/searchFlights?${apiParams.toString()}`,
+                        { headers: SKYSCRAPPER_HEADERS, timeout: 25000 }
+                    );
+
+                    if (response.data?.status) {
+                        let itineraries: any[] = response.data?.data?.itineraries || [];
+                        results = itineraries.map((it: any) => {
+                            const leg = it.legs?.[0] || {};
+                            const firstSeg = leg.segments?.[0] || {};
+                            const alCode = String(firstSeg.marketingCarrier?.id || '').replace(/^-/, '');
+                            const alName = AIRLINE_NAMES[alCode] || firstSeg.marketingCarrier?.name || alCode;
+
+                            return {
+                                id: it.id,
+                                airline: alName,
+                                airlineCode: alCode,
+                                flightNo: `${alCode}${firstSeg.flightNumber || '—'}`,
+                                sourceCity: leg.origin?.city || srcInfo.city,
+                                sourceCode: leg.origin?.displayCode || srcUpper,
+                                destCity: leg.destination?.city || dstInfo.city,
+                                destCode: leg.destination?.displayCode || dstUpper,
+                                departure: formatTime(leg.departure),
+                                arrival: formatTime(leg.arrival),
+                                duration: `${Math.floor((leg.durationInMinutes || 0) / 60)}h ${(leg.durationInMinutes || 0) % 60}m`,
+                                durationMinutes: leg.durationInMinutes || 0,
+                                stops: leg.stopCount ?? 0,
+                                price: Math.round(it.price?.raw || 0),
+                                currency: currency.toUpperCase(),
+                                priceFormatted: it.price?.formatted,
+                                isRefundable: it.farePolicy?.isCancellationAllowed ?? false,
+                                seatsLeft: '—',
+                                score: it.score || 0.8,
+                                tags: it.tags || [],
+                                isMock: false,
+                            };
+                        });
+                    }
+                } catch (scrapperErr: any) {
+                    console.error('[FlightSearch] sky-scrapper error:', scrapperErr.message);
+                }
             }
         }
 
+        // ── 3. FINAL FALLBACK to estimations ──────────────────────────────────
         if (results.length === 0) {
-            console.warn('[FlightSearch] Using estimated data for', srcUpper, '→', dstUpper);
+            console.warn('[FlightSearch] All APIs failed. Using estimated data for', srcUpper, '→', dstUpper);
             results = generateSmartMock(srcUpper, dstUpper, flightDate, currency, cabinClass);
             isMock = true;
         }
 
+        // Filtering & Sorting
+        if (directOnly === 'true') {
+            results = results.filter(f => f.stops === 0);
+        }
         if (sortBy === 'price') results.sort((a, b) => a.price - b.price);
         else if (sortBy === 'fastest') results.sort((a, b) => (a.durationMinutes || 9999) - (b.durationMinutes || 9999));
 
         const finalResponse = { success: true, count: results.length, data: results, isMock };
 
-        // Cache real results for 6h, mock for 0 (re-generate each time to reflect date)
         if (!isMock) {
             flightCache.set(cacheKey, { data: finalResponse, expiry: Date.now() + CACHE_TTL });
         }
