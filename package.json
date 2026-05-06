@@ -4,9 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon src/index.ts",
+    "dev": "set NODE_OPTIONS=--dns-result-order=ipv4first && nodemon src/index.ts",
     "build": "npx rimraf dist && npx prisma generate && npx tsc && npx prisma db push",
-    "start": "node dist/index.js",
+    "start": "set NODE_OPTIONS=--dns-result-order=ipv4first && node dist/index.js",
     "seed": "ts-node src/seed.ts",
     "db:cleanup": "ts-node prisma/cleanup.ts"
   },
@@ -28,6 +28,7 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.0",
     "nodemailer": "^8.0.2",
+    "pg": "^8.20.0",
     "razorpay": "^2.9.6",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"

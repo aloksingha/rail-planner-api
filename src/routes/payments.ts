@@ -4,6 +4,7 @@ import { requireActiveUser } from '../middleware/restrict';
 import Razorpay from 'razorpay';
 import crypto from 'crypto';
 import { prisma } from '../prisma';
+import { isValidIndianMobile } from '../utils/validation';
 import { notifyBookingConfirmed, notifyPaymentReceived } from '../services/notificationService';
 
 const router = Router();
@@ -30,6 +31,10 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
 
     if (!amount || amount <= 0) {
         return res.status(400).json({ error: 'Invalid amount' });
+    }
+
+    if (!isValidIndianMobile(mobile)) {
+        return res.status(400).json({ error: 'Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9.' });
     }
 
     try {
@@ -304,6 +309,10 @@ router.post('/verify', requireAuth, async (req, res) => {
         return res.status(400).json({ error: 'Missing payment signature verification' });
     }
 
+    if (!isValidIndianMobile(mobile)) {
+        return res.status(400).json({ error: 'Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9.' });
+    }
+
     try {
         // 1. Verify Signature
         const body = razorpay_order_id + "|" + razorpay_payment_id;
@@ -377,6 +386,82 @@ router.post('/verify', requireAuth, async (req, res) => {
 
     } catch (error: any) {
         console.error('Booking verification error:', error);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+/**
+ * POST /api/payments/offline-pay
+ * Creates a booking without actual payment gateway (for Admin Testing).
+ */
+router.post('/offline-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+    const {
+        amount,
+        trainNo,
+        trainName,
+        fromStation,
+        toStation,
+        journeyDate,
+        passengers,
+        mobile,
+        trainClass,
+        passengerList
+    } = req.body;
+
+    if (!isValidIndianMobile(mobile)) {
+        return res.status(400).json({ error: 'Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9.' });
+    }
+
+    try {
+        const result = await prisma.$transaction(async (tx) => {
+            const pDesc = Array.isArray(passengerList)
+                ? passengerList.map((p: any) => `${p.name} (${p.age}), ${p.gender}`).join('; ')
+                : `Passengers: ${passengers}`;
+
+            const eventName = `${trainName || 'Express'} (${trainNo}) - ${fromStation} to ${toStation}`;
+            const description = `OFFLINE/ADMIN booking. Train: ${trainNo}. Route: ${fromStation} → ${toStation} on ${journeyDate}. Passengers: ${pDesc}. Mobile: ${mobile}. Amount: ₹${amount}`;
+
+            const event = await tx.event.create({
+                data: {
+                    name: eventName,
+                    description,
+                    date: new Date(journeyDate),
+                }
+            });
+
+            const offlinePaymentId = `OFF_${Date.now()}`;
+
+            await tx.paymentRecord.create({
+                data: {
+                    orderId: `ORD_OFF_${Date.now()}`,
+                    paymentId: offlinePaymentId,
+                    amount: Number(amount),
+                    status: 'CAPTURED',
+                    userId: req.user!.userId
+                }
+            });
+
+            let category = 'SLEEPER';
+            if (['2A', '3A', 'CC', '1A', '3E', 'FC', 'EC'].includes(String(trainClass || '').toUpperCase())) {
+                category = 'AC';
+            }
+
+            const booking = await tx.booking.create({
+                data: {
+                    userId: req.user!.userId,
+                    eventId: event.id,
+                    paymentId: offlinePaymentId,
+                    status: 'CONFIRMED',
+                    class: category
+                }
+            });
+
+            return { booking, eventName };
+        });
+
+        return res.json({ success: true, bookingId: result.booking.id });
+    } catch (error: any) {
+        console.error('Offline payment error:', error);
         return res.status(500).json({ error: 'Internal Server Error' });
     }
 });

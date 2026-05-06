@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { prisma } from '../prisma';
+import { isValidIndianMobile } from '../utils/validation';
 import { notifyBookingCancelled, notifyBookingConfirmed } from '../services/notificationService';
 import { refundQueue } from '../queue/refundQueue';
 import multer from 'multer';
@@ -31,6 +32,10 @@ router.post('/assign-role', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), 
 
     if (!email || !role) {
         return res.status(400).json({ error: 'Missing email or role' });
+    }
+
+    if (mobile && !isValidIndianMobile(mobile)) {
+        return res.status(400).json({ error: 'Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9.' });
     }
 
     // Role restrictions

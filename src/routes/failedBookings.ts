@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../prisma';
 import { requireAuth, requireRole } from '../middleware/auth';
+import { isValidIndianMobile } from '../utils/validation';
 
 const router = Router();
 
@@ -10,6 +11,10 @@ router.post('/', async (req, res) => {
 
     if (!name || !email || !mobile) {
         return res.status(400).json({ error: 'Name, Email, and Mobile are required' });
+    }
+
+    if (!isValidIndianMobile(mobile)) {
+        return res.status(400).json({ error: 'Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9.' });
     }
 
     try {
