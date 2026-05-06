@@ -788,7 +788,7 @@ router.get('/users', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res)
 });
 
 // ── Super Admin: Update a user's status (Block/Restrict) ────────────────────
-router.patch('/users/:id/status', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+router.patch('/users/:id/status', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
     const id = req.params.id as string;
     const { status } = req.body;
 
@@ -797,12 +797,24 @@ router.patch('/users/:id/status', requireAuth, requireRole(['SUPER_ADMIN']), asy
         return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
     }
 
-    // Prevent Super Admin from blocking themselves
     if (id === req.user!.userId) {
         return res.status(400).json({ error: 'You cannot block your own account.' });
     }
 
     try {
+        const targetUser = await prisma.user.findUnique({ where: { id } });
+        if (!targetUser) return res.status(404).json({ error: 'User not found' });
+
+        // ADMIN can only update users they created
+        if (req.user!.role === 'ADMIN') {
+            if (targetUser.createdByUserId !== req.user!.userId) {
+                return res.status(403).json({ error: 'Unauthorized: You can only manage users you created.' });
+            }
+            if (targetUser.role === 'SUPER_ADMIN') {
+                return res.status(403).json({ error: 'Unauthorized: Admins cannot block Super Admins.' });
+            }
+        }
+
         const user = await prisma.user.update({
             where: { id },
             data: { status },
@@ -826,21 +838,33 @@ router.patch('/users/:id/status', requireAuth, requireRole(['SUPER_ADMIN']), asy
 });
 
 // ── Super Admin: Change a user's role ────────────────────────────────────────
-router.patch('/users/:id/role', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+router.patch('/users/:id/role', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
     const id = req.params.id as string;
-    const role = req.body.role as string;
+    const { role } = req.body;
 
     const validRoles = ['CUSTOMER', 'SALES_MANAGER', 'ADMIN', 'SUPER_ADMIN'];
     if (!role || !validRoles.includes(role)) {
         return res.status(400).json({ error: `Invalid role. Must be one of: ${validRoles.join(', ')}` });
     }
 
-    // Prevent Super Admin from demoting themselves
     if (id === req.user!.userId) {
         return res.status(400).json({ error: 'You cannot change your own role.' });
     }
 
     try {
+        const targetUser = await prisma.user.findUnique({ where: { id } });
+        if (!targetUser) return res.status(404).json({ error: 'User not found' });
+
+        // ADMIN restrictions
+        if (req.user!.role === 'ADMIN') {
+            if (targetUser.createdByUserId !== req.user!.userId) {
+                return res.status(403).json({ error: 'Unauthorized: You can only manage users you created.' });
+            }
+            if (role === 'SUPER_ADMIN') {
+                return res.status(403).json({ error: 'Admins cannot promote users to Super Admin.' });
+            }
+        }
+
         const user = await prisma.user.update({
             where: { id },
             data: { role },
