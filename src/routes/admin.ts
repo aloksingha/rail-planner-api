@@ -753,15 +753,23 @@ router.patch('/bookings/:id/status', requireAuth, requireRole(['SUPER_ADMIN', 'A
     }
 });
 
-// ── Super Admin: Get all users (grouped data for User Management page) ──────────
-router.get('/users', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+// ── Super Admin & Admin: Get all users (grouped data for User Management page) ──────────
+router.get('/users', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
     try {
-        const limit = parseInt(req.query.limit as string) || 50;
+        const { role, userId } = req.user!;
+        let where = {};
+        
+        if (role === 'ADMIN') {
+            where = { createdByUserId: userId };
+        }
+
+        const limit = parseInt(req.query.limit as string) || 100;
         const page = parseInt(req.query.page as string) || 1;
         const skip = (page - 1) * limit;
 
         const [users, total] = await Promise.all([
             prisma.user.findMany({
+                where,
                 orderBy: [{ role: 'asc' }, { createdAt: 'desc' }],
                 take: limit,
                 skip,
@@ -778,7 +786,7 @@ router.get('/users', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res)
                     _count: { select: { bookings: true } }
                 }
             }),
-            prisma.user.count()
+            prisma.user.count({ where })
         ]);
         return res.json({ success: true, users, total, page, limit });
     } catch (error: any) {
