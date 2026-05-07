@@ -3,6 +3,7 @@ import { requireAuth, requireRole } from '../middleware/auth';
 import { prisma } from '../prisma';
 import { isValidIndianMobile } from '../utils/validation';
 import { notifyBookingCancelled, notifyBookingConfirmed } from '../services/notificationService';
+import { createAuditLog } from '../services/auditService';
 import { refundQueue } from '../queue/refundQueue';
 import multer from 'multer';
 import path from 'path';
@@ -70,13 +71,11 @@ router.post('/assign-role', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), 
                 }
             });
 
-            await tx.auditLog.create({
-                data: {
-                    action: 'ASSIGN_ROLE',
-                    targetUserId: user.id,
-                    performedByUserId: req.user!.userId,
-                    details: `Assigned role ${role} to ${email}`
-                }
+            await createAuditLog({
+                action: 'ASSIGN_ROLE',
+                targetUserId: user.id,
+                performedByUserId: req.user!.userId,
+                details: `Assigned role ${role} to ${email}`
             });
         });
 
@@ -107,13 +106,11 @@ router.post('/assign-region', requireAuth, requireRole(['SUPER_ADMIN']), async (
                 data: { region }
             });
 
-            await tx.auditLog.create({
-                data: {
-                    action: 'ASSIGN_REGION',
-                    targetUserId,
-                    performedByUserId: req.user!.userId,
-                    details: `Assigned region ${region}`
-                }
+            await createAuditLog({
+                action: 'ASSIGN_REGION',
+                targetUserId,
+                performedByUserId: req.user!.userId,
+                details: `Assigned region ${region}`
             });
         });
 
@@ -147,13 +144,11 @@ router.post('/refunds/:id/resolve', requireAuth, requireRole(['SUPER_ADMIN', 'AD
             data: { status: 'MANUAL_RESOLVED' }
         });
 
-        await prisma.auditLog.create({
-            data: {
-                action: 'RESOLVE_MANUAL_REFUND',
-                performedByUserId: req.user!.userId,
-                details: `Resolved manual refund for payment ${refund.paymentId}`,
-                targetUserId: refund.userId
-            }
+        await createAuditLog({
+            action: 'RESOLVE_MANUAL_REFUND',
+            performedByUserId: req.user!.userId,
+            details: `Resolved manual refund for payment ${refund.paymentId}`,
+            targetUserId: refund.userId
         });
 
         return res.json({ success: true, message: 'Refund marked as resolved.' });
@@ -556,13 +551,11 @@ router.put('/bookings/:id/cancel', requireAuth, requireRole(['SUPER_ADMIN', 'ADM
             }
         }
 
-        await prisma.auditLog.create({
-            data: {
-                action: 'CANCEL_BOOKING',
-                performedByUserId: req.user!.userId,
-                details: `Booking ${id} was cancelled by Admin.`,
-                targetUserId: booking.userId
-            }
+        await createAuditLog({
+            action: 'CANCEL_BOOKING',
+            performedByUserId: req.user!.userId,
+            details: `Booking ${id} was cancelled by Admin.`,
+            targetUserId: booking.userId
         });
 
         // Trigger Notification Webhook
@@ -602,13 +595,11 @@ router.delete('/bookings/:id', requireAuth, requireRole(['SUPER_ADMIN']), async 
 
         await prisma.booking.delete({ where: { id } });
 
-        await prisma.auditLog.create({
-            data: {
-                action: 'DELETE_BOOKING',
-                performedByUserId: req.user!.userId,
-                details: `Booking ${id} was permanently deleted by Super Admin.`,
-                targetUserId: booking.userId
-            }
+        await createAuditLog({
+            action: 'DELETE_BOOKING',
+            performedByUserId: req.user!.userId,
+            details: `Booking ${id} was permanently deleted by Super Admin.`,
+            targetUserId: booking.userId
         });
 
         return res.json({ success: true, message: 'Booking permanently deleted.' });
@@ -725,13 +716,11 @@ router.patch('/bookings/:id/status', requireAuth, requireRole(['SUPER_ADMIN', 'A
             data: { status }
         });
 
-        await prisma.auditLog.create({
-            data: {
-                action: 'UPDATE_BOOKING_STATUS',
-                performedByUserId: req.user!.userId,
-                details: `Booking ${id} status updated to ${status} by Admin.`,
-                targetUserId: booking.userId
-            }
+        await createAuditLog({
+            action: 'UPDATE_BOOKING_STATUS',
+            performedByUserId: req.user!.userId,
+            details: `Booking ${id} status updated to ${status} by Admin.`,
+            targetUserId: booking.userId
         });
 
         // Trigger Notification if status becomes CONFIRMED
@@ -891,6 +880,48 @@ router.patch('/users/:id/role', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'
         return res.json({ success: true, user });
     } catch (error: any) {
         console.error('Change role error:', error);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+
+// Get Audit Logs
+router.get('/audit-logs', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+    try {
+        const { role, userId } = req.user!;
+        let where: any = {};
+        
+        // ADMIN can only see logs for users they created or logs they performed
+        if (role === 'ADMIN') {
+            where = {
+                OR: [
+                    { performedByUserId: userId },
+                    { targetUser: { createdByUserId: userId } }
+                ]
+            };
+        }
+
+        const limit = parseInt(req.query.limit as string) || 50;
+        const page = parseInt(req.query.page as string) || 1;
+        const skip = (page - 1) * limit;
+
+        const [logs, total] = await Promise.all([
+            prisma.auditLog.findMany({
+                where,
+                orderBy: { timestamp: 'desc' },
+                take: limit,
+                skip,
+                include: {
+                    performedByUser: { select: { email: true, name: true } },
+                    targetUser: { select: { email: true, name: true } }
+                }
+            }),
+            prisma.auditLog.count({ where })
+        ]);
+
+        return res.json({ success: true, logs, total, page, limit });
+    } catch (error: any) {
+        console.error('Fetch audit logs error:', error);
         return res.status(500).json({ error: 'Internal Server Error' });
     }
 });

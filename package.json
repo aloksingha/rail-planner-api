@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "set NODE_OPTIONS=--dns-result-order=ipv4first && nodemon src/index.ts",
     "build": "npx rimraf dist && npx prisma generate && npx tsc && npx prisma db push",
-    "start": "set NODE_OPTIONS=--dns-result-order=ipv4first && node dist/index.js",
+    "postinstall": "prisma generate",
+    "start": "node dist/index.js",
     "seed": "ts-node src/seed.ts",
     "db:cleanup": "ts-node prisma/cleanup.ts"
   },

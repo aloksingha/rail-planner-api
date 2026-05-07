@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { prisma } from '../prisma';
+import { createAuditLog } from '../services/auditService';
 
 const router = Router();
 
@@ -59,12 +60,10 @@ router.patch('/', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) =>
             }
         });
 
-        await prisma.auditLog.create({
-            data: {
-                action: 'UPDATE_GLOBAL_SETTINGS',
-                performedByUserId: req.user!.userId,
-                details: `Updated global contact settings: ${JSON.stringify({ email, phone, address })}`
-            }
+        await createAuditLog({
+            action: 'UPDATE_GLOBAL_SETTINGS',
+            performedByUserId: req.user!.userId,
+            details: `Updated global contact settings: ${JSON.stringify({ email, phone, address })}`
         });
 
         return res.json({ success: true, settings });

@@ -56,4 +56,15 @@ app.use('/api/admin/bookings/manual', adminBookingRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/notifications', notificationRoutes);
 
+// --- PRODUCTION STATIC SERVING ---
+if (process.env.NODE_ENV === 'production') {
+    // Correctly resolve client/dist from the compiled dist/ directory
+    const clientDistPath = path.join(__dirname, '..', '..', 'client', 'dist');
+    app.use(express.static(clientDistPath));
+    
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(clientDistPath, 'index.html'));
+    });
+}
+
 export default app;

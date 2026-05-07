@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { prisma } from '../prisma';
+import { createAuditLog } from '../services/auditService';
 
 const router = Router();
 
@@ -159,12 +160,10 @@ router.post('/', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req,
             }
         });
 
-        await prisma.auditLog.create({
-            data: {
-                action: 'CREATE_CORRIDOR',
-                performedByUserId: req.user!.userId,
-                details: `Created Corridor Pricing rule: ${name}`
-            }
+        await createAuditLog({
+            action: 'CREATE_CORRIDOR',
+            performedByUserId: req.user!.userId,
+            details: `Created Corridor Pricing rule: ${name}`
         });
 
         return res.json({ success: true, corridor });
@@ -195,12 +194,10 @@ router.put('/:id', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (re
             }
         });
 
-        await prisma.auditLog.create({
-            data: {
-                action: 'UPDATE_CORRIDOR',
-                performedByUserId: req.user!.userId,
-                details: `Updated Corridor Pricing rule: ${corridor.name}`
-            }
+        await createAuditLog({
+            action: 'UPDATE_CORRIDOR',
+            performedByUserId: req.user!.userId,
+            details: `Updated Corridor Pricing rule: ${corridor.name}`
         });
 
         // Note: Reverse syncing was removed because bidirectional routing applies dynamically.
@@ -221,12 +218,10 @@ router.delete('/:id', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async 
             where: { id: id as string }
         });
 
-        await prisma.auditLog.create({
-            data: {
-                action: 'DELETE_CORRIDOR',
-                performedByUserId: req.user!.userId,
-                details: `Deleted Corridor Pricing rule: ${corridor.name}`
-            }
+        await createAuditLog({
+            action: 'DELETE_CORRIDOR',
+            performedByUserId: req.user!.userId,
+            details: `Deleted Corridor Pricing rule: ${corridor.name}`
         });
 
         return res.json({ success: true, message: 'Corridor deleted successfully' });
