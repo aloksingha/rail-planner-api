@@ -158,64 +158,79 @@ export const getTicketPrice = (
         console.log(`[Pricing] MATCH Custom Price for ${src}->${dst} (${cls}): ${custom.suggestedPrice}`);
         return Math.round(custom.suggestedPrice);
     }
-    // 1.5. Premium Train Check (Price on Request) - Prioritize over Corridors
+    // 1.5. Premium Train Check (Price on Request)
     const isPremiumTrain = tName ? /(satabdi|shatabdi|rajdhani|vande\s*bharat|duronto|amrit\s*bharat|tejas|gatiman)/i.test(tName) : false;
     if (isPremiumTrain) {
-        console.log(`[Pricing] Premium Train detected: ${tName}. Returning 0 for 'Price on Request'.`);
+        console.log(`[Pricing] Premium Train detected: ${tName}. Returning 0.`);
         return 0;
     }
 
+    let baseResult = 0;
+    let matchType = 'NONE';
+
     // 2. Dynamic Corridor Logic
-    console.log(`[Pricing] Checking Corridors for ${src} -> ${dst} (${cls}). Count: ${corridors.length}`);
     for (const corridor of corridors) {
         try {
             const origins = JSON.parse(corridor.originStations || '[]').map((s: any) => resolveToCode(String(s)));
             const destinations = JSON.parse(corridor.destinationStations || '[]').map((s: any) => resolveToCode(String(s)));
             
-            console.log(`[PRICING_DEBUG] Corridor ${corridor.name}: Origins=${JSON.stringify(origins)}, Dests=${JSON.stringify(destinations)}`);
-            
             const matchForward = origins.includes(src) && destinations.includes(dst);
             const matchReverse = origins.includes(dst) && destinations.includes(src);
 
             if (matchForward || matchReverse) {
-                console.log(`[Pricing] MATCH Corridor ${corridor.name} for ${src}<->${dst}. Rules: SL:${corridor.markupSL}, 3A:${corridor.markup3A}, 2A:${corridor.markup2A}`);
-                if (cls === 'SL' && corridor.markupSL > 0) return Math.round(corridor.markupSL);
-                if ((cls === '3A' || cls === '3E' || cls === 'CC') && corridor.markup3A > 0) return Math.round(corridor.markup3A);
-                if ((cls === '2A' || cls === '1A' || cls === 'FC') && corridor.markup2A > 0) return Math.round(corridor.markup2A);
-                console.log(`[Pricing] Match found but class ${cls} has 0 or missing price in corridor rule.`);
+                if (cls === 'SL' && corridor.markupSL > 0) {
+                    baseResult = corridor.markupSL;
+                    matchType = 'CORRIDOR';
+                    break;
+                }
+                if ((cls === '3A' || cls === '3E' || cls === 'CC') && corridor.markup3A > 0) {
+                    baseResult = corridor.markup3A;
+                    matchType = 'CORRIDOR';
+                    break;
+                }
+                if ((cls === '2A' || cls === '1A' || cls === 'FC') && corridor.markup2A > 0) {
+                    baseResult = corridor.markup2A;
+                    matchType = 'CORRIDOR';
+                    break;
+                }
             }
         } catch (e) {
-            console.error('[Pricing] Failed to parse corridor stations', e);
+            console.error('[Pricing] Corridor error', e);
         }
     }
 
-    // 3. Fractional Formula Logic (Fallback & Route Overrides)
-    let totalHours = 8;
-    if (tTravelTime) {
-        const parts = tTravelTime.split(':');
-        if (parts.length >= 2) {
-            totalHours = parseInt(parts[0], 10) + (parseInt(parts[1], 10) / 60);
+    // 3. Fallback Formula Logic
+    if (baseResult === 0) {
+        let totalHours = 8;
+        if (tTravelTime) {
+            const parts = tTravelTime.split(':');
+            if (parts.length >= 2) {
+                totalHours = parseInt(parts[0], 10) + (parseInt(parts[1], 10) / 60);
+            }
         }
-    }
-    totalHours = Math.max(2, totalHours);
+        totalHours = Math.max(2, totalHours);
 
-    // Standard Global Formula (Base + Tatkal Charge + Margin)
-    const baseSL = 150 + (35 * totalHours);
-    const base3A = 300 + (80 * totalHours);
-    const base2A = 450 + (125 * totalHours);
+        const baseSL = 150 + (35 * totalHours);
+        const base3A = 300 + (80 * totalHours);
+        const base2A = 450 + (125 * totalHours);
 
-    let price = 0;
-    if (cls === 'SL') {
-        price = Math.round(baseSL + 200 + 1200); // Base + Tatkal + 1200
-    } else if (cls === '3A' || cls === '3E' || cls === 'CC') {
-        price = Math.round(base3A + 400 + 1000); // Base + Tatkal + 1000
-    } else if (cls === '2A' || cls === '1A' || cls === 'FC') {
-        price = Math.round(base2A + 500 + 800); // Base + Tatkal + 800
-    } else {
-        // Fallback for unhandled classes
-        price = Math.round(baseSL + 1200);
+        if (cls === 'SL') baseResult = baseSL + 200 + 1200;
+        else if (cls === '3A' || cls === '3E' || cls === 'CC') baseResult = base3A + 400 + 1000;
+        else if (cls === '2A' || cls === '1A' || cls === 'FC') baseResult = base2A + 500 + 800;
+        else baseResult = baseSL + 1200;
+        matchType = 'FORMULA';
     }
 
-    console.log(`[PRICING_DEBUG] FALLTHROUGH: Using global formula for ${src}->${dst}. Price: ${price}`);
-    return price;
+    // 4. APPLY DIFFERENTIATION (The Fix for "All Prices Same")
+    // Superfast Charge (based on train name)
+    const isSuperfast = tName ? /(superfast|sf|mail|express\s*sf|duronto|rajdhani|tejas)/i.test(tName) : false;
+    const sfCharge = isSuperfast ? (cls === 'SL' ? 45 : (cls === '2S' ? 15 : 60)) : 0;
+    
+    // Train-specific seed variation (based on train name hash)
+    const trainVariation = tName ? (tName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 10) * 5 : 0;
+    
+    const finalPrice = Math.round(baseResult + sfCharge + trainVariation);
+    console.log(`[Pricing] ${src}->${dst} | Train: ${tName} | Type: ${matchType} | SF: ${sfCharge} | Var: ${trainVariation} | Final: ${finalPrice}`);
+    
+    return finalPrice;
 };
