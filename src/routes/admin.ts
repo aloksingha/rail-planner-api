@@ -588,7 +588,21 @@ router.get('/bookings', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES
             }),
             prisma.booking.count({ where })
         ]);
-        return res.json({ bookings, total, page, limit });
+
+        // Map PaymentRecord amount to each booking
+        const paymentIds = bookings.map(b => b.paymentId).filter(Boolean) as string[];
+        const payments = await prisma.paymentRecord.findMany({
+            where: { paymentId: { in: paymentIds } },
+            select: { paymentId: true, amount: true }
+        });
+        const paymentMap = new Map(payments.map(p => [p.paymentId, p.amount]));
+
+        const bookingsWithAmount = bookings.map(b => ({
+            ...b,
+            amount: b.paymentId ? (paymentMap.get(b.paymentId) || 0) : 0
+        }));
+
+        return res.json({ bookings: bookingsWithAmount, total, page, limit });
     } catch (error) {
         console.error('Fetch bookings error:', error);
         return res.status(500).json({ error: 'Internal Server Error' });

@@ -56,9 +56,22 @@ router.get('/dashboard', requireAuth, async (req, res) => {
             };
         }));
 
+        // Map PaymentRecord amount to each booking
+        const paymentIds = bookings.map(b => b.paymentId).filter(Boolean) as string[];
+        const bookingPayments = await prisma.paymentRecord.findMany({
+            where: { paymentId: { in: paymentIds } },
+            select: { paymentId: true, amount: true }
+        });
+        const paymentMap = new Map(bookingPayments.map(p => [p.paymentId, p.amount]));
+
+        const bookingsWithAmount = bookings.map(b => ({
+            ...b,
+            amount: b.paymentId ? (paymentMap.get(b.paymentId) || 0) : 0
+        }));
+
         return res.json({
             user,
-            bookings,
+            bookings: bookingsWithAmount,
             payments
         });
     } catch (error: any) {
