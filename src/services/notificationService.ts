@@ -172,7 +172,8 @@ export const notifyBookingConfirmed = async (email: string, eventName: string, m
         console.error('❌ Email send failed (non-fatal):', e?.message || e);
     });
 
-    // 2. Send SMS
+    // 2. Send SMS - Disabled (Transactional SMS requires DLT)
+    /*
     try {
         if (mobile && process.env.MSG91_TEMPLATE_ID_CONFIRMED) {
             await sendSMS(
@@ -188,6 +189,7 @@ export const notifyBookingConfirmed = async (email: string, eventName: string, m
     } catch (e: any) {
         console.error('❌ SMS send failed (non-fatal):', e?.message || e);
     }
+    */
 };
 
 // ─── Booking Cancelled ────────────────────────────────────────────────────────
@@ -249,7 +251,8 @@ export const notifyBookingCancelled = async (email: string, reason: string, mobi
         console.error('❌ Email send failed (non-fatal):', e?.message || e);
     });
 
-    // 2. Send SMS
+    // 2. Send SMS - Disabled (Transactional SMS requires DLT)
+    /*
     try {
         if (mobile && process.env.MSG91_TEMPLATE_ID_CANCELLED) {
             await sendSMS(
@@ -264,11 +267,13 @@ export const notifyBookingCancelled = async (email: string, reason: string, mobi
     } catch (e: any) {
         console.error('❌ SMS send failed (non-fatal):', e?.message || e);
     }
+    */
 };
 
 // ─── Payment Received (Initial Receipt) ───────────────────────────────────────
 export const notifyPaymentReceived = async (mobile: string, amount: number, orderId: string) => {
-    // 1. SMS
+    // 1. SMS - Disabled (Transactional SMS requires DLT)
+    /*
     if (mobile && process.env.MSG91_TEMPLATE_ID_PAYMENT) {
         await sendSMS(
             mobile, 
@@ -280,6 +285,7 @@ export const notifyPaymentReceived = async (mobile: string, amount: number, orde
             process.env.MSG91_DLT_TE_ID_PAYMENT
         );
     }
+    */
 
     /*
     // 2. WhatsApp - Removed per request for API-less operation
