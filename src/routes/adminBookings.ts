@@ -16,6 +16,7 @@ router.post('/', requireAuth, requireActiveUser, async (req, res) => {
         journeyDate, 
         passengers, 
         mobile, 
+        email,
         amount, 
         trainClass,
         passengerList
@@ -83,7 +84,9 @@ router.post('/', requireAuth, requireActiveUser, async (req, res) => {
 
         // Notify (Non-fatal)
         try {
-            await notifyBookingConfirmed(result.user.email, result.event.name, result.user.mobile || undefined);
+            const targetEmail = email || result.user.email;
+            const targetMobile = mobile || result.user.mobile || undefined;
+            await notifyBookingConfirmed(targetEmail, result.event.name, targetMobile);
         } catch (err) {
             console.error('Failed to send manual booking notification:', err);
         }

@@ -26,6 +26,7 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
         journeyDate,
         passengers,
         mobile,
+        email,
         passengerList
     } = req.body;
 
@@ -128,9 +129,11 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
                 where: { id: req.user!.userId },
                 select: { email: true, mobile: true }
             });
-            if (user && trainNo) {
+            const targetEmail = email || user?.email;
+            const targetMobile = mobile || user?.mobile || undefined;
+            if (targetEmail && trainNo) {
                 const eventName = `Train ${trainNo}: ${fromStation} → ${toStation}`;
-                await notifyBookingConfirmed(user.email, eventName, user.mobile || undefined);
+                await notifyBookingConfirmed(targetEmail, eventName, targetMobile);
             }
         } catch (notifErr) { console.error('Notification error:', notifErr); }
 
@@ -300,6 +303,7 @@ router.post('/verify', requireAuth, async (req, res) => {
         journeyDate,
         passengers,
         mobile,
+        email,
         amount,
         trainClass,
         passengerList
@@ -377,8 +381,10 @@ router.post('/verify', requireAuth, async (req, res) => {
         // 3. Notify (Non-blocking)
         try {
             const user = await prisma.user.findUnique({ where: { id: req.user!.userId } });
-            if (user?.email) {
-                await notifyBookingConfirmed(user.email, result.eventName, user.mobile || mobile);
+            const targetEmail = email || user?.email;
+            const targetMobile = mobile || user?.mobile || undefined;
+            if (targetEmail) {
+                await notifyBookingConfirmed(targetEmail, result.eventName, targetMobile);
             }
         } catch (e) { console.error('Notification log error:', e); }
 
@@ -404,6 +410,7 @@ router.post('/offline-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), 
         journeyDate,
         passengers,
         mobile,
+        email,
         trainClass,
         passengerList
     } = req.body;
@@ -458,6 +465,21 @@ router.post('/offline-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), 
 
             return { booking, eventName };
         });
+
+        // Trigger notifications for offline payment (non-blocking)
+        try {
+            const user = await prisma.user.findUnique({
+                where: { id: req.user!.userId },
+                select: { email: true, mobile: true }
+            });
+            const targetEmail = email || user?.email;
+            const targetMobile = mobile || user?.mobile || undefined;
+            if (targetEmail) {
+                await notifyBookingConfirmed(targetEmail, result.eventName, targetMobile);
+            }
+        } catch (notifErr) {
+            console.error('Offline notification error:', notifErr);
+        }
 
         return res.json({ success: true, bookingId: result.booking.id });
     } catch (error: any) {
