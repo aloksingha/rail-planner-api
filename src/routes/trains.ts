@@ -216,8 +216,32 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                 };
             });
 
+        // Filter out Passenger and 2S-only trains
+        const filteredTrains = adaptedTrains.filter((t: any) => {
+            const tName = String(t.train_base.train_name).toUpperCase();
+            const tType = String(t.train_base.train_type).toUpperCase();
+            
+            // 1. Filter out Passenger trains
+            if (tType === 'PASSENGER' || tType.includes('PASS') || tName.includes('PASSENGER') || tName.includes('PASSGR')) {
+                console.log(`[TrainSearch] Filtering out Passenger train: ${t.train_base.train_name} (${t.train_base.train_no})`);
+                return false;
+            }
+
+            // 2. Filter out trains that only carry 2S class (or no classes, which falls back to passenger types)
+            const avCls = t.train_base.available_classes || [];
+            const filteredCls = ['SL', '3A', '2A', 'CC', '3E', '1A', '2S', 'FC'].filter((c: string) => avCls.includes(c));
+
+            // If the train has classes but it's only 2S
+            if (filteredCls.length === 1 && filteredCls[0] === '2S') {
+                console.log(`[TrainSearch] Filtering out 2S-only train: ${t.train_base.train_name} (${t.train_base.train_no})`);
+                return false;
+            }
+
+            return true;
+        });
+
         // Deduplicate
-        const uniqueTrains = Array.from(new Map(adaptedTrains.map((t: any) => [t.train_base.train_no, t])).values());
+        const uniqueTrains = Array.from(new Map(filteredTrains.map((t: any) => [t.train_base.train_no, t])).values());
 
         console.log(`[TrainSearch] Returning ${uniqueTrains.length} unique trains`);
         trainCache.set(cacheKey, { data: uniqueTrains, expiry: Date.now() + CACHE_TTL });
