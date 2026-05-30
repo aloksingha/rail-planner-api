@@ -23,7 +23,7 @@ const formatTravelTime = (minutes: number) => {
 const trainCache = new Map<string, { data: any, expiry: number }>();
 const scheduleCache = new Map<string, { data: any, expiry: number }>();
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
-const SEARCH_VERSION = 'v3.6-dbrg-tvc-corridor'; // Bump for Dibrugarh-Thiruvananthapuram corridor pricing
+const SEARCH_VERSION = 'v3.7-enroute-pricing-fix'; // Bump for enroute Northeast-South corridor pricing
 
 import { PricingContext, getTicketPrice } from '../utils/pricing';
 import { prisma } from '../prisma';
