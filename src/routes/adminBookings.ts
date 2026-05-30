@@ -86,7 +86,7 @@ router.post('/', requireAuth, requireActiveUser, async (req, res) => {
         try {
             const targetEmail = email || result.user.email;
             const targetMobile = mobile || result.user.mobile || undefined;
-            await notifyBookingConfirmed(targetEmail, result.event.name, targetMobile);
+            notifyBookingConfirmed(targetEmail, result.event.name, targetMobile).catch(err => console.error('Manual booking notification background error:', err));
         } catch (err) {
             console.error('Failed to send manual booking notification:', err);
         }

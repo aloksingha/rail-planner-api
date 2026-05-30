@@ -911,7 +911,7 @@ router.patch('/bookings/:id/status', requireAuth, requireRole(['SUPER_ADMIN', 'A
             });
             const event = await prisma.event.findUnique({ where: { id: booking.eventId } });
             if (user && event) {
-                await notifyBookingConfirmed(user.email, event.name, user.mobile || undefined);
+                notifyBookingConfirmed(user.email, event.name, user.mobile || undefined).catch(err => console.error('Admin status update notification background error:', err));
             }
         }
 

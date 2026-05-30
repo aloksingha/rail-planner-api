@@ -10,6 +10,9 @@ const transporter = nodemailer.createTransport({
         user: process.env.ZOHO_MAIL_USER || 'noreply@ticketspro.in',
         pass: process.env.ZOHO_MAIL_PASSWORD || '',
     },
+    connectionTimeout: 5000, // 5s timeout to prevent hanging
+    greetingTimeout: 5000,
+    socketTimeout: 5000,
 });
 
 const FROM = `"Tickets Pro" <${process.env.ZOHO_MAIL_USER || 'noreply@ticketspro.in'}>`;
@@ -105,13 +108,12 @@ export const sendWhatsApp = async (mobile: string, templateId: string, params: R
 
 // ─── Booking Confirmed ────────────────────────────────────────────────────────
 export const notifyBookingConfirmed = async (email: string, eventName: string, mobile?: string) => {
-    // 1. Send Email
-    try {
-        await transporter.sendMail({
-            from: FROM,
-            to: email,
-            subject: '✅ Booking Confirmed — Tickets Pro',
-            html: `
+    // 1. Send Email (non-blocking Promise)
+    transporter.sendMail({
+        from: FROM,
+        to: email,
+        subject: '✅ Booking Confirmed — Tickets Pro',
+        html: `
 <!DOCTYPE html>
 <html>
 <body style="margin:0;padding:0;background:#0f172a;font-family:'Segoe UI',sans-serif;">
@@ -156,11 +158,13 @@ export const notifyBookingConfirmed = async (email: string, eventName: string, m
   </table>
 </body>
 </html>`,
-        });
+    })
+    .then(() => {
         console.log(`✅ Booking confirmation email sent to ${email}`);
-    } catch (e: any) {
+    })
+    .catch((e: any) => {
         console.error('❌ Email send failed (non-fatal):', e?.message || e);
-    }
+    });
 
     // 2. Send SMS
     try {
@@ -177,13 +181,12 @@ export const notifyBookingConfirmed = async (email: string, eventName: string, m
 
 // ─── Booking Cancelled ────────────────────────────────────────────────────────
 export const notifyBookingCancelled = async (email: string, reason: string, mobile?: string) => {
-    // 1. Send Email
-    try {
-        await transporter.sendMail({
-            from: FROM,
-            to: email,
-            subject: '❌ Booking Cancelled — Tickets Pro',
-            html: `
+    // 1. Send Email (non-blocking Promise)
+    transporter.sendMail({
+        from: FROM,
+        to: email,
+        subject: '❌ Booking Cancelled — Tickets Pro',
+        html: `
 <!DOCTYPE html>
 <html>
 <body style="margin:0;padding:0;background:#0f172a;font-family:'Segoe UI',sans-serif;">
@@ -227,11 +230,13 @@ export const notifyBookingCancelled = async (email: string, reason: string, mobi
   </table>
 </body>
 </html>`,
-        });
+    })
+    .then(() => {
         console.log(`✅ Cancellation email sent to ${email}`);
-    } catch (e: any) {
+    })
+    .catch((e: any) => {
         console.error('❌ Email send failed (non-fatal):', e?.message || e);
-    }
+    });
 
     // 2. Send SMS
     try {

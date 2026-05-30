@@ -133,7 +133,7 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
             const targetMobile = mobile || user?.mobile || undefined;
             if (targetEmail && trainNo) {
                 const eventName = `Train ${trainNo}: ${fromStation} → ${toStation}`;
-                await notifyBookingConfirmed(targetEmail, eventName, targetMobile);
+                notifyBookingConfirmed(targetEmail, eventName, targetMobile).catch(err => console.error('Wallet notification background error:', err));
             }
         } catch (notifErr) { console.error('Notification error:', notifErr); }
 
@@ -384,7 +384,7 @@ router.post('/verify', requireAuth, async (req, res) => {
             const targetEmail = email || user?.email;
             const targetMobile = mobile || user?.mobile || undefined;
             if (targetEmail) {
-                await notifyBookingConfirmed(targetEmail, result.eventName, targetMobile);
+                notifyBookingConfirmed(targetEmail, result.eventName, targetMobile).catch(err => console.error('Verify notification background error:', err));
             }
         } catch (e) { console.error('Notification log error:', e); }
 
@@ -475,7 +475,7 @@ router.post('/offline-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), 
             const targetEmail = email || user?.email;
             const targetMobile = mobile || user?.mobile || undefined;
             if (targetEmail) {
-                await notifyBookingConfirmed(targetEmail, result.eventName, targetMobile);
+                notifyBookingConfirmed(targetEmail, result.eventName, targetMobile).catch(err => console.error('Offline notification background error:', err));
             }
         } catch (notifErr) {
             console.error('Offline notification error:', notifErr);
