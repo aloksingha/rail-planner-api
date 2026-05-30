@@ -23,7 +23,7 @@ const formatTravelTime = (minutes: number) => {
 const trainCache = new Map<string, { data: any, expiry: number }>();
 const scheduleCache = new Map<string, { data: any, expiry: number }>();
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
-const SEARCH_VERSION = 'v3.4-corridor-fix'; // Bump for corridor matching fix
+const SEARCH_VERSION = 'v3.5-passenger-filter-fix'; // Bump for passenger and 2S-only filter
 
 import { PricingContext, getTicketPrice } from '../utils/pricing';
 import { prisma } from '../prisma';
@@ -220,9 +220,17 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         const filteredTrains = adaptedTrains.filter((t: any) => {
             const tName = String(t.train_base.train_name).toUpperCase();
             const tType = String(t.train_base.train_type).toUpperCase();
+            const tNo = String(t.train_base.train_no).trim();
             
-            // 1. Filter out Passenger trains
-            if (tType === 'PASSENGER' || tType.includes('PASS') || tName.includes('PASSENGER') || tName.includes('PASSGR')) {
+            // Indian Railway regional passenger, local, MEMU, and DEMU train number checks
+            const isPassengerNo = /^[567]\d{4}$/.test(tNo);
+
+            // 1. Filter out Passenger, DEMU, MEMU, and Local trains
+            if (
+                tType === 'PASSENGER' || tType.includes('PASS') || tType.includes('DEMU') || tType.includes('MEMU') || tType.includes('LOCAL') ||
+                tName.includes('PASSENGER') || tName.includes('PASSGR') || tName.includes('DEMU') || tName.includes('MEMU') || tName.includes('LOCAL') ||
+                isPassengerNo
+            ) {
                 console.log(`[TrainSearch] Filtering out Passenger train: ${t.train_base.train_name} (${t.train_base.train_no})`);
                 return false;
             }
