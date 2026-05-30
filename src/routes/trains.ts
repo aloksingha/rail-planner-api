@@ -23,9 +23,9 @@ const formatTravelTime = (minutes: number) => {
 const trainCache = new Map<string, { data: any, expiry: number }>();
 const scheduleCache = new Map<string, { data: any, expiry: number }>();
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
-const SEARCH_VERSION = 'v3.3-extreme-proximity'; // Bump for proximity expansion
+const SEARCH_VERSION = 'v3.4-corridor-fix'; // Bump for corridor matching fix
 
-import { NEARBY_STATIONS, getTicketPrice } from '../utils/pricing';
+import { PricingContext, getTicketPrice } from '../utils/pricing';
 import { prisma } from '../prisma';
 
 router.get('/getTrainOn', async (req: Request, res: Response) => {
@@ -36,12 +36,6 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, data: "Missing query parameters" });
         }
 
-        // ❌ Block "Intra-City" searches to prevent confusion (e.g. NDLS to NDLS / DLI)
-        const isSameCluster = from === to || (NEARBY_STATIONS[from as string] || []).includes(to as string);
-        if (isSameCluster) {
-            console.log(`[TrainSearch] BLOCKED: Intra-city search detected (${from} -> ${to})`);
-            return res.json({ success: true, data: [] });
-        }
 
         const cacheKey = `${from}-${to}-${date}-${reqClass || 'ALL'}-${SEARCH_VERSION}`;
         const cached = trainCache.get(cacheKey);
@@ -50,11 +44,35 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             return res.json({ success: true, data: cached.data });
         }
 
-        // Fetch common pricing data once
-        const [corridors, customPrices] = await Promise.all([
+        // Fetch all context data in parallel
+        const [corridors, customPrices, rules, specialCharges, mappings, nearbys] = await Promise.all([
             prisma.corridorPricing.findMany(),
-            prisma.priceRequest.findMany({ where: { status: 'UPDATED' } })
+            prisma.priceRequest.findMany({ where: { status: 'UPDATED' } }),
+            prisma.pricingRule.findMany(),
+            prisma.specialCharge.findMany(),
+            prisma.stationMapping.findMany(),
+            prisma.stationNearby.findMany()
         ]);
+
+        const pricingContext: PricingContext = {
+            corridors,
+            customPrices,
+            rules,
+            specialCharges,
+            mappings,
+            nearbys
+        };
+
+        // ❌ Block "Intra-City" searches to prevent confusion
+        const nearbyCodes = nearbys
+            .filter(n => n.stationCode === from)
+            .map(n => n.nearbyCode);
+            
+        const isSameCluster = from === to || nearbyCodes.includes(to as string);
+        if (isSameCluster) {
+            console.log(`[TrainSearch] BLOCKED: Intra-city search detected (${from} -> ${to})`);
+            return res.json({ success: true, data: [] });
+        }
 
         const dateParts = (date as string).split('-');
         const journeyDate = new Date(
@@ -100,8 +118,8 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
 
         // 2. Proximity Search - Expanding reach to capture all city-area terminals (e.g. DEC, DEE, SBIB)
         // 2. Proximity Search - Expanding reach to capture all city-area terminals
-        const sourceAlts = [from as string, ...(NEARBY_STATIONS[from as string] || [])].slice(0, 10);
-        const destAlts = [to as string, ...(NEARBY_STATIONS[to as string] || [])].slice(0, 10);
+        const sourceAlts = [from as string, ...nearbys.filter(n => n.stationCode === from).map(n => n.nearbyCode)].slice(0, 10);
+        const destAlts = [to as string, ...nearbys.filter(n => n.stationCode === to).map(n => n.nearbyCode)].slice(0, 10);
 
         const pairs: {s: string, d: string}[] = [];
         for (const s of sourceAlts) {
@@ -176,8 +194,7 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                         cls, 
                         t.trainName || t.train_name, 
                         travelTimeStr, 
-                        corridors, 
-                        customPrices
+                        pricingContext
                     );
                 });
 

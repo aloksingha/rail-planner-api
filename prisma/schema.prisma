@@ -248,3 +248,39 @@ model WithdrawalRequest {
   @@index([status])
   @@index([userId])
 }
+
+model StationMapping {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  name      String
+  city      String?
+  createdAt DateTime @default(now())
+}
+
+model StationNearby {
+  id          String @id @default(uuid())
+  stationCode String
+  nearbyCode  String
+
+  @@unique([stationCode, nearbyCode])
+  @@index([stationCode])
+}
+
+model PricingRule {
+  id           String   @id @default(uuid())
+  class        String   @unique // SL, 3A, 2A, etc.
+  basePrice    Float
+  pricePerHour Float
+  fixedMarkup  Float
+  updatedAt    DateTime @updatedAt
+}
+
+model SpecialCharge {
+  id        String   @id @default(uuid())
+  name      String   @unique // e.g. "SUPERFAST"
+  pattern   String   // regex or simple string match for train name
+  amountSL  Float    @default(0)
+  amount3A  Float    @default(0)
+  amount2A  Float    @default(0)
+  amount2S  Float    @default(0)
+}

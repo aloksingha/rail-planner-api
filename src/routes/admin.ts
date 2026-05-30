@@ -353,6 +353,172 @@ router.get('/sales', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MA
     }
 });
 
+// Get recent activity feed (Audit logs + Recent Bookings)
+router.get('/activity-feed', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+    const { role, userId } = req.user!;
+    try {
+        const auditWhere = role === 'ADMIN' ? { performedByUserId: userId } : {};
+        const bookingWhere = role === 'ADMIN' ? { user: { createdByUserId: userId } } : {};
+
+        const [auditLogs, bookings] = await Promise.all([
+            prisma.auditLog.findMany({
+                where: auditWhere,
+                take: 15,
+                orderBy: { timestamp: 'desc' },
+                include: { performedByUser: { select: { name: true, email: true, role: true } } }
+            }),
+            prisma.booking.findMany({
+                where: bookingWhere,
+                take: 15,
+                orderBy: { createdAt: 'desc' },
+                include: { 
+                    user: { select: { name: true, email: true } },
+                    event: { select: { name: true } }
+                }
+            })
+        ]);
+
+        const activities = [
+            ...auditLogs.map(log => ({
+                id: log.id,
+                type: 'SYSTEM',
+                action: log.action,
+                details: log.details,
+                timestamp: log.timestamp,
+                user: log.performedByUser.name || log.performedByUser.email,
+                userRole: log.performedByUser.role
+            })),
+            ...bookings.map(b => ({
+                id: b.id,
+                type: 'BOOKING',
+                action: 'NEW_BOOKING',
+                details: `Reserved: ${b.event.name}`,
+                timestamp: b.createdAt,
+                user: b.user.name || b.user.email,
+                status: b.status
+            }))
+        ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 20);
+
+        return res.json(activities);
+    } catch (error: any) {
+        console.error('Fetch activity feed error:', error);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// Consolidate Statistics & Activity into a single High-Velocity Dashboard Payload
+router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+    const { role, userId } = req.user!;
+    const cacheKey = `dashboard-bundle-${role}-${userId}`;
+    const cached = statsCache.get(cacheKey);
+    
+    if (cached && cached.expiry > Date.now()) {
+        console.log(`[DashboardBundle] Cache HIT for ${cacheKey}`);
+        return res.json(cached.data);
+    }
+
+    try {
+        const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
+        const userWhere = role === 'ADMIN' ? { createdByUserId: userId, role: 'SALES_MANAGER' } : {};
+        const bookingWhere = role === 'ADMIN' ? { user: { createdByUserId: userId } } : {};
+        const paymentWhere = role === 'ADMIN' ? { user: { createdByUserId: userId } } : {};
+        const auditWhere = role === 'ADMIN' ? { performedByUserId: userId } : {};
+
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const [
+            superAdmins, admins, salesMgrs, customers,
+            teamMembersCount,
+            todayBookings, totalBookings,
+            recentPayments,
+            revenueStats,
+            failedBookingCount,
+            priceRequestCount,
+            auditLogs, 
+            recentBookings
+        ] = await Promise.all([
+            prisma.user.count({ where: { role: 'SUPER_ADMIN' } }),
+            prisma.user.count({ where: { role: 'ADMIN' } }),
+            prisma.user.count({ where: { role: 'SALES_MANAGER' } }),
+            prisma.user.count({ where: { role: 'CUSTOMER' } }),
+            prisma.user.count({ where: userWhere }),
+            prisma.booking.count({ where: { ...bookingWhere, createdAt: { gte: todayStart } } }),
+            prisma.booking.count({ where: bookingWhere }),
+            prisma.paymentRecord.findMany({
+                where: { ...paymentWhere, status: 'CAPTURED', createdAt: { gte: thirtyDaysAgo } },
+                orderBy: { createdAt: 'desc' }
+            }),
+            prisma.paymentRecord.aggregate({
+                where: { ...paymentWhere, status: 'CAPTURED', createdAt: { gte: todayStart } },
+                _sum: { amount: true }
+            }),
+            prisma.failedBooking.count({ where: { status: 'PENDING' } }),
+            prisma.priceRequest.count({ where: { status: 'PENDING' } }),
+            prisma.auditLog.findMany({
+                where: auditWhere,
+                take: 15,
+                orderBy: { timestamp: 'desc' },
+                include: { performedByUser: { select: { name: true, email: true, role: true } } }
+            }),
+            prisma.booking.findMany({
+                where: bookingWhere,
+                take: 15,
+                orderBy: { createdAt: 'desc' },
+                include: { 
+                    user: { select: { name: true, email: true } },
+                    event: { select: { name: true } }
+                }
+            })
+        ]);
+
+        const todayAmount = revenueStats._sum.amount || 0;
+
+        // Group by day for simple timeline
+        const timelineMap: Record<string, { count: number; amount: number }> = {};
+        recentPayments.forEach(p => {
+            const dateKey = p.createdAt.toISOString().split('T')[0];
+            if (!timelineMap[dateKey]) {
+                timelineMap[dateKey] = { count: 0, amount: 0 };
+            }
+            timelineMap[dateKey].count += 1;
+            timelineMap[dateKey].amount += p.amount;
+        });
+
+        const timeline = Object.entries(timelineMap)
+            .map(([date, data]) => ({ date, count: data.count, amount: Math.round(data.amount) }))
+            .sort((a, b) => a.date.localeCompare(b.date));
+
+        const activities = [
+            ...auditLogs.map(log => ({
+                id: log.id, type: 'SYSTEM', action: log.action, details: log.details,
+                timestamp: log.timestamp, user: log.performedByUser.name || log.performedByUser.email,
+                userRole: log.performedByUser.role
+            })),
+            ...recentBookings.map(b => ({
+                id: b.id, type: 'BOOKING', action: 'NEW_BOOKING', details: `Reserved: ${b.event.name}`,
+                timestamp: b.createdAt, user: b.user.name || b.user.email, status: b.status
+            }))
+        ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 20);
+
+        const bundle = {
+            stats: {
+                userCount: superAdmins + admins + salesMgrs + customers,
+                teamCount: teamMembersCount, todayBookings, bookingCount: totalBookings,
+                todayAmount, timeline, failedBookingCount, priceRequestCount,
+                SUPER_ADMIN: superAdmins, ADMIN: admins, SALES_MANAGER: salesMgrs, CUSTOMER: customers
+            },
+            activities
+        };
+
+        statsCache.set(cacheKey, { data: bundle, expiry: Date.now() + STATS_CACHE_TTL });
+        return res.json(bundle);
+    } catch (error: any) {
+        console.error('Fetch dashboard data error:', error);
+        return res.status(500).json({ error: error.message });
+    }
+});
+
 // Get all bookings
 // Get bookings
 router.get('/bookings', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER']), async (req, res) => {
