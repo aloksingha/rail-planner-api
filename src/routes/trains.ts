@@ -187,7 +187,7 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
 
                 const travelTimeStr = formatTravelTime(segmentMins);
                 const prices: Record<string, number> = {};
-                ['SL', '3A', '2A', 'CC'].forEach(cls => {
+                ['SL', '3A', '2A', 'CC', '3E', '1A', '2S', 'FC'].forEach(cls => {
                     prices[cls] = getTicketPrice(
                         from as string, 
                         to as string, 
