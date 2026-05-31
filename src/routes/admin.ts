@@ -958,6 +958,7 @@ router.get('/users', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (
                     status: true,
                     walletBalance: true,
                     createdAt: true,
+                    createdByUserId: true,
                     _count: { select: { bookings: true } }
                 }
             }),
@@ -1066,6 +1067,57 @@ router.patch('/users/:id/role', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'
         return res.json({ success: true, user });
     } catch (error: any) {
         console.error('Change role error:', error);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// ── Super Admin & Admin: Delete a user and cascade clear their records ────────────────────
+router.delete('/users/:id', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+    const id = req.params.id as string;
+
+    if (id === req.user!.userId) {
+        return res.status(400).json({ error: 'You cannot delete your own account.' });
+    }
+
+    try {
+        const targetUser = await prisma.user.findUnique({ where: { id } });
+        if (!targetUser) return res.status(404).json({ error: 'User not found' });
+
+        // ADMIN restrictions
+        if (req.user!.role === 'ADMIN') {
+            if (targetUser.createdByUserId !== req.user!.userId) {
+                return res.status(403).json({ error: 'Unauthorized: You can only delete users you created.' });
+            }
+            if (targetUser.role === 'SUPER_ADMIN' || targetUser.role === 'ADMIN') {
+                return res.status(403).json({ error: 'Unauthorized: Admins cannot delete Admin or Super Admin accounts.' });
+            }
+        }
+
+        // Cascade delete all relations to avoid foreign key violations in database
+        await prisma.$transaction([
+            prisma.walletTransaction.deleteMany({ where: { userId: id } }),
+            prisma.withdrawalRequest.deleteMany({ where: { userId: id } }),
+            prisma.priceRequest.deleteMany({ where: { userId: id } }),
+            prisma.auditLog.deleteMany({ where: { targetUserId: id } }),
+            prisma.auditLog.deleteMany({ where: { performedByUserId: id } }),
+            prisma.refundRecord.deleteMany({ where: { userId: id } }),
+            prisma.paymentRecord.deleteMany({ where: { userId: id } }),
+            prisma.booking.deleteMany({ where: { userId: id } }),
+            prisma.user.updateMany({ where: { createdByUserId: id }, data: { createdByUserId: null } }),
+            prisma.user.delete({ where: { id } })
+        ]);
+
+        await prisma.auditLog.create({
+            data: {
+                action: 'DELETE_USER',
+                performedByUserId: req.user!.userId,
+                details: `Permanently deleted user account ${targetUser.email} (ID: ${id})`
+            }
+        });
+
+        return res.json({ success: true, message: `User ${targetUser.email} was permanently deleted.` });
+    } catch (error: any) {
+        console.error('Delete user error:', error);
         return res.status(500).json({ error: 'Internal Server Error' });
     }
 });
