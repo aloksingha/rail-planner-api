@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { prisma } from '../prisma';
 import { refundQueue } from '../queue/refundQueue';
+import { processTicketRefund } from '../services/razorpayService';
 
 const router = Router();
 
@@ -32,11 +33,16 @@ router.post('/initiate', requireAuth, async (req, res) => {
             }
         });
 
-        // Enqueue background job
+        // Enqueue background job (for queue tracking if active)
         await refundQueue.add('process-refund', {
             refundId: refund.id,
             paymentId,
             amount
+        });
+
+        // Trigger background processing asynchronously
+        processTicketRefund(refund.id).catch((err) => {
+            console.error(`[Background Refund] Auto-refund failed for request ${refund.id}:`, err);
         });
 
         return res.json({ success: true, refundId: refund.id });

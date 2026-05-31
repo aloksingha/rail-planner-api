@@ -3,6 +3,7 @@ import { requireAuth } from '../middleware/auth';
 import { prisma } from '../prisma';
 import { notifyBookingCancelled, notifyBookingConfirmed } from '../services/notificationService';
 import { refundQueue } from '../queue/refundQueue';
+import { processTicketRefund } from '../services/razorpayService';
 
 const router = express.Router();
 
@@ -186,6 +187,11 @@ router.put('/bookings/:id/cancel', requireAuth, async (req, res) => {
                     refundId: refund.id,
                     paymentId: booking.paymentId,
                     amount: refundAmount
+                });
+
+                // Trigger background processing asynchronously
+                processTicketRefund(refund.id).catch((err) => {
+                    console.error(`[Background Refund] Auto-refund failed for request ${refund.id}:`, err);
                 });
             }
         }

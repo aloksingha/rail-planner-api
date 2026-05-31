@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { prisma } from '../prisma';
+import { parseWithdrawalDetails, processPayout } from '../services/razorpayService';
 
 const router = Router();
 
@@ -152,14 +153,22 @@ router.get('/admin/all-transactions', requireAuth, requireRole(['SUPER_ADMIN']),
  * The amount is deducted immediately to lock the funds.
  */
 router.post('/withdraw-request', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER', 'CUSTOMER']), async (req, res) => {
-    const { amount, method, details } = req.body;
+    const { amount, details } = req.body;
 
     if (!amount || amount < 500) {
         return res.status(400).json({ error: 'Minimum withdrawal amount is ₹500' });
     }
 
-    if (!method || !details) {
-        return res.status(400).json({ error: 'Payment method and details (e.g. UPI ID) are required' });
+    if (!details) {
+        return res.status(400).json({ error: 'Payment details (e.g. UPI ID or bank details) are required' });
+    }
+
+    // 1. Validate details upfront to reject malformed input immediately
+    let parsedDetails;
+    try {
+        parsedDetails = parseWithdrawalDetails(details);
+    } catch (err: any) {
+        return res.status(400).json({ error: err.message || 'Invalid payout details format' });
     }
 
     try {
@@ -181,18 +190,18 @@ router.post('/withdraw-request', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN
                 throw new Error(`Insufficient wallet balance. Total required (including ₹${charge} charge): ₹${totalDeduction}`);
             }
 
-            const updatedUser = await tx.user.update({
+            await tx.user.update({
                 where: { id: req.user!.userId },
                 data: { walletBalance: { decrement: totalDeduction } }
             });
 
-            // 2. Create Withdrawal Request
+            // 2. Create Withdrawal Request (using parsed type for method)
             const request = await tx.withdrawalRequest.create({
                 data: {
                     userId: req.user!.userId,
                     amount,
                     charge,
-                    method,
+                    method: parsedDetails.type,
                     details,
                     status: 'PENDING'
                 }
@@ -211,9 +220,14 @@ router.post('/withdraw-request', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN
             return request;
         });
 
+        // Trigger background processing asynchronously
+        processPayout(result.id).catch((err) => {
+            console.error(`[Background Payout] Auto-processing failed for request ${result.id}:`, err);
+        });
+
         return res.json({ 
             success: true, 
-            message: 'Withdrawal request submitted successfully.',
+            message: 'Withdrawal request submitted and being processed automatically.',
             requestId: result.id
         });
     } catch (error: any) {

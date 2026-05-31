@@ -5,6 +5,7 @@ import { isValidIndianMobile } from '../utils/validation';
 import { notifyBookingCancelled, notifyBookingConfirmed } from '../services/notificationService';
 import { createAuditLog } from '../services/auditService';
 import { refundQueue } from '../queue/refundQueue';
+import { processTicketRefund } from '../services/razorpayService';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
@@ -727,6 +728,11 @@ router.put('/bookings/:id/cancel', requireAuth, requireRole(['SUPER_ADMIN', 'ADM
                     refundId: refund.id,
                     paymentId: booking.paymentId,
                     amount: paymentRecord.amount
+                });
+
+                // Trigger background processing asynchronously
+                processTicketRefund(refund.id).catch((err) => {
+                    console.error(`[Background Refund] Auto-refund failed for request ${refund.id}:`, err);
                 });
             }
         }
