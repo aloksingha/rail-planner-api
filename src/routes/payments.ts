@@ -6,6 +6,7 @@ import crypto from 'crypto';
 import { prisma } from '../prisma';
 import { isValidIndianMobile } from '../utils/validation';
 import { notifyBookingConfirmed, notifyPaymentReceived } from '../services/notificationService';
+import { checkAndApplyCommission } from '../utils/commission';
 
 const router = Router();
 
@@ -14,7 +15,7 @@ const razorpay = new Razorpay({
     key_secret: process.env.RAZORPAY_KEY_SECRET as string,
 });
 
-router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CUSTOMER']), requireActiveUser, async (req, res) => {
+router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CUSTOMER', 'SALES_MANAGER']), requireActiveUser, async (req, res) => {
     const {
         amount,
         eventId,
@@ -102,7 +103,7 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
                 category = 'AC';
             }
 
-            await tx.booking.create({
+            const booking = await tx.booking.create({
                 data: {
                     userId: user.id,
                     eventId: resolvedEventId,
@@ -111,6 +112,8 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
                     class: category
                 }
             });
+
+            await checkAndApplyCommission(tx, user.id, amount, booking.id, trainNo);
 
             // 6. Audit Log
             await tx.auditLog.create({
@@ -375,6 +378,8 @@ router.post('/verify', requireAuth, async (req, res) => {
                 }
             });
 
+            await checkAndApplyCommission(tx, req.user!.userId, Number(amount), booking.id, trainNo);
+
             return { booking, eventName };
         });
 
@@ -462,6 +467,8 @@ router.post('/offline-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), 
                     class: category
                 }
             });
+
+            await checkAndApplyCommission(tx, req.user!.userId, Number(amount), booking.id, trainNo);
 
             return { booking, eventName };
         });

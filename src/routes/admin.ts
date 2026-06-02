@@ -301,33 +301,110 @@ router.get('/stats', requireAuth, async (req, res) => {
 });
 
 // Get sales data for dashboard
+// Get sales data for dashboard
 router.get('/sales', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER']), async (req, res) => {
+    const { role, userId } = req.user!;
     try {
-        const [revenueStats, recentBookings] = await Promise.all([
+        let paymentWhere: any = { status: 'CAPTURED' };
+        let bookingWhere: any = {};
+        let commissionWhere: any = { type: 'CREDIT', description: { contains: 'Commission' } };
+
+        if (role === 'ADMIN') {
+            const scope = req.query.scope as string;
+            if (scope !== 'all') {
+                paymentWhere = {
+                    status: 'CAPTURED',
+                    user: {
+                        createdByUserId: userId,
+                        role: 'SALES_MANAGER'
+                    }
+                };
+                bookingWhere = {
+                    user: {
+                        createdByUserId: userId,
+                        role: 'SALES_MANAGER'
+                    }
+                };
+                commissionWhere = {
+                    type: 'CREDIT',
+                    description: { contains: 'Commission' },
+                    user: {
+                        createdByUserId: userId,
+                        role: 'SALES_MANAGER'
+                    }
+                };
+            }
+        } else if (role === 'SALES_MANAGER') {
+            const scope = req.query.scope as string;
+            if (scope === 'team') {
+                const currentUser = await prisma.user.findUnique({
+                    where: { id: userId },
+                    select: { createdByUserId: true }
+                });
+                if (currentUser?.createdByUserId) {
+                    paymentWhere = {
+                        status: 'CAPTURED',
+                        user: {
+                            createdByUserId: currentUser.createdByUserId,
+                            role: 'SALES_MANAGER'
+                        }
+                    };
+                    bookingWhere = {
+                        user: {
+                            createdByUserId: currentUser.createdByUserId,
+                            role: 'SALES_MANAGER'
+                        }
+                    };
+                    commissionWhere = {
+                        type: 'CREDIT',
+                        description: { contains: 'Commission' },
+                        user: {
+                            createdByUserId: currentUser.createdByUserId,
+                            role: 'SALES_MANAGER'
+                        }
+                    };
+                } else {
+                    paymentWhere = { status: 'CAPTURED', userId };
+                    bookingWhere = { userId };
+                    commissionWhere = { userId, type: 'CREDIT', description: { contains: 'Commission' } };
+                }
+            } else {
+                paymentWhere = { status: 'CAPTURED', userId };
+                bookingWhere = { userId };
+                commissionWhere = { userId, type: 'CREDIT', description: { contains: 'Commission' } };
+            }
+        }
+
+        const [revenueStats, recentBookings, commissionStats] = await Promise.all([
             prisma.paymentRecord.aggregate({
-                where: { status: 'CAPTURED' },
+                where: paymentWhere,
                 _sum: { amount: true },
                 _count: { id: true }
             }),
             prisma.booking.findMany({
+                where: bookingWhere,
                 orderBy: { createdAt: 'desc' },
                 take: 10,
                 include: {
                     user: { select: { email: true, mobile: true } },
                     event: { select: { name: true } }
                 }
+            }),
+            prisma.walletTransaction.aggregate({
+                where: commissionWhere,
+                _sum: { amount: true }
             })
         ]);
 
-        // For timeline, we'll still fetch a limited set or implement a proper aggregated query
         const recentPayments = await prisma.paymentRecord.findMany({
-            where: { status: 'CAPTURED' },
+            where: paymentWhere,
             orderBy: { createdAt: 'desc' },
-            take: 100 // Reduce from 500
+            take: 100
         });
 
         const totalRevenue = revenueStats._sum.amount || 0;
         const totalSalesCount = revenueStats._count.id;
+        const totalCommission = commissionStats._sum.amount || 0;
 
         // Aggregate by day for the chart
         const revenueByDay: Record<string, number> = {};
@@ -345,6 +422,7 @@ router.get('/sales', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MA
             totalRevenue,
             recentBookings,
             totalSalesCount,
+            totalCommission,
             timelineData
         });
 

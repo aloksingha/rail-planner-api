@@ -3,6 +3,7 @@ import { requireAuth } from '../middleware/auth';
 import { requireActiveUser } from '../middleware/restrict';
 import { prisma } from '../prisma';
 import { notifyBookingConfirmed } from '../services/notificationService';
+import { checkAndApplyCommission } from '../utils/commission';
 
 const router = Router();
 
@@ -78,6 +79,8 @@ router.post('/', requireAuth, requireActiveUser, async (req, res) => {
                     user: { select: { email: true, mobile: true } }
                 }
             });
+
+            await checkAndApplyCommission(tx, req.user!.userId, Number(amount), booking.id, trainNo);
 
             return booking;
         });
