@@ -148,21 +148,50 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         // Combine nearby and direct results (Direct results at the end so they overwrite alternative ones in the Map)
         allRemoteTrains = [...fallbackResults, ...allRemoteTrains];
 
+        const shiftDay = (dayName: string, shift: number): string => {
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const idx = days.indexOf(dayName);
+            if (idx === -1) return dayName;
+            const newIdx = (idx + shift) % 7;
+            const finalIdx = newIdx >= 0 ? newIdx : newIdx + 7;
+            return days[finalIdx];
+        };
+
         const adaptedTrains = allRemoteTrains
             .filter((t: any) => {
+                const depDay = t.fromStationSchedule?.day ?? 1;
+                
+                // To depart search station on journeyDate, train must start from origin at journeyDate - (depDay - 1) days
+                const originDate = new Date(journeyDate);
+                originDate.setDate(originDate.getDate() - (depDay - 1));
+                const originDayFullName = dayFullNames[originDate.getDay()];
+
                 const rd = t.runningDays;
                 if (!rd || rd.allDays === true) return true;
-                return (rd.days || []).includes(dayFullName);
+                
+                const daysList = rd.days || [];
+                return daysList.includes(originDayFullName);
             })
             .map((t: any) => {
+                const depDay = t.fromStationSchedule?.day ?? 1;
+                const arrDay = t.toStationSchedule?.day ?? depDay;
+
                 const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
                 const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+                
+                const indexToDay = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
                 let running_days: Record<string, boolean> = {};
                 dayKeys.forEach((key, i) => {
-                    const targetDay = dayNames[i];
+                    const targetDayAtSearchStation = dayNames[i];
+                    
+                    const targetDayIdx = indexToDay.indexOf(targetDayAtSearchStation);
+                    const originDayIdx = (targetDayIdx - (depDay - 1) + 70) % 7;
+                    const originDayName = indexToDay[originDayIdx];
+                    
                     const isRunning = t.runningDays?.allDays === true || 
-                                     (t.runningDays?.days || []).includes(targetDay) ||
-                                     (t.running_days?.days || []).includes(targetDay);
+                                     (t.runningDays?.days || []).includes(originDayName) ||
+                                     (t.running_days?.days || []).includes(originDayName);
                     running_days[key] = isRunning;
                 });
 
@@ -177,8 +206,6 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                 // RapidAPI mapping vs RailRadar mapping
                 const depMinsBase = t.fromStationSchedule?.departureMinutes ?? t.from_std_mins ?? 0;
                 const arrMinsBase = t.toStationSchedule?.arrivalMinutes ?? t.to_sta_mins ?? 0;
-                const depDay = t.fromStationSchedule?.day ?? 1;
-                const arrDay = t.toStationSchedule?.day ?? depDay;
                 
                 const depMinsTotal = ((depDay - 1) * 1440) + depMinsBase;
                 const arrMinsTotal = ((arrDay - 1) * 1440) + arrMinsBase;
@@ -186,6 +213,30 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                 if (segmentMins <= 0) segmentMins = t.travelTimeMinutes || 0;
 
                 const travelTimeStr = formatTravelTime(segmentMins);
+                
+                // Calculate calendar departure and arrival dates
+                const depDateObj = new Date(journeyDate);
+                const arrDateObj = new Date(journeyDate);
+                arrDateObj.setDate(arrDateObj.getDate() + (arrDay - depDay));
+
+                const formatDate = (d: Date) => {
+                    const day = d.getDate().toString().padStart(2, '0');
+                    const month = (d.getMonth() + 1).toString().padStart(2, '0');
+                    const year = d.getFullYear();
+                    return `${day}-${month}-${year}`;
+                };
+
+                const formatDateFriendly = (d: Date) => {
+                    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    return `${days[d.getDay()]}, ${d.getDate().toString().padStart(2, '0')} ${months[d.getMonth()]}`;
+                };
+
+                const departure_date = formatDate(depDateObj);
+                const arrival_date = formatDate(arrDateObj);
+                const departure_date_friendly = formatDateFriendly(depDateObj);
+                const arrival_date_friendly = formatDateFriendly(arrDateObj);
+
                 const prices: Record<string, number> = {};
                 ['SL', '3A', '2A', 'CC', '3E', '1A', '2S', 'FC'].forEach(cls => {
                     prices[cls] = getTicketPrice(
@@ -211,7 +262,11 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                         travel_time: travelTimeStr,
                         running_days,
                         available_classes,
-                        prices 
+                        prices,
+                        departure_date,
+                        arrival_date,
+                        departure_date_friendly,
+                        arrival_date_friendly
                     }
                 };
             });
