@@ -163,3 +163,66 @@ export async function handleBookingCancellation(
         throw error;
     }
 }
+
+/**
+ * Handles partial deduction of commission when a passenger is cancelled from a booking.
+ */
+export async function handlePartialBookingCancellation(
+    tx: Omit<Prisma.TransactionClient, '$use'>,
+    bookingId: string,
+    refundRatio: number
+) {
+    try {
+        // 1. Find the credit wallet transaction containing commission for this bookingId
+        const commissionTx = await tx.walletTransaction.findFirst({
+            where: {
+                bookingId,
+                type: 'CREDIT',
+                description: { contains: 'Commission' }
+            }
+        });
+
+        if (!commissionTx) {
+            console.log(`[Commission] No commission transaction found to deduct for partially cancelled booking ${bookingId}`);
+            return;
+        }
+
+        const salesManagerId = commissionTx.userId;
+        const originalCommission = commissionTx.amount;
+        const deductionAmount = Math.round(originalCommission * refundRatio * 100) / 100;
+
+        if (deductionAmount <= 0) return;
+
+        // 2. Decrement Sales Manager's Wallet Balance
+        await tx.user.update({
+            where: { id: salesManagerId },
+            data: { walletBalance: { decrement: deductionAmount } }
+        });
+
+        // 3. Create a debit Wallet Transaction log
+        await tx.walletTransaction.create({
+            data: {
+                userId: salesManagerId,
+                amount: deductionAmount,
+                type: 'DEBIT',
+                bookingId,
+                description: `Commission deduction (Partial): Booking ${bookingId} passenger cancelled`
+            }
+        });
+
+        // 4. Create Audit Log
+        await tx.auditLog.create({
+            data: {
+                action: 'SALES_COMMISSION_DEDUCTION',
+                targetUserId: salesManagerId,
+                performedByUserId: 'SYSTEM',
+                details: `Deducted ₹${deductionAmount} commission from Sales Manager ${salesManagerId} because booking ${bookingId} was partially cancelled.`
+            }
+        });
+
+        console.log(`[Commission] Successfully deducted ₹${deductionAmount} commission from Sales Manager ${salesManagerId} for partially cancelled booking ${bookingId}`);
+    } catch (error) {
+        console.error('[Commission] Error handling partial booking cancellation commission:', error);
+        throw error;
+    }
+}

@@ -5,6 +5,7 @@ import { notifyBookingCancelled, notifyBookingConfirmed } from '../services/noti
 import { refundQueue } from '../queue/refundQueue';
 import { processTicketRefund } from '../services/razorpayService';
 import { handleBookingCancellation } from '../utils/commission';
+import { cancelPassengersOrBooking } from '../utils/cancellation';
 
 const router = express.Router();
 
@@ -150,48 +151,26 @@ router.put('/bookings/:id/cancel', requireAuth, async (req, res) => {
 
     try {
         const booking = await prisma.booking.findFirst({
-            where: { id, userId },
+            where: { id },
             include: { 
-                user: { select: { email: true, mobile: true } }
+                user: { select: { email: true, mobile: true, role: true, createdByUserId: true } }
             }
         });
 
         if (!booking) return res.status(404).json({ error: 'Booking not found.' });
         if (booking.status === 'CANCELLED') return res.status(400).json({ error: 'Already cancelled.' });
 
+        // Authorization check: owner, admin, or creator Sales Manager
+        const isOwner = booking.userId === userId;
+        const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(req.user!.role);
+        const isSalesCreator = req.user!.role === 'SALES_MANAGER' && booking.user.createdByUserId === userId;
+
+        if (!isOwner && !isAdmin && !isSalesCreator) {
+            return res.status(403).json({ error: 'Forbidden: You do not have permission to cancel this booking.' });
+        }
+
         const result = await prisma.$transaction(async (tx) => {
-            const updatedBooking = await tx.booking.update({
-                where: { id },
-                data: { status: 'CANCELLED' }
-            });
-
-            // Deduct commission from Sales Manager if applicable
-            await handleBookingCancellation(tx, id);
-
-            let refund = null;
-            // Handle Auto Refund if it was paid
-            if (booking.paymentId) {
-                const paymentRecord = await tx.paymentRecord.findUnique({ where: { paymentId: booking.paymentId } });
-
-                if (paymentRecord) {
-                    const cancellationFee = 50;
-                    const refundAmount = Math.max(0, paymentRecord.amount - cancellationFee);
-
-                    refund = await tx.refundRecord.create({
-                        data: {
-                            paymentId: booking.paymentId,
-                            amount: refundAmount,
-                            region: 'Global',
-                            reason: `Cancelled by Customer (₹${cancellationFee} fee deducted)`,
-                            userId: userId,
-                            bookingId: id,
-                            status: 'AUTOMATED_PENDING',
-                        }
-                    });
-                }
-            }
-
-            return { updatedBooking, refund };
+            return await cancelPassengersOrBooking(tx, id);
         });
 
         if (result.refund) {
@@ -209,13 +188,72 @@ router.put('/bookings/:id/cancel', requireAuth, async (req, res) => {
 
         // Trigger Notification
         if (booking.user?.email) {
-            await notifyBookingCancelled(booking.user.email, 'Cancelled by You', booking.user.mobile || undefined);
+            await notifyBookingCancelled(booking.user.email, 'Cancelled Entire Ticket', booking.user.mobile || undefined);
         }
 
-        return res.json({ success: true, message: 'Booking cancelled and refund initiated.' });
-    } catch (error) {
+        return res.json({ success: true, message: 'Booking cancelled and refund initiated.', refundAmount: result.refundAmount });
+    } catch (error: any) {
         console.error('Customer cancellation error:', error);
-        return res.status(500).json({ error: 'Failed to cancel booking.' });
+        return res.status(500).json({ error: error.message || 'Failed to cancel booking.' });
+    }
+});
+
+// Customer Cancel Specific Passenger
+router.post('/bookings/:id/cancel-passenger', requireAuth, async (req, res) => {
+    const id = req.params.id as string;
+    const userId = req.user!.userId;
+    const { passengerName } = req.body;
+
+    if (!passengerName) {
+        return res.status(400).json({ error: 'Passenger name is required.' });
+    }
+
+    try {
+        const booking = await prisma.booking.findFirst({
+            where: { id },
+            include: { 
+                user: { select: { email: true, mobile: true, role: true, createdByUserId: true } }
+            }
+        });
+
+        if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+        if (booking.status === 'CANCELLED') return res.status(400).json({ error: 'Booking is already cancelled.' });
+
+        // Authorization check: owner, admin, or creator Sales Manager
+        const isOwner = booking.userId === userId;
+        const isAdmin = ['SUPER_ADMIN', 'ADMIN'].includes(req.user!.role);
+        const isSalesCreator = req.user!.role === 'SALES_MANAGER' && booking.user.createdByUserId === userId;
+
+        if (!isOwner && !isAdmin && !isSalesCreator) {
+            return res.status(403).json({ error: 'Forbidden: You do not have permission to modify this booking.' });
+        }
+
+        const result = await prisma.$transaction(async (tx) => {
+            return await cancelPassengersOrBooking(tx, id, passengerName);
+        });
+
+        if (result.refund) {
+            await refundQueue.add('process-refund', {
+                refundId: result.refund.id,
+                paymentId: booking.paymentId,
+                amount: result.refund.amount
+            });
+
+            // Trigger background processing asynchronously
+            processTicketRefund(result.refund.id).catch((err) => {
+                console.error(`[Background Refund] Auto-refund failed for request ${result.refund.id}:`, err);
+            });
+        }
+
+        // Trigger Notification
+        if (booking.user?.email) {
+            await notifyBookingCancelled(booking.user.email, `Passenger Cancelled: ${passengerName}`, booking.user.mobile || undefined);
+        }
+
+        return res.json({ success: true, message: `Passenger ${passengerName} cancelled and refund initiated.`, refundAmount: result.refundAmount });
+    } catch (error: any) {
+        console.error('Passenger cancellation error:', error);
+        return res.status(500).json({ error: error.message || 'Failed to cancel passenger ticket.' });
     }
 });
 

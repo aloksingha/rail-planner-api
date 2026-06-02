@@ -8,6 +8,7 @@ import { refundQueue } from '../queue/refundQueue';
 import { processTicketRefund } from '../services/razorpayService';
 import multer from 'multer';
 import { handleBookingCancellation } from '../utils/commission';
+import { cancelPassengersOrBooking } from '../utils/cancellation';
 import path from 'path';
 import fs from 'fs';
 
@@ -780,42 +781,15 @@ router.put('/bookings/:id/cancel', requireAuth, requireRole(['SUPER_ADMIN', 'ADM
     const id = req.params.id as string;
     try {
         const result = await prisma.$transaction(async (tx) => {
-            const updatedBooking = await tx.booking.update({
-                where: { id },
-                data: { status: 'CANCELLED' }
-            });
-
-            // Deduct commission from Sales Manager if applicable
-            await handleBookingCancellation(tx, id);
-
-            let refund = null;
-            // Handle Auto Refund if it was paid
-            if (updatedBooking.paymentId) {
-                const paymentRecord = await tx.paymentRecord.findUnique({ where: { paymentId: updatedBooking.paymentId } });
-
-                if (paymentRecord) {
-                    // Policy: Admin-initiated cancellations currently grant a full refund.
-                    // If ₹50 fee is required for admin cancellations too, update amount to: Math.max(0, paymentRecord.amount - 50)
-                    refund = await tx.refundRecord.create({
-                        data: {
-                            paymentId: updatedBooking.paymentId,
-                            amount: paymentRecord.amount,
-                            region: 'Global',
-                            reason: 'Admin Override Auto-Cancellation',
-                            userId: updatedBooking.userId,
-                            bookingId: id,
-                            status: 'AUTOMATED_PENDING',
-                        }
-                    });
-                }
-            }
-
-            return { booking: updatedBooking, refund };
+            return await cancelPassengersOrBooking(tx, id);
         });
 
-        const booking = result.booking;
+        const booking = await prisma.booking.findUnique({ where: { id } });
+        if (!booking) {
+            return res.status(404).json({ error: 'Booking not found' });
+        }
 
-        if (result.refund) {
+        if (result.refund && booking) {
             await refundQueue.add('process-refund', {
                 refundId: result.refund.id,
                 paymentId: booking.paymentId,
@@ -989,14 +963,25 @@ router.patch('/bookings/:id/status', requireAuth, requireRole(['SUPER_ADMIN', 'A
 
     try {
         const booking = await prisma.$transaction(async (tx) => {
+            if (status === 'CANCELLED') {
+                const cancelRes = await cancelPassengersOrBooking(tx, id);
+                if (cancelRes.refund) {
+                    await refundQueue.add('process-refund', {
+                        refundId: cancelRes.refund.id,
+                        paymentId: cancelRes.refund.paymentId,
+                        amount: cancelRes.refund.amount
+                    });
+                    processTicketRefund(cancelRes.refund.id).catch((err) => {
+                        console.error(`[Background Refund] Auto-refund failed for request ${cancelRes.refund.id}:`, err);
+                    });
+                }
+                return await tx.booking.findUnique({ where: { id } });
+            }
+
             const updatedBooking = await tx.booking.update({
                 where: { id },
                 data: { status }
             });
-
-            if (status === 'CANCELLED') {
-                await handleBookingCancellation(tx, id);
-            }
 
             return updatedBooking;
         });
