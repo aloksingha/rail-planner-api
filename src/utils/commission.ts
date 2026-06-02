@@ -4,9 +4,10 @@ import { Prisma } from '@prisma/client';
  * Calculates and applies commission to the associated Sales Manager for a confirmed booking.
  * 
  * Commission Structure:
- * - Ticket Price < ₹1500: 5% of ticket price
- * - Ticket Price >= ₹1500 and < ₹4000: 7% of ticket price
- * - Ticket Price >= ₹4000: 10% of ticket price
+ * - Ticket Price < ₹1500: 6% of ticket price
+ * - Ticket Price >= ₹1500 and < ₹3500: 8% of ticket price
+ * - Ticket Price >= ₹3500 and < ₹6000: 10% of ticket price
+ * - Ticket Price >= ₹6000: 12% of ticket price
  */
 export async function checkAndApplyCommission(
     tx: Omit<Prisma.TransactionClient, '$use'>,
@@ -43,11 +44,13 @@ export async function checkAndApplyCommission(
         if (!salesManagerId) return;
 
         // 2. Calculate Commission Based on Pricing
-        let commissionPercentage = 0.05;
-        if (amount >= 1500 && amount < 4000) {
-            commissionPercentage = 0.07;
-        } else if (amount >= 4000) {
+        let commissionPercentage = 0.06;
+        if (amount >= 1500 && amount < 3500) {
+            commissionPercentage = 0.08;
+        } else if (amount >= 3500 && amount < 6000) {
             commissionPercentage = 0.10;
+        } else if (amount >= 6000) {
+            commissionPercentage = 0.12;
         }
 
         let commissionAmount = amount * commissionPercentage;
