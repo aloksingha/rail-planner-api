@@ -44,13 +44,13 @@ export async function checkAndApplyCommission(
         if (!salesManagerId) return;
 
         // 2. Calculate Commission Based on Pricing
-        let commissionPercentage = 0.06;
+        let commissionPercentage = 0.10; // Under ₹1,500 (Bronze): 10%
         if (amount >= 1500 && amount < 3500) {
-            commissionPercentage = 0.08;
+            commissionPercentage = 0.08; // ₹1,500 - ₹3,499 (Silver): 8%
         } else if (amount >= 3500 && amount < 6000) {
-            commissionPercentage = 0.10;
+            commissionPercentage = 0.07; // ₹3,500 - ₹5,999 (Gold): 7%
         } else if (amount >= 6000) {
-            commissionPercentage = 0.12;
+            commissionPercentage = 0.05; // ₹6,000 & Above (Platinum): 5%
         }
 
         let commissionAmount = amount * commissionPercentage;

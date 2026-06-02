@@ -208,8 +208,8 @@ router.get('/stats', requireAuth, async (req, res) => {
 
         if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
             const userWhere = role === 'ADMIN' ? { createdByUserId: userId, role: 'SALES_MANAGER' } : {};
-            const bookingWhere = role === 'ADMIN' ? { user: { createdByUserId: userId } } : {};
-            const paymentWhere = role === 'ADMIN' ? { user: { createdByUserId: userId } } : {};
+            const bookingWhere = role === 'ADMIN' ? { user: { createdBy: { createdByUserId: userId, role: 'SALES_MANAGER' } } } : {};
+            const paymentWhere = role === 'ADMIN' ? { user: { createdBy: { createdByUserId: userId, role: 'SALES_MANAGER' } } } : {};
 
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -287,8 +287,8 @@ router.get('/stats', requireAuth, async (req, res) => {
 
         if (role === 'SALES_MANAGER') {
             const [todayCount, totalCount] = await Promise.all([
-                prisma.booking.count({ where: { userId, createdAt: { gte: todayStart } } }),
-                prisma.booking.count({ where: { userId } })
+                prisma.booking.count({ where: { user: { createdByUserId: userId }, createdAt: { gte: todayStart } } }),
+                prisma.booking.count({ where: { user: { createdByUserId: userId } } })
             ]);
             const statsData = { todayBookings: todayCount, bookingCount: totalCount, timeline: [] };
             statsCache.set(cacheKey, { data: statsData, expiry: Date.now() + STATS_CACHE_TTL });
@@ -317,14 +317,18 @@ router.get('/sales', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MA
                 paymentWhere = {
                     status: 'CAPTURED',
                     user: {
-                        createdByUserId: userId,
-                        role: 'SALES_MANAGER'
+                        createdBy: {
+                            createdByUserId: userId,
+                            role: 'SALES_MANAGER'
+                        }
                     }
                 };
                 bookingWhere = {
                     user: {
-                        createdByUserId: userId,
-                        role: 'SALES_MANAGER'
+                        createdBy: {
+                            createdByUserId: userId,
+                            role: 'SALES_MANAGER'
+                        }
                     }
                 };
                 commissionWhere = {
@@ -347,14 +351,18 @@ router.get('/sales', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MA
                     paymentWhere = {
                         status: 'CAPTURED',
                         user: {
-                            createdByUserId: currentUser.createdByUserId,
-                            role: 'SALES_MANAGER'
+                            createdBy: {
+                                createdByUserId: currentUser.createdByUserId,
+                                role: 'SALES_MANAGER'
+                            }
                         }
                     };
                     bookingWhere = {
                         user: {
-                            createdByUserId: currentUser.createdByUserId,
-                            role: 'SALES_MANAGER'
+                            createdBy: {
+                                createdByUserId: currentUser.createdByUserId,
+                                role: 'SALES_MANAGER'
+                            }
                         }
                     };
                     commissionWhere = {
@@ -366,13 +374,13 @@ router.get('/sales', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MA
                         }
                     };
                 } else {
-                    paymentWhere = { status: 'CAPTURED', userId };
-                    bookingWhere = { userId };
+                    paymentWhere = { status: 'CAPTURED', user: { createdByUserId: userId } };
+                    bookingWhere = { user: { createdByUserId: userId } };
                     commissionWhere = { userId, type: 'CREDIT', description: { contains: 'Commission' } };
                 }
             } else {
-                paymentWhere = { status: 'CAPTURED', userId };
-                bookingWhere = { userId };
+                paymentWhere = { status: 'CAPTURED', user: { createdByUserId: userId } };
+                bookingWhere = { user: { createdByUserId: userId } };
                 commissionWhere = { userId, type: 'CREDIT', description: { contains: 'Commission' } };
             }
         }
@@ -501,8 +509,8 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
     try {
         const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
         const userWhere = role === 'ADMIN' ? { createdByUserId: userId, role: 'SALES_MANAGER' } : {};
-        const bookingWhere = role === 'ADMIN' ? { user: { createdByUserId: userId } } : {};
-        const paymentWhere = role === 'ADMIN' ? { user: { createdByUserId: userId } } : {};
+        const bookingWhere = role === 'ADMIN' ? { user: { createdBy: { createdByUserId: userId, role: 'SALES_MANAGER' } } } : {};
+        const paymentWhere = role === 'ADMIN' ? { user: { createdBy: { createdByUserId: userId, role: 'SALES_MANAGER' } } } : {};
         const auditWhere = role === 'ADMIN' ? { performedByUserId: userId } : {};
 
         const thirtyDaysAgo = new Date();
@@ -615,8 +623,10 @@ router.get('/bookings', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES
                 // Default: See bookings from Sales Managers created by this Admin
                 where = {
                     user: {
-                        createdByUserId: userId,
-                        role: 'SALES_MANAGER'
+                        createdBy: {
+                            createdByUserId: userId,
+                            role: 'SALES_MANAGER'
+                        }
                     }
                 };
             }
@@ -634,17 +644,19 @@ router.get('/bookings', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES
                     // See bookings from all Sales Managers created by the same admin
                     where = {
                         user: {
-                            createdByUserId: currentUser.createdByUserId,
-                            role: 'SALES_MANAGER'
+                            createdBy: {
+                                createdByUserId: currentUser.createdByUserId,
+                                role: 'SALES_MANAGER'
+                            }
                         }
                     };
                 } else {
                     // Fallback to self-only if no creator (unlikely for a sales manager)
-                    where = { userId };
+                    where = { user: { createdByUserId: userId } };
                 }
             } else {
                 // Default: Only see self bookings
-                where = { userId };
+                where = { user: { createdByUserId: userId } };
             }
         }
 
@@ -703,8 +715,10 @@ router.get('/transactions', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'S
             } else {
                 where = {
                     user: {
-                        createdByUserId: userId,
-                        role: 'SALES_MANAGER'
+                        createdBy: {
+                            createdByUserId: userId,
+                            role: 'SALES_MANAGER'
+                        }
                     }
                 };
             }
@@ -718,15 +732,17 @@ router.get('/transactions', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'S
                 if (currentUser?.createdByUserId) {
                     where = {
                         user: {
-                            createdByUserId: currentUser.createdByUserId,
-                            role: 'SALES_MANAGER'
+                            createdBy: {
+                                createdByUserId: currentUser.createdByUserId,
+                                role: 'SALES_MANAGER'
+                            }
                         }
                     };
                 } else {
-                    where = { userId };
+                    where = { user: { createdByUserId: userId } };
                 }
             } else {
-                where = { userId };
+                where = { user: { createdByUserId: userId } };
             }
         }
 
