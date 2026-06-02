@@ -4,6 +4,7 @@ import { prisma } from '../prisma';
 import { notifyBookingCancelled, notifyBookingConfirmed } from '../services/notificationService';
 import { refundQueue } from '../queue/refundQueue';
 import { processTicketRefund } from '../services/razorpayService';
+import { handleBookingCancellation } from '../utils/commission';
 
 const router = express.Router();
 
@@ -158,42 +159,52 @@ router.put('/bookings/:id/cancel', requireAuth, async (req, res) => {
         if (!booking) return res.status(404).json({ error: 'Booking not found.' });
         if (booking.status === 'CANCELLED') return res.status(400).json({ error: 'Already cancelled.' });
 
-        await prisma.booking.update({
-            where: { id },
-            data: { status: 'CANCELLED' }
+        const result = await prisma.$transaction(async (tx) => {
+            const updatedBooking = await tx.booking.update({
+                where: { id },
+                data: { status: 'CANCELLED' }
+            });
+
+            // Deduct commission from Sales Manager if applicable
+            await handleBookingCancellation(tx, id);
+
+            let refund = null;
+            // Handle Auto Refund if it was paid
+            if (booking.paymentId) {
+                const paymentRecord = await tx.paymentRecord.findUnique({ where: { paymentId: booking.paymentId } });
+
+                if (paymentRecord) {
+                    const cancellationFee = 50;
+                    const refundAmount = Math.max(0, paymentRecord.amount - cancellationFee);
+
+                    refund = await tx.refundRecord.create({
+                        data: {
+                            paymentId: booking.paymentId,
+                            amount: refundAmount,
+                            region: 'Global',
+                            reason: `Cancelled by Customer (₹${cancellationFee} fee deducted)`,
+                            userId: userId,
+                            bookingId: id,
+                            status: 'AUTOMATED_PENDING',
+                        }
+                    });
+                }
+            }
+
+            return { updatedBooking, refund };
         });
 
-        // Handle Auto Refund if it was paid
-        if (booking.paymentId) {
-            const paymentRecord = await prisma.paymentRecord.findUnique({ where: { paymentId: booking.paymentId } });
+        if (result.refund) {
+            await refundQueue.add('process-refund', {
+                refundId: result.refund.id,
+                paymentId: booking.paymentId,
+                amount: result.refund.amount
+            });
 
-            if (paymentRecord) {
-                const cancellationFee = 50;
-                const refundAmount = Math.max(0, paymentRecord.amount - cancellationFee);
-
-                const refund = await prisma.refundRecord.create({
-                    data: {
-                        paymentId: booking.paymentId,
-                        amount: refundAmount,
-                        region: 'Global',
-                        reason: `Cancelled by Customer (₹${cancellationFee} fee deducted)`,
-                        userId: userId,
-                        bookingId: id,
-                        status: 'AUTOMATED_PENDING',
-                    }
-                });
-
-                await refundQueue.add('process-refund', {
-                    refundId: refund.id,
-                    paymentId: booking.paymentId,
-                    amount: refundAmount
-                });
-
-                // Trigger background processing asynchronously
-                processTicketRefund(refund.id).catch((err) => {
-                    console.error(`[Background Refund] Auto-refund failed for request ${refund.id}:`, err);
-                });
-            }
+            // Trigger background processing asynchronously
+            processTicketRefund(result.refund.id).catch((err) => {
+                console.error(`[Background Refund] Auto-refund failed for request ${result.refund.id}:`, err);
+            });
         }
 
         // Trigger Notification

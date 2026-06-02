@@ -5,6 +5,50 @@ import { parseWithdrawalDetails, processPayout } from '../services/razorpayServi
 
 const router = Router();
 
+async function getWithdrawableBalance(userId: string, currentBalance: number): Promise<{ withdrawable: number, pendingCommission: number }> {
+    const pendingCommissionsTx = await prisma.walletTransaction.findMany({
+        where: {
+            userId,
+            type: 'CREDIT',
+            description: { contains: 'Commission' },
+            bookingId: { not: null }
+        },
+        select: {
+            amount: true,
+            bookingId: true
+        }
+    });
+
+    let pendingCommissionAmount = 0;
+    if (pendingCommissionsTx.length > 0) {
+        const bookingIds = pendingCommissionsTx.map(t => t.bookingId as string);
+        const bookings = await prisma.booking.findMany({
+            where: {
+                id: { in: bookingIds }
+            },
+            select: {
+                id: true,
+                status: true
+            }
+        });
+        
+        const bookingStatusMap = new Map(bookings.map(b => [b.id, b.status]));
+        
+        pendingCommissionsTx.forEach(t => {
+            const status = bookingStatusMap.get(t.bookingId as string);
+            if (status !== 'SUCCESS' && status !== 'CANCELLED') {
+                pendingCommissionAmount += t.amount;
+            }
+        });
+    }
+
+    const withdrawable = Math.max(0, currentBalance - pendingCommissionAmount);
+    return {
+        withdrawable: Math.round(withdrawable * 100) / 100,
+        pendingCommission: Math.round(pendingCommissionAmount * 100) / 100
+    };
+}
+
 /**
  * GET /api/wallet/history
  * Fetch current user's wallet balance and recent transaction history.
@@ -18,6 +62,9 @@ router.get('/history', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_
             select: { walletBalance: true }
         });
 
+        const currentBalance = user?.walletBalance || 0;
+        const { withdrawable, pendingCommission } = await getWithdrawableBalance(userId, currentBalance);
+
         const transactions = await prisma.walletTransaction.findMany({
             where: { userId },
             orderBy: { createdAt: 'desc' },
@@ -25,7 +72,9 @@ router.get('/history', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_
         });
 
         return res.json({
-            balance: user?.walletBalance || 0,
+            balance: currentBalance,
+            withdrawableBalance: withdrawable,
+            pendingCommission,
             transactions
         });
     } catch (error: any) {
@@ -186,8 +235,51 @@ router.post('/withdraw-request', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN
                 select: { walletBalance: true }
             });
 
-            if (!user || user.walletBalance < totalDeduction) {
-                throw new Error(`Insufficient wallet balance. Total required (including ₹${charge} charge): ₹${totalDeduction}`);
+            if (!user) {
+                throw new Error('User not found');
+            }
+
+            // Calculate withdrawable balance using tx client to prevent dirty reads inside the transaction
+            const pendingCommissionsTx = await tx.walletTransaction.findMany({
+                where: {
+                    userId: req.user!.userId,
+                    type: 'CREDIT',
+                    description: { contains: 'Commission' },
+                    bookingId: { not: null }
+                },
+                select: {
+                    amount: true,
+                    bookingId: true
+                }
+            });
+
+            let pendingCommissionAmount = 0;
+            if (pendingCommissionsTx.length > 0) {
+                const bookingIds = pendingCommissionsTx.map(t => t.bookingId as string);
+                const bookings = await tx.booking.findMany({
+                    where: {
+                        id: { in: bookingIds }
+                    },
+                    select: {
+                        id: true,
+                        status: true
+                    }
+                });
+                
+                const bookingStatusMap = new Map(bookings.map(b => [b.id, b.status]));
+                
+                pendingCommissionsTx.forEach(t => {
+                    const status = bookingStatusMap.get(t.bookingId as string);
+                    if (status !== 'SUCCESS' && status !== 'CANCELLED') {
+                        pendingCommissionAmount += t.amount;
+                    }
+                });
+            }
+
+            const withdrawableBalance = user.walletBalance - pendingCommissionAmount;
+
+            if (withdrawableBalance < totalDeduction) {
+                throw new Error(`Insufficient withdrawable balance. Total required (including ₹${charge} charge): ₹${totalDeduction}. Your withdrawable balance is ₹${Math.round(withdrawableBalance * 100) / 100} (excluding ₹${Math.round(pendingCommissionAmount * 100) / 100} pending commissions).`);
             }
 
             await tx.user.update({

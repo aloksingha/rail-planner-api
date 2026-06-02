@@ -67,6 +67,7 @@ export async function checkAndApplyCommission(
                 userId: salesManagerId,
                 amount: commissionAmount,
                 type: 'CREDIT',
+                bookingId, // Correctly link to the booking for state lookup
                 description: `Sales Commission: Booking ${bookingId} (Train: ${trainNo || 'Unknown'})`
             }
         });
@@ -85,6 +86,80 @@ export async function checkAndApplyCommission(
     } catch (error) {
         console.error('[Commission] Error applying commission:', error);
         // Rethrow inside transaction to ensure consistency
+        throw error;
+    }
+}
+
+/**
+ * Handles deduction of commission when a booking is cancelled.
+ */
+export async function handleBookingCancellation(
+    tx: Omit<Prisma.TransactionClient, '$use'>,
+    bookingId: string
+) {
+    try {
+        // 1. Find the credit wallet transaction containing commission for this bookingId
+        const commissionTx = await tx.walletTransaction.findFirst({
+            where: {
+                bookingId,
+                type: 'CREDIT',
+                description: { contains: 'Commission' }
+            }
+        });
+
+        if (!commissionTx) {
+            console.log(`[Commission] No commission transaction found to deduct for cancelled booking ${bookingId}`);
+            return;
+        }
+
+        const salesManagerId = commissionTx.userId;
+        const commissionAmount = commissionTx.amount;
+
+        // 2. Check if we have already deducted commission for this booking
+        const existingDeduction = await tx.walletTransaction.findFirst({
+            where: {
+                bookingId,
+                userId: salesManagerId,
+                type: 'DEBIT',
+                description: { contains: 'deduction' }
+            }
+        });
+
+        if (existingDeduction) {
+            console.log(`[Commission] Commission already deducted for cancelled booking ${bookingId}`);
+            return;
+        }
+
+        // 3. Decrement Sales Manager's Wallet Balance
+        await tx.user.update({
+            where: { id: salesManagerId },
+            data: { walletBalance: { decrement: commissionAmount } }
+        });
+
+        // 4. Create a debit Wallet Transaction log
+        await tx.walletTransaction.create({
+            data: {
+                userId: salesManagerId,
+                amount: commissionAmount,
+                type: 'DEBIT',
+                bookingId,
+                description: `Commission deduction: Booking ${bookingId} cancelled`
+            }
+        });
+
+        // 5. Create Audit Log
+        await tx.auditLog.create({
+            data: {
+                action: 'SALES_COMMISSION_DEDUCTION',
+                targetUserId: salesManagerId,
+                performedByUserId: 'SYSTEM',
+                details: `Deducted ₹${commissionAmount} commission from Sales Manager ${salesManagerId} because booking ${bookingId} was cancelled.`
+            }
+        });
+
+        console.log(`[Commission] Successfully deducted ₹${commissionAmount} commission from Sales Manager ${salesManagerId} for cancelled booking ${bookingId}`);
+    } catch (error) {
+        console.error('[Commission] Error handling booking cancellation commission:', error);
         throw error;
     }
 }
