@@ -6,6 +6,42 @@ const router = express.Router();
 import { getRailRadarKey, NEW_API_BASE_URL, NEW_API_KEY } from '../utils/keys';
 const RAILRADAR_BASE_URL = 'https://api.railradar.org/api/v1';
 
+interface Station {
+    code: string;
+    name: string;
+}
+
+// Helper to sort stations by placing those with matching codes first
+const sortStationsByCode = (stations: Station[], queryStr: string): Station[] => {
+    const q = queryStr.toUpperCase().trim();
+    if (!q) return stations;
+
+    return [...stations].sort((a, b) => {
+        const aCode = (a.code || '').toUpperCase().trim();
+        const bCode = (b.code || '').toUpperCase().trim();
+
+        // 1. Exact match on code
+        const aExact = aCode === q;
+        const bExact = bCode === q;
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+
+        // 2. Starts with query
+        const aStarts = aCode.startsWith(q);
+        const bStarts = bCode.startsWith(q);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+
+        // 3. Contains query
+        const aContains = aCode.includes(q);
+        const bContains = bCode.includes(q);
+        if (aContains && !bContains) return -1;
+        if (!aContains && bContains) return 1;
+
+        return 0;
+    });
+};
+
 // Internal Route: /api/stations/search?query=val
 router.get('/search', async (req, res) => {
     try {
@@ -36,7 +72,13 @@ router.get('/search', async (req, res) => {
                 });
                 if (response.data?.success && response.data?.data?.stations?.length > 0) {
                     console.log(`[Stations] RailRadar HIT for "${query}"`);
-                    return res.json(response.data);
+                    const sorted = sortStationsByCode(response.data.data.stations, query);
+                    return res.json({
+                        success: true,
+                        data: {
+                            stations: sorted
+                        }
+                    });
                 }
             } catch (e: any) {
                 lastError = e;
@@ -58,18 +100,19 @@ router.get('/search', async (req, res) => {
                 },
                 timeout: 4000
             });
-        if (response.data?.status && response.data?.data?.length > 0) {
+            if (response.data?.status && response.data?.data?.length > 0) {
                 console.log(`[Stations] RapidAPI HIT for "${query}"`);
-                const mapped = {
+                const mappedStations = response.data.data.map((s: any) => ({
+                    code: s.code,
+                    name: s.name
+                }));
+                const sorted = sortStationsByCode(mappedStations, query);
+                return res.json({
                     success: true,
                     data: {
-                        stations: response.data.data.map((s: any) => ({
-                            code: s.code,
-                            name: s.name
-                        }))
+                        stations: sorted
                     }
-                };
-                return res.json(mapped);
+                });
             }
         } catch (e: any) {
             console.warn(`[Stations] RapidAPI failed for "${query}": ${e.message}`);
