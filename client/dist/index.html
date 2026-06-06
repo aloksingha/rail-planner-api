@@ -5,6 +5,20 @@
     <link rel="icon" type="image/png" href="/assets/brand_logo-Dj1iwkFP.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Tickets Pro</title>
+    
+    <!-- Optimize Third-Party Asset Loading -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <!-- Early Backend Wakeup (Cold-Start Resolution) -->
+    <script>
+      (function() {
+        var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        var apiBase = isLocal ? 'http://localhost:5000' : 'https://rail-planner-api.onrender.com';
+        fetch(apiBase + '/health').catch(function() {});
+      })();
+    </script>
+
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     <style>
@@ -79,12 +93,12 @@
         }
       });
     </script>
-    <script type="module" crossorigin src="/assets/index-C7FrrV7Y.js"></script>
-    <link rel="modulepreload" crossorigin href="/assets/icons-C8kEdvRi.js">
-    <link rel="modulepreload" crossorigin href="/assets/charts-yH8hS8gH.js">
-    <link rel="modulepreload" crossorigin href="/assets/pdf-export-DHkCrbw1.js">
-    <link rel="modulepreload" crossorigin href="/assets/firebase-CtU7LkcW.js">
-    <link rel="stylesheet" crossorigin href="/assets/index-BZZ4IRop.css">
+    <script type="module" crossorigin src="/assets/index-gwSY5-WL.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/icons-KVADV_5s.js">
+    <link rel="modulepreload" crossorigin href="/assets/charts-DaRYt_jC.js">
+    <link rel="modulepreload" crossorigin href="/assets/pdf-export-B2PM-4Ut.js">
+    <link rel="modulepreload" crossorigin href="/assets/firebase-JmAEX3w6.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-BR3X9Y1J.css">
   </head>
   <body>
     <div id="boot-splash">
