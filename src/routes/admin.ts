@@ -214,20 +214,34 @@ router.get('/stats', requireAuth, async (req, res) => {
             const thirtyDaysAgo = new Date();
             thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+            // 1. Single groupBy query for user role counts
+            const roleCounts = await prisma.user.groupBy({
+                by: ['role'],
+                _count: { _all: true }
+            });
+
+            let superAdmins = 0;
+            let admins = 0;
+            let salesMgrs = 0;
+            let customers = 0;
+
+            roleCounts.forEach(group => {
+                if (group.role === 'SUPER_ADMIN') superAdmins = group._count._all;
+                else if (group.role === 'ADMIN') admins = group._count._all;
+                else if (group.role === 'SALES_MANAGER') salesMgrs = group._count._all;
+                else if (group.role === 'CUSTOMER') customers = group._count._all;
+            });
+
+            // 2. Fetch other stats concurrently
+            const isSuperAdmin = role === 'SUPER_ADMIN';
             const [
-                superAdmins, admins, salesMgrs, customers,
                 teamMembersCount,
                 todayBookings, totalBookings,
                 recentPayments,
-                revenueStats,
                 failedBookingCount,
                 priceRequestCount
             ] = await Promise.all([
-                prisma.user.count({ where: { role: 'SUPER_ADMIN' } }),
-                prisma.user.count({ where: { role: 'ADMIN' } }),
-                prisma.user.count({ where: { role: 'SALES_MANAGER' } }),
-                prisma.user.count({ where: { role: 'CUSTOMER' } }),
-                prisma.user.count({ where: userWhere }),
+                isSuperAdmin ? Promise.resolve(superAdmins + admins + salesMgrs + customers) : prisma.user.count({ where: userWhere }),
                 prisma.booking.count({ where: { ...bookingWhere, createdAt: { gte: todayStart } } }),
                 prisma.booking.count({ where: bookingWhere }),
                 prisma.paymentRecord.findMany({
@@ -236,17 +250,19 @@ router.get('/stats', requireAuth, async (req, res) => {
                         status: 'CAPTURED', 
                         createdAt: { gte: thirtyDaysAgo } 
                     },
+                    select: { amount: true, createdAt: true },
                     orderBy: { createdAt: 'desc' }
-                }),
-                prisma.paymentRecord.aggregate({
-                    where: { ...paymentWhere, status: 'CAPTURED', createdAt: { gte: todayStart } },
-                    _sum: { amount: true }
                 }),
                 prisma.failedBooking.count({ where: { status: 'PENDING' } }),
                 prisma.priceRequest.count({ where: { status: 'PENDING' } })
             ]);
 
-            const todayAmount = revenueStats._sum.amount || 0;
+            let todayAmount = 0;
+            recentPayments.forEach(p => {
+                if (p.createdAt >= todayStart) {
+                    todayAmount += p.amount;
+                }
+            });
 
             // Group by day for simple timeline including count and amount
             const timelineMap: Record<string, { count: number; amount: number }> = {};
@@ -516,31 +532,42 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+        // 1. Single groupBy query for user role counts
+        const roleCounts = await prisma.user.groupBy({
+            by: ['role'],
+            _count: { _all: true }
+        });
+
+        let superAdmins = 0;
+        let admins = 0;
+        let salesMgrs = 0;
+        let customers = 0;
+
+        roleCounts.forEach(group => {
+            if (group.role === 'SUPER_ADMIN') superAdmins = group._count._all;
+            else if (group.role === 'ADMIN') admins = group._count._all;
+            else if (group.role === 'SALES_MANAGER') salesMgrs = group._count._all;
+            else if (group.role === 'CUSTOMER') customers = group._count._all;
+        });
+
+        // 2. Fetch other stats & dashboard details concurrently
+        const isSuperAdmin = role === 'SUPER_ADMIN';
         const [
-            superAdmins, admins, salesMgrs, customers,
             teamMembersCount,
             todayBookings, totalBookings,
             recentPayments,
-            revenueStats,
             failedBookingCount,
             priceRequestCount,
             auditLogs, 
             recentBookings
         ] = await Promise.all([
-            prisma.user.count({ where: { role: 'SUPER_ADMIN' } }),
-            prisma.user.count({ where: { role: 'ADMIN' } }),
-            prisma.user.count({ where: { role: 'SALES_MANAGER' } }),
-            prisma.user.count({ where: { role: 'CUSTOMER' } }),
-            prisma.user.count({ where: userWhere }),
+            isSuperAdmin ? Promise.resolve(superAdmins + admins + salesMgrs + customers) : prisma.user.count({ where: userWhere }),
             prisma.booking.count({ where: { ...bookingWhere, createdAt: { gte: todayStart } } }),
             prisma.booking.count({ where: bookingWhere }),
             prisma.paymentRecord.findMany({
                 where: { ...paymentWhere, status: 'CAPTURED', createdAt: { gte: thirtyDaysAgo } },
+                select: { amount: true, createdAt: true },
                 orderBy: { createdAt: 'desc' }
-            }),
-            prisma.paymentRecord.aggregate({
-                where: { ...paymentWhere, status: 'CAPTURED', createdAt: { gte: todayStart } },
-                _sum: { amount: true }
             }),
             prisma.failedBooking.count({ where: { status: 'PENDING' } }),
             prisma.priceRequest.count({ where: { status: 'PENDING' } }),
@@ -561,7 +588,12 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
             })
         ]);
 
-        const todayAmount = revenueStats._sum.amount || 0;
+        let todayAmount = 0;
+        recentPayments.forEach(p => {
+            if (p.createdAt >= todayStart) {
+                todayAmount += p.amount;
+            }
+        });
 
         // Group by day for simple timeline
         const timelineMap: Record<string, { count: number; amount: number }> = {};
@@ -1038,7 +1070,7 @@ router.get('/users', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (
             where = { createdByUserId: userId };
         }
 
-        const limit = parseInt(req.query.limit as string) || 100;
+        const limit = parseInt(req.query.limit as string) || 5000;
         const page = parseInt(req.query.page as string) || 1;
         const skip = (page - 1) * limit;
 
