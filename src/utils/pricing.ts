@@ -130,14 +130,32 @@ export const getTicketPrice = (
                     break;
                 }
                 if ((cls === '3A' || cls === '3E' || cls === 'CC') && corridor.markup3A > 0) {
-                    console.log(`${logPrefix} Match Success: Dynamic Corridor ${corridor.name} (3A: ₹${corridor.markup3A})`);
+                    console.log(`${logPrefix} Match Success: Dynamic Corridor ${corridor.name} (3A/3E/CC: ₹${corridor.markup3A})`);
                     baseResult = corridor.markup3A;
                     matchType = 'CORRIDOR';
                     break;
                 }
-                if ((cls === '2A' || cls === '1A' || cls === 'FC' || cls === 'EV' || cls === 'EC') && corridor.markup2A > 0) {
-                    console.log(`${logPrefix} Match Success: Dynamic Corridor ${corridor.name} (2A/1A/FC/EV/EC: ₹${corridor.markup2A})`);
+                if ((cls === '2A' || cls === 'FC') && corridor.markup2A > 0) {
+                    console.log(`${logPrefix} Match Success: Dynamic Corridor ${corridor.name} (2A/FC: ₹${corridor.markup2A})`);
                     baseResult = corridor.markup2A;
+                    matchType = 'CORRIDOR';
+                    break;
+                }
+                if (cls === '1A' && corridor.markup2A > 0) {
+                    baseResult = Math.round(corridor.markup2A * 1.35);
+                    console.log(`${logPrefix} Match Success: Dynamic Corridor ${corridor.name} (1A: ₹${baseResult})`);
+                    matchType = 'CORRIDOR';
+                    break;
+                }
+                if (cls === 'EC' && corridor.markup3A > 0) {
+                    baseResult = Math.round(corridor.markup3A * 2.4);
+                    console.log(`${logPrefix} Match Success: Dynamic Corridor ${corridor.name} (EC: ₹${baseResult})`);
+                    matchType = 'CORRIDOR';
+                    break;
+                }
+                if (cls === 'EV' && corridor.markup3A > 0) {
+                    baseResult = Math.round(corridor.markup3A * 2.65);
+                    console.log(`${logPrefix} Match Success: Dynamic Corridor ${corridor.name} (EV: ₹${baseResult})`);
                     matchType = 'CORRIDOR';
                     break;
                 }
@@ -173,8 +191,11 @@ export const getTicketPrice = (
 
             if (cls === 'SL') baseResult = baseSL + 1400;
             else if (cls === '3A' || cls === '3E' || cls === 'CC') baseResult = base3A + 1400;
-            else if (cls === '2A' || cls === '1A' || cls === 'FC' || cls === 'EV' || cls === 'EC') baseResult = base2A + 1300;
+            else if (cls === '2A' || cls === 'FC') baseResult = base2A + 1300;
             else if (cls === '2S') baseResult = Math.round((baseSL + 1400) * 0.6);
+            else if (cls === '1A') baseResult = Math.round((base2A + 1300) * 1.35);
+            else if (cls === 'EC') baseResult = Math.round((base3A + 1400) * 2.4);
+            else if (cls === 'EV') baseResult = Math.round((base3A + 1400) * 2.65);
             else baseResult = baseSL + 1400;
 
             console.log(`${logPrefix} Match Success: Hardcoded Fallback (H:${totalHours.toFixed(1)}) Result: ₹${baseResult}`);
@@ -188,8 +209,9 @@ export const getTicketPrice = (
     for (const sc of activeCharges) {
         if (cls === 'SL') extraCharge += sc.amountSL;
         else if (cls === '3A' || cls === '3E' || cls === 'CC') extraCharge += sc.amount3A;
-        else if (cls === '2A' || cls === '1A' || cls === 'FC' || cls === 'EV' || cls === 'EC') extraCharge += sc.amount2A;
         else if (cls === '2S') extraCharge += sc.amount2S;
+        else if (cls === '2A' || cls === 'FC') extraCharge += sc.amount2A;
+        else if (cls === '1A' || cls === 'EC' || cls === 'EV') extraCharge += sc.amount2A;
     }
 
     const trainVariation = tName ? (tName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 10) * 5 : 0;
