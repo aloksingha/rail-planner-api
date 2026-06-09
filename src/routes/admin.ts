@@ -532,27 +532,9 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        // 1. Single groupBy query for user role counts
-        const roleCounts = await prisma.user.groupBy({
-            by: ['role'],
-            _count: { _all: true }
-        });
-
-        let superAdmins = 0;
-        let admins = 0;
-        let salesMgrs = 0;
-        let customers = 0;
-
-        roleCounts.forEach(group => {
-            if (group.role === 'SUPER_ADMIN') superAdmins = group._count._all;
-            else if (group.role === 'ADMIN') admins = group._count._all;
-            else if (group.role === 'SALES_MANAGER') salesMgrs = group._count._all;
-            else if (group.role === 'CUSTOMER') customers = group._count._all;
-        });
-
-        // 2. Fetch other stats & dashboard details concurrently
-        const isSuperAdmin = role === 'SUPER_ADMIN';
+        // 1. Fetch all dashboard stats concurrently
         const [
+            roleCounts,
             teamMembersCount,
             todayBookings, totalBookings,
             recentPayments,
@@ -561,7 +543,11 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
             auditLogs, 
             recentBookings
         ] = await Promise.all([
-            isSuperAdmin ? Promise.resolve(superAdmins + admins + salesMgrs + customers) : prisma.user.count({ where: userWhere }),
+            prisma.user.groupBy({
+                by: ['role'],
+                _count: { _all: true }
+            }),
+            prisma.user.count({ where: userWhere }),
             prisma.booking.count({ where: { ...bookingWhere, createdAt: { gte: todayStart } } }),
             prisma.booking.count({ where: bookingWhere }),
             prisma.paymentRecord.findMany({
@@ -587,6 +573,18 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
                 }
             })
         ]);
+
+        let superAdmins = 0;
+        let admins = 0;
+        let salesMgrs = 0;
+        let customers = 0;
+
+        roleCounts.forEach(group => {
+            if (group.role === 'SUPER_ADMIN') superAdmins = group._count._all;
+            else if (group.role === 'ADMIN') admins = group._count._all;
+            else if (group.role === 'SALES_MANAGER') salesMgrs = group._count._all;
+            else if (group.role === 'CUSTOMER') customers = group._count._all;
+        });
 
         let todayAmount = 0;
         recentPayments.forEach(p => {
