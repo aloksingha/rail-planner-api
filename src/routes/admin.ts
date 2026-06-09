@@ -253,7 +253,7 @@ router.get('/stats', requireAuth, async (req, res) => {
                     select: { amount: true, createdAt: true },
                     orderBy: { createdAt: 'desc' }
                 }),
-                prisma.failedBooking.count({ where: { status: 'PENDING' } }),
+                isSuperAdmin ? prisma.failedBooking.count({ where: { status: 'PENDING' } }) : Promise.resolve(0),
                 prisma.priceRequest.count({ where: { status: 'PENDING' } })
             ]);
 
@@ -529,6 +529,8 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
         const paymentWhere = role === 'ADMIN' ? { user: { createdBy: { createdByUserId: userId, role: 'SALES_MANAGER' } } } : {};
         const auditWhere = role === 'ADMIN' ? { performedByUserId: userId } : {};
 
+        const isSuperAdmin = role === 'SUPER_ADMIN';
+
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -555,7 +557,7 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
                 select: { amount: true, createdAt: true },
                 orderBy: { createdAt: 'desc' }
             }),
-            prisma.failedBooking.count({ where: { status: 'PENDING' } }),
+            isSuperAdmin ? prisma.failedBooking.count({ where: { status: 'PENDING' } }) : Promise.resolve(0),
             prisma.priceRequest.count({ where: { status: 'PENDING' } }),
             prisma.auditLog.findMany({
                 where: auditWhere,

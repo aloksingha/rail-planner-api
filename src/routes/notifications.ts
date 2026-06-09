@@ -10,10 +10,11 @@ router.get('/pulse', requireAuth, async (req, res) => {
     
     try {
         if (role === 'SUPER_ADMIN' || role === 'ADMIN') {
+            const isSuperAdmin = role === 'SUPER_ADMIN';
             const [priceRequestCount, failedBookingCount, withdrawalRequestCount] = await Promise.all([
                 prisma.priceRequest.count({ where: { status: 'PENDING' } }),
-                prisma.failedBooking.count({ where: { status: 'PENDING' } }),
-                prisma.withdrawalRequest.count({ where: { status: 'PENDING' } })
+                isSuperAdmin ? prisma.failedBooking.count({ where: { status: 'PENDING' } }) : Promise.resolve(0),
+                isSuperAdmin ? prisma.withdrawalRequest.count({ where: { status: 'PENDING' } }) : Promise.resolve(0)
             ]);
 
             return res.json({
