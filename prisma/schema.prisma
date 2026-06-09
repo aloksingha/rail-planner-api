@@ -215,6 +215,7 @@ model FailedBooking {
 
   @@index([email])
   @@index([mobile])
+  @@index([status])
 }
 
 model WalletTransaction {
