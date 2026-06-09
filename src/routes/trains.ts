@@ -238,7 +238,7 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                 const arrival_date_friendly = formatDateFriendly(arrDateObj);
 
                 const prices: Record<string, number> = {};
-                ['SL', '3A', '2A', 'CC', '3E', '1A', '2S', 'FC'].forEach(cls => {
+                ['SL', '3A', '2A', 'CC', '3E', '1A', '2S', 'FC', 'EV', 'EC'].forEach(cls => {
                     prices[cls] = getTicketPrice(
                         from as string, 
                         to as string, 
@@ -292,7 +292,7 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
 
             // 2. Filter out trains that only carry 2S class (or no classes, which falls back to passenger types)
             const avCls = t.train_base.available_classes || [];
-            const filteredCls = ['SL', '3A', '2A', 'CC', '3E', '1A', '2S', 'FC'].filter((c: string) => avCls.includes(c));
+            const filteredCls = ['SL', '3A', '2A', 'CC', '3E', '1A', '2S', 'FC', 'EV', 'EC'].filter((c: string) => avCls.includes(c));
 
             // If the train has classes but it's only 2S
             if (filteredCls.length === 1 && filteredCls[0] === '2S') {

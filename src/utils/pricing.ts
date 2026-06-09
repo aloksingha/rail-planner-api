@@ -135,8 +135,8 @@ export const getTicketPrice = (
                     matchType = 'CORRIDOR';
                     break;
                 }
-                if ((cls === '2A' || cls === '1A' || cls === 'FC') && corridor.markup2A > 0) {
-                    console.log(`${logPrefix} Match Success: Dynamic Corridor ${corridor.name} (2A: ₹${corridor.markup2A})`);
+                if ((cls === '2A' || cls === '1A' || cls === 'FC' || cls === 'EV' || cls === 'EC') && corridor.markup2A > 0) {
+                    console.log(`${logPrefix} Match Success: Dynamic Corridor ${corridor.name} (2A/1A/FC/EV/EC: ₹${corridor.markup2A})`);
                     baseResult = corridor.markup2A;
                     matchType = 'CORRIDOR';
                     break;
@@ -173,7 +173,7 @@ export const getTicketPrice = (
 
             if (cls === 'SL') baseResult = baseSL + 1400;
             else if (cls === '3A' || cls === '3E' || cls === 'CC') baseResult = base3A + 1400;
-            else if (cls === '2A' || cls === '1A' || cls === 'FC') baseResult = base2A + 1300;
+            else if (cls === '2A' || cls === '1A' || cls === 'FC' || cls === 'EV' || cls === 'EC') baseResult = base2A + 1300;
             else if (cls === '2S') baseResult = Math.round((baseSL + 1400) * 0.6);
             else baseResult = baseSL + 1400;
 
@@ -188,7 +188,7 @@ export const getTicketPrice = (
     for (const sc of activeCharges) {
         if (cls === 'SL') extraCharge += sc.amountSL;
         else if (cls === '3A' || cls === '3E' || cls === 'CC') extraCharge += sc.amount3A;
-        else if (cls === '2A' || cls === '1A' || cls === 'FC') extraCharge += sc.amount2A;
+        else if (cls === '2A' || cls === '1A' || cls === 'FC' || cls === 'EV' || cls === 'EC') extraCharge += sc.amount2A;
         else if (cls === '2S') extraCharge += sc.amount2S;
     }
 
