@@ -237,51 +237,53 @@ router.get('/stats', requireAuth, async (req, res) => {
             const [
                 teamMembersCount,
                 todayBookings, totalBookings,
-                recentPayments,
+                todayAmountAgg,
                 failedBookingCount,
                 priceRequestCount
             ] = await Promise.all([
                 isSuperAdmin ? Promise.resolve(superAdmins + admins + salesMgrs + customers) : prisma.user.count({ where: userWhere }),
                 prisma.booking.count({ where: { ...bookingWhere, createdAt: { gte: todayStart } } }),
                 prisma.booking.count({ where: bookingWhere }),
-                prisma.paymentRecord.findMany({
+                prisma.paymentRecord.aggregate({
                     where: { 
                         ...paymentWhere, 
                         status: 'CAPTURED', 
-                        createdAt: { gte: thirtyDaysAgo } 
+                        createdAt: { gte: todayStart } 
                     },
-                    select: { amount: true, createdAt: true },
-                    orderBy: { createdAt: 'desc' }
+                    _sum: { amount: true }
                 }),
                 isSuperAdmin ? prisma.failedBooking.count({ where: { status: 'PENDING' } }) : Promise.resolve(0),
                 prisma.priceRequest.count({ where: { status: 'PENDING' } })
             ]);
 
-            let todayAmount = 0;
-            recentPayments.forEach(p => {
-                if (p.createdAt >= todayStart) {
-                    todayAmount += p.amount;
-                }
-            });
+            const todayAmount = todayAmountAgg._sum.amount || 0;
 
-            // Group by day for simple timeline including count and amount
-            const timelineMap: Record<string, { count: number; amount: number }> = {};
-            recentPayments.forEach(p => {
-                const dateKey = p.createdAt.toISOString().split('T')[0];
-                if (!timelineMap[dateKey]) {
-                    timelineMap[dateKey] = { count: 0, amount: 0 };
-                }
-                timelineMap[dateKey].count += 1;
-                timelineMap[dateKey].amount += p.amount;
-            });
+            const timelineRaw = isSuperAdmin 
+                ? await prisma.$queryRaw<Array<{ day: Date; count: bigint; amount: number }>>`
+                    SELECT DATE_TRUNC('day', "createdAt") as day, COUNT(id) as count, SUM(amount) as amount
+                    FROM "PaymentRecord"
+                    WHERE status = 'CAPTURED' AND "createdAt" >= ${thirtyDaysAgo}
+                    GROUP BY day
+                    ORDER BY day ASC
+                `
+                : await prisma.$queryRaw<Array<{ day: Date; count: bigint; amount: number }>>`
+                    SELECT DATE_TRUNC('day', p."createdAt") as day, COUNT(p.id) as count, SUM(p.amount) as amount
+                    FROM "PaymentRecord" p
+                    JOIN "User" c ON p."userId" = c.id
+                    JOIN "User" sm ON c."createdByUserId" = sm.id
+                    WHERE p.status = 'CAPTURED'
+                      AND p."createdAt" >= ${thirtyDaysAgo}
+                      AND sm."createdByUserId" = ${userId}
+                      AND sm.role = 'SALES_MANAGER'
+                    GROUP BY day
+                    ORDER BY day ASC
+                `;
 
-            const timeline = Object.entries(timelineMap)
-                .map(([date, data]) => ({ 
-                    date, 
-                    count: data.count, 
-                    amount: Math.round(data.amount) 
-                }))
-                .sort((a, b) => a.date.localeCompare(b.date));
+            const timeline = timelineRaw.map(row => ({
+                date: row.day instanceof Date ? row.day.toISOString().split('T')[0] : new Date(row.day).toISOString().split('T')[0],
+                count: Number(row.count),
+                amount: Math.round(Number(row.amount))
+            }));
 
             const statsData = {
                 userCount: superAdmins + admins + salesMgrs + customers,
@@ -539,7 +541,7 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
             roleCounts,
             teamMembersCount,
             todayBookings, totalBookings,
-            recentPayments,
+            todayAmountAgg,
             failedBookingCount,
             priceRequestCount,
             auditLogs, 
@@ -552,10 +554,13 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
             prisma.user.count({ where: userWhere }),
             prisma.booking.count({ where: { ...bookingWhere, createdAt: { gte: todayStart } } }),
             prisma.booking.count({ where: bookingWhere }),
-            prisma.paymentRecord.findMany({
-                where: { ...paymentWhere, status: 'CAPTURED', createdAt: { gte: thirtyDaysAgo } },
-                select: { amount: true, createdAt: true },
-                orderBy: { createdAt: 'desc' }
+            prisma.paymentRecord.aggregate({
+                where: { 
+                    ...paymentWhere, 
+                    status: 'CAPTURED', 
+                    createdAt: { gte: todayStart } 
+                },
+                _sum: { amount: true }
             }),
             isSuperAdmin ? prisma.failedBooking.count({ where: { status: 'PENDING' } }) : Promise.resolve(0),
             prisma.priceRequest.count({ where: { status: 'PENDING' } }),
@@ -588,27 +593,34 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
             else if (group.role === 'CUSTOMER') customers = group._count._all;
         });
 
-        let todayAmount = 0;
-        recentPayments.forEach(p => {
-            if (p.createdAt >= todayStart) {
-                todayAmount += p.amount;
-            }
-        });
+        const todayAmount = todayAmountAgg._sum.amount || 0;
 
-        // Group by day for simple timeline
-        const timelineMap: Record<string, { count: number; amount: number }> = {};
-        recentPayments.forEach(p => {
-            const dateKey = p.createdAt.toISOString().split('T')[0];
-            if (!timelineMap[dateKey]) {
-                timelineMap[dateKey] = { count: 0, amount: 0 };
-            }
-            timelineMap[dateKey].count += 1;
-            timelineMap[dateKey].amount += p.amount;
-        });
+        const timelineRaw = isSuperAdmin 
+            ? await prisma.$queryRaw<Array<{ day: Date; count: bigint; amount: number }>>`
+                SELECT DATE_TRUNC('day', "createdAt") as day, COUNT(id) as count, SUM(amount) as amount
+                FROM "PaymentRecord"
+                WHERE status = 'CAPTURED' AND "createdAt" >= ${thirtyDaysAgo}
+                GROUP BY day
+                ORDER BY day ASC
+            `
+            : await prisma.$queryRaw<Array<{ day: Date; count: bigint; amount: number }>>`
+                SELECT DATE_TRUNC('day', p."createdAt") as day, COUNT(p.id) as count, SUM(p.amount) as amount
+                FROM "PaymentRecord" p
+                JOIN "User" c ON p."userId" = c.id
+                JOIN "User" sm ON c."createdByUserId" = sm.id
+                WHERE p.status = 'CAPTURED'
+                  AND p."createdAt" >= ${thirtyDaysAgo}
+                  AND sm."createdByUserId" = ${userId}
+                  AND sm.role = 'SALES_MANAGER'
+                GROUP BY day
+                ORDER BY day ASC
+            `;
 
-        const timeline = Object.entries(timelineMap)
-            .map(([date, data]) => ({ date, count: data.count, amount: Math.round(data.amount) }))
-            .sort((a, b) => a.date.localeCompare(b.date));
+        const timeline = timelineRaw.map(row => ({
+            date: row.day instanceof Date ? row.day.toISOString().split('T')[0] : new Date(row.day).toISOString().split('T')[0],
+            count: Number(row.count),
+            amount: Math.round(Number(row.amount))
+        }));
 
         const activities = [
             ...auditLogs.map(log => ({
@@ -795,27 +807,46 @@ router.get('/transactions', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'S
             prisma.paymentRecord.count({ where })
         ]);
 
-        // Enhance with refund info if available
-        const enhancedTransactions = await Promise.all(transactions.map(async (payment) => {
-            const refund = await prisma.refundRecord.findFirst({
-                where: { paymentId: payment.paymentId },
-                orderBy: { createdAt: 'desc' }
-            });
-            const linkedBooking = await prisma.booking.findFirst({
-                where: { paymentId: payment.paymentId },
-                select: { id: true }
-            });
+        const paymentIds = transactions.map(p => p.paymentId).filter(Boolean) as string[];
 
+        const [linkedBookings, refunds] = await Promise.all([
+            prisma.booking.findMany({
+                where: { paymentId: { in: paymentIds } },
+                select: { id: true, paymentId: true }
+            }),
+            prisma.refundRecord.findMany({
+                where: { paymentId: { in: paymentIds } },
+                orderBy: { createdAt: 'desc' }
+            })
+        ]);
+
+        const linkedBookingMap = new Map<string, string>();
+        for (const booking of linkedBookings) {
+            if (booking.paymentId) {
+                linkedBookingMap.set(booking.paymentId, booking.id);
+            }
+        }
+
+        const refundMap = new Map<string, any>();
+        for (const refund of refunds) {
+            if (!refundMap.has(refund.paymentId)) {
+                refundMap.set(refund.paymentId, refund);
+            }
+        }
+
+        const enhancedTransactions = transactions.map((payment) => {
+            const bookingId = linkedBookingMap.get(payment.paymentId) || null;
+            const refund = refundMap.get(payment.paymentId);
             return {
                 ...payment,
-                bookingId: linkedBooking?.id || null,
+                bookingId,
                 refundInfo: refund ? {
                     status: refund.status,
                     razorpayRefundId: refund.razorpayRefundId,
                     updatedAt: refund.updatedAt
                 } : null
             };
-        }));
+        });
 
         return res.json({ payments: enhancedTransactions, total, page, limit });
     } catch (error) {

@@ -67,6 +67,7 @@ model Booking {
   @@index([userId])
   @@index([class, createdAt])
   @@index([userId, createdAt])
+  @@index([paymentId])
 }
 
 model PaymentRecord {
@@ -107,6 +108,7 @@ model RefundRecord {
   @@index([status])
   @@index([userId])
   @@index([manualCreditDueDate])
+  @@index([paymentId])
 }
 
 model AuditLog {

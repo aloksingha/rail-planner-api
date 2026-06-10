@@ -37,27 +37,46 @@ router.get('/dashboard', requireAuth, async (req, res) => {
             })
         ]);
 
-        const payments = await Promise.all(paymentsRaw.map(async (payment) => {
-            const [linkedBooking, refund] = await Promise.all([
-                prisma.booking.findFirst({
-                    where: { paymentId: payment.paymentId },
-                    select: { id: true }
-                }),
-                prisma.refundRecord.findFirst({
-                    where: { paymentId: payment.paymentId },
-                    orderBy: { createdAt: 'desc' }
-                })
-            ]);
+        const paymentIdsForPayments = paymentsRaw.map(p => p.paymentId).filter(Boolean) as string[];
+
+        const [linkedBookings, refunds] = await Promise.all([
+            prisma.booking.findMany({
+                where: { paymentId: { in: paymentIdsForPayments } },
+                select: { id: true, paymentId: true }
+            }),
+            prisma.refundRecord.findMany({
+                where: { paymentId: { in: paymentIdsForPayments } },
+                orderBy: { createdAt: 'desc' }
+            })
+        ]);
+
+        const linkedBookingMap = new Map<string, string>();
+        for (const booking of linkedBookings) {
+            if (booking.paymentId) {
+                linkedBookingMap.set(booking.paymentId, booking.id);
+            }
+        }
+
+        const refundMap = new Map<string, any>();
+        for (const refund of refunds) {
+            if (!refundMap.has(refund.paymentId)) {
+                refundMap.set(refund.paymentId, refund);
+            }
+        }
+
+        const payments = paymentsRaw.map((payment) => {
+            const bookingId = linkedBookingMap.get(payment.paymentId) || null;
+            const refund = refundMap.get(payment.paymentId);
             return {
                 ...payment,
-                bookingId: linkedBooking?.id || null,
+                bookingId,
                 refundInfo: refund ? {
                     status: refund.status,
                     razorpayRefundId: refund.razorpayRefundId,
                     updatedAt: refund.updatedAt
                 } : null
             };
-        }));
+        });
 
         // Map PaymentRecord amount to each booking
         const paymentIds = bookings.map(b => b.paymentId).filter(Boolean) as string[];
