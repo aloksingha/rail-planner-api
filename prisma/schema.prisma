@@ -288,3 +288,15 @@ model SpecialCharge {
   amount2A  Float    @default(0)
   amount2S  Float    @default(0)
 }
+
+model Promotion {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  imageUrl    String?
+  linkUrl     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
