@@ -17,14 +17,18 @@ router.post('/bypass', async (req, res) => {
 
     const isNormalTest = email === TEST_EMAIL && password === 'test1234';
     const isAdminTest = email === TEST_ADMIN_EMAIL && password === 'admin1234';
+    const isCustomAdminTest = email === 'admin@ticketspro.in' && password === 'admin@733215';
 
-    if (!isNormalTest && !isAdminTest) {
+    if (!isNormalTest && !isAdminTest && !isCustomAdminTest) {
         return res.status(403).json({ error: 'Invalid test credentials' });
     }
 
     try {
-        const role = email === TEST_ADMIN_EMAIL ? 'SUPER_ADMIN' : 'CUSTOMER';
-        const name = email === TEST_ADMIN_EMAIL ? 'Test Super Admin' : 'Test Payment User';
+        const isSuperAdmin = email === TEST_ADMIN_EMAIL || email === 'admin@ticketspro.in';
+        const role = isSuperAdmin ? 'SUPER_ADMIN' : 'CUSTOMER';
+        const name = email === 'admin@ticketspro.in' 
+            ? 'System Admin' 
+            : (email === TEST_ADMIN_EMAIL ? 'Test Super Admin' : 'Test Payment User');
 
         const user = await prisma.user.upsert({
             where: { email },
@@ -80,7 +84,7 @@ router.post('/google', async (req, res) => {
         // Capture name with fallbacks
         const name = payload.name || 
                      (payload.given_name ? `${payload.given_name} ${payload.family_name || ''}`.trim() : null);
-        const INITIAL_SUPER_ADMINS = ['alokjnv.singha3@gmail.com', 'admin@railplanner.in'];
+        const INITIAL_SUPER_ADMINS = ['alokjnv.singha3@gmail.com', 'admin@railplanner.in', 'admin@ticketspro.in'];
 
         // 2. Map existing user or Register
         console.time('[Auth] DB Upsert');
