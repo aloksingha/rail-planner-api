@@ -33,6 +33,29 @@ router.get('/', async (req, res) => {
     }
 });
 
+router.get('/seed-test', async (req, res) => {
+    try {
+        await prisma.promotion.deleteMany({
+            where: {
+                title: "Launch Offer: Flat 10% Off!"
+            }
+        });
+
+        const promo = await prisma.promotion.create({
+            data: {
+                title: "Launch Offer: Flat 10% Off!",
+                description: "Book your IRCTC train tickets today and get an instant 10% discount on service charges. Limited time offer!",
+                imageUrl: "/uploads/promo_test_poster.png",
+                linkUrl: "/book-ticket",
+                isActive: true
+            }
+        });
+        return res.json({ success: true, message: 'Test campaign seeded successfully!', promotion: promo });
+    } catch (error: any) {
+        return res.status(500).json({ error: error.message || 'Failed to seed test campaign' });
+    }
+});
+
 router.get('/admin', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
     try {
         const promotions = await prisma.promotion.findMany({
