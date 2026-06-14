@@ -536,6 +536,27 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
         const thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+        const timelinePromise = isSuperAdmin 
+            ? prisma.$queryRaw<Array<{ day: Date; count: bigint; amount: number }>>`
+                SELECT DATE_TRUNC('day', "createdAt") as day, COUNT(id) as count, SUM(amount) as amount
+                FROM "PaymentRecord"
+                WHERE status = 'CAPTURED' AND "createdAt" >= ${thirtyDaysAgo}
+                GROUP BY day
+                ORDER BY day ASC
+            `
+            : prisma.$queryRaw<Array<{ day: Date; count: bigint; amount: number }>>`
+                SELECT DATE_TRUNC('day', p."createdAt") as day, COUNT(p.id) as count, SUM(p.amount) as amount
+                FROM "PaymentRecord" p
+                JOIN "User" c ON p."userId" = c.id
+                JOIN "User" sm ON c."createdByUserId" = sm.id
+                WHERE p.status = 'CAPTURED'
+                  AND p."createdAt" >= ${thirtyDaysAgo}
+                  AND sm."createdByUserId" = ${userId}
+                  AND sm.role = 'SALES_MANAGER'
+                GROUP BY day
+                ORDER BY day ASC
+            `;
+
         // 1. Fetch all dashboard stats concurrently
         const [
             roleCounts,
@@ -545,7 +566,8 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
             failedBookingCount,
             priceRequestCount,
             auditLogs, 
-            recentBookings
+            recentBookings,
+            timelineRaw
         ] = await Promise.all([
             prisma.user.groupBy({
                 by: ['role'],
@@ -578,7 +600,8 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
                     user: { select: { name: true, email: true } },
                     event: { select: { name: true } }
                 }
-            })
+            }),
+            timelinePromise
         ]);
 
         let superAdmins = 0;
@@ -595,26 +618,6 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
 
         const todayAmount = todayAmountAgg._sum.amount || 0;
 
-        const timelineRaw = isSuperAdmin 
-            ? await prisma.$queryRaw<Array<{ day: Date; count: bigint; amount: number }>>`
-                SELECT DATE_TRUNC('day', "createdAt") as day, COUNT(id) as count, SUM(amount) as amount
-                FROM "PaymentRecord"
-                WHERE status = 'CAPTURED' AND "createdAt" >= ${thirtyDaysAgo}
-                GROUP BY day
-                ORDER BY day ASC
-            `
-            : await prisma.$queryRaw<Array<{ day: Date; count: bigint; amount: number }>>`
-                SELECT DATE_TRUNC('day', p."createdAt") as day, COUNT(p.id) as count, SUM(p.amount) as amount
-                FROM "PaymentRecord" p
-                JOIN "User" c ON p."userId" = c.id
-                JOIN "User" sm ON c."createdByUserId" = sm.id
-                WHERE p.status = 'CAPTURED'
-                  AND p."createdAt" >= ${thirtyDaysAgo}
-                  AND sm."createdByUserId" = ${userId}
-                  AND sm.role = 'SALES_MANAGER'
-                GROUP BY day
-                ORDER BY day ASC
-            `;
 
         const timeline = timelineRaw.map(row => ({
             date: row.day instanceof Date ? row.day.toISOString().split('T')[0] : new Date(row.day).toISOString().split('T')[0],
