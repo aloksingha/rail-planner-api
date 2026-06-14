@@ -155,4 +155,33 @@ router.post('/impersonate-user/:userId', requireAuth, requireRole(['SUPER_ADMIN'
     }
 });
 
+router.patch('/profile', requireAuth, async (req, res) => {
+    const { name } = req.body;
+    if (!name || typeof name !== 'string' || !name.trim()) {
+        return res.status(400).json({ error: 'Name is required' });
+    }
+
+    try {
+        const userId = req.user!.userId;
+        const updatedUser = await prisma.user.update({
+            where: { id: userId },
+            data: { name: name.trim() },
+            select: { id: true, email: true, role: true, name: true }
+        });
+
+        const token = generateToken(updatedUser.id, updatedUser.email, updatedUser.role, updatedUser.name, req.user!.isSuperAdmin);
+
+        return res.json({ 
+            success: true, 
+            message: 'Name updated successfully', 
+            token, 
+            user: updatedUser 
+        });
+    } catch (error: any) {
+        console.error('Update Profile Error:', error.message || error);
+        return res.status(500).json({ error: 'Failed to update name' });
+    }
+});
+
 export default router;
+
