@@ -47,7 +47,11 @@ export const sendSMS = async (mobile: string, templateId: string, params: Record
             }
         });
 
-        console.log(`✅ SMS successfully triggered for ${cleanMobile} via Infozy template ${templateId}:`, response.data);
+        if (response.data && response.data.message === 'Message sent successfully') {
+            console.log(`✅ SMS successfully triggered for ${cleanMobile} via Infozy template ${templateId}. Campaign ID: ${response.data.campaignId}`);
+        } else {
+            console.log(`✅ SMS successfully triggered for ${cleanMobile} via Infozy template ${templateId}:`, response.data);
+        }
     } catch (error: any) {
         console.error('❌ Infozy SMS API Error:', error?.response?.data || error.message);
     }
