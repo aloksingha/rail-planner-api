@@ -17,54 +17,39 @@ const transporter = nodemailer.createTransport({
 
 const FROM = `"Tickets Pro" <${process.env.ZOHO_MAIL_USER || 'noreply@ticketspro.in'}>`;
 
-// ─── Msg91 SMS Utility ────────────────────────────────────────────────────────
+// ─── Infozy SMS Utility ────────────────────────────────────────────────────────
 /**
- * Generic SMS sender using Msg91 API
+ * Generic SMS sender using Infozy SMS API
  */
 export const sendSMS = async (mobile: string, templateId: string, params: Record<string, string>, dltTemplateId?: string) => {
-    const authKey = process.env.MSG91_AUTH_KEY;
-    if (!authKey) {
-        console.warn('⚠️ Msg91 Auth Key not found. SMS skipped.');
+    const apiKey = process.env.INFOZY_API_KEY || process.env.MSG91_AUTH_KEY;
+    if (!apiKey) {
+        console.warn('⚠️ Infozy API Key not found. SMS skipped.');
         return;
     }
 
     try {
-        // Msg91 expects mobile with country code without +
         let cleanMobile = mobile.replace(/\D/g, ''); 
         if (cleanMobile.length === 10) {
             cleanMobile = '91' + cleanMobile;
         }
-        
-        const payload: any = {
-            template_id: templateId,
-            sender: process.env.MSG91_SENDER_ID || 'TKTSPR',
-            short_url: '1', // Ensure links are short if any
-            recipients: [
-                {
-                    mobiles: cleanMobile,
-                    ...params
-                }
-            ]
+
+        const payload = {
+            template: templateId,
+            mobileNumber: cleanMobile,
+            variables: params
         };
 
-        if (dltTemplateId) {
-            payload.DLT_TE_ID = dltTemplateId;
-        }
-
-        const response = await axios.post('https://api.msg91.com/api/v5/flow/', payload, {
+        const response = await axios.post('https://infozysms.in/api/sms/send', payload, {
             headers: {
-                'authkey': authKey,
-                'content-type': 'application/json'
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
             }
         });
 
-        if (response.data?.type === 'success') {
-            console.log(`✅ SMS successfully triggered for ${cleanMobile} via template ${templateId}`);
-        } else {
-            console.warn(`⚠️ SMS trigger failed for ${cleanMobile}:`, response.data);
-        }
+        console.log(`✅ SMS successfully triggered for ${cleanMobile} via Infozy template ${templateId}:`, response.data);
     } catch (error: any) {
-        console.error('❌ Msg91 API Error:', error?.response?.data || error.message);
+        console.error('❌ Infozy SMS API Error:', error?.response?.data || error.message);
     }
 };
 
@@ -172,24 +157,22 @@ export const notifyBookingConfirmed = async (email: string, eventName: string, m
         console.error('❌ Email send failed (non-fatal):', e?.message || e);
     });
 
-    // 2. Send SMS - Disabled (Transactional SMS requires DLT)
-    /*
+    // 2. Send SMS via Infozy
     try {
-        if (mobile && process.env.MSG91_TEMPLATE_ID_CONFIRMED) {
+        const template = process.env.INFOZY_TEMPLATE_ID_CONFIRMED || process.env.MSG91_TEMPLATE_ID_CONFIRMED;
+        if (mobile && template) {
             await sendSMS(
                 mobile, 
-                process.env.MSG91_TEMPLATE_ID_CONFIRMED, 
+                template, 
                 {
                     event_name: eventName,
                     status: 'Confirmed'
-                },
-                process.env.MSG91_DLT_TE_ID_CONFIRMED
+                }
             );
         }
     } catch (e: any) {
         console.error('❌ SMS send failed (non-fatal):', e?.message || e);
     }
-    */
 };
 
 // ─── Booking Cancelled ────────────────────────────────────────────────────────
@@ -251,41 +234,41 @@ export const notifyBookingCancelled = async (email: string, reason: string, mobi
         console.error('❌ Email send failed (non-fatal):', e?.message || e);
     });
 
-    // 2. Send SMS - Disabled (Transactional SMS requires DLT)
-    /*
+    // 2. Send SMS via Infozy
     try {
-        if (mobile && process.env.MSG91_TEMPLATE_ID_CANCELLED) {
+        const template = process.env.INFOZY_TEMPLATE_ID_CANCELLED || process.env.MSG91_TEMPLATE_ID_CANCELLED;
+        if (mobile && template) {
             await sendSMS(
                 mobile, 
-                process.env.MSG91_TEMPLATE_ID_CANCELLED, 
+                template, 
                 {
                     reason: reason || 'Cancelled per request'
-                },
-                process.env.MSG91_DLT_TE_ID_CANCELLED
+                }
             );
         }
     } catch (e: any) {
         console.error('❌ SMS send failed (non-fatal):', e?.message || e);
     }
-    */
 };
 
 // ─── Payment Received (Initial Receipt) ───────────────────────────────────────
 export const notifyPaymentReceived = async (mobile: string, amount: number, orderId: string) => {
-    // 1. SMS - Disabled (Transactional SMS requires DLT)
-    /*
-    if (mobile && process.env.MSG91_TEMPLATE_ID_PAYMENT) {
-        await sendSMS(
-            mobile, 
-            process.env.MSG91_TEMPLATE_ID_PAYMENT, 
-            {
-                amount: amount.toString(),
-                order_id: orderId
-            },
-            process.env.MSG91_DLT_TE_ID_PAYMENT
-        );
+    // 1. Send SMS via Infozy
+    try {
+        const template = process.env.INFOZY_TEMPLATE_ID_PAYMENT || process.env.MSG91_TEMPLATE_ID_PAYMENT;
+        if (mobile && template) {
+            await sendSMS(
+                mobile, 
+                template, 
+                {
+                    amount: amount.toString(),
+                    order_id: orderId
+                }
+            );
+        }
+    } catch (e: any) {
+        console.error('❌ SMS send failed (non-fatal):', e?.message || e);
     }
-    */
 
     /*
     // 2. WhatsApp - Removed per request for API-less operation
