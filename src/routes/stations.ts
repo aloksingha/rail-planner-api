@@ -19,26 +19,29 @@ const sortStationsByCode = (stations: Station[], queryStr: string): Station[] =>
     return [...stations].sort((a, b) => {
         const aCode = (a.code || '').toUpperCase().trim();
         const bCode = (b.code || '').toUpperCase().trim();
+        const aName = (a.name || '').toUpperCase().trim();
+        const bName = (b.name || '').toUpperCase().trim();
 
-        // 1. Exact match on code
-        const aExact = aCode === q;
-        const bExact = bCode === q;
-        if (aExact && !bExact) return -1;
-        if (!aExact && bExact) return 1;
+        const getScore = (code: string, name: string) => {
+            if (code === q) return 100;
+            if (code.startsWith(q)) return 90;
+            if (name === q) return 80;
+            if (name.startsWith(q)) return 70;
+            if (code.includes(q)) return 60;
+            if (name.includes(q)) return 50;
+            return 0;
+        };
 
-        // 2. Starts with query
-        const aStarts = aCode.startsWith(q);
-        const bStarts = bCode.startsWith(q);
-        if (aStarts && !bStarts) return -1;
-        if (!aStarts && bStarts) return 1;
+        const scoreA = getScore(aCode, aName);
+        const scoreB = getScore(bCode, bName);
 
-        // 3. Contains query
-        const aContains = aCode.includes(q);
-        const bContains = bCode.includes(q);
-        if (aContains && !bContains) return -1;
-        if (!aContains && bContains) return 1;
+        if (scoreA !== scoreB) {
+            return scoreB - scoreA; // higher score first
+        }
 
-        return 0;
+        // If scores are tied, sort alphabetically by code, then name
+        if (aCode !== bCode) return aCode.localeCompare(bCode);
+        return aName.localeCompare(bName);
     });
 };
 
