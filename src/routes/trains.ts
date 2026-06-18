@@ -145,8 +145,8 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             }
         });
 
-        // Combine nearby and direct results (Direct results at the end so they overwrite alternative ones in the Map)
-        allRemoteTrains = [...fallbackResults, ...allRemoteTrains];
+        // Combine nearby and direct results (Priority: Direct > Closest Nearby > Furthest Nearby)
+        allRemoteTrains = [...allRemoteTrains, ...fallbackResults];
 
         const shiftDay = (dayName: string, shift: number): string => {
             const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -303,8 +303,15 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             return true;
         });
 
-        // Deduplicate
-        const uniqueTrains = Array.from(new Map(filteredTrains.map((t: any) => [t.train_base.train_no, t])).values());
+        // Deduplicate: Keep the first occurrence (highest priority)
+        const uniqueTrainsMap = new Map();
+        for (const t of filteredTrains) {
+            const no = t.train_base.train_no;
+            if (!uniqueTrainsMap.has(no)) {
+                uniqueTrainsMap.set(no, t);
+            }
+        }
+        const uniqueTrains = Array.from(uniqueTrainsMap.values());
 
         console.log(`[TrainSearch] Returning ${uniqueTrains.length} unique trains`);
         trainCache.set(cacheKey, { data: uniqueTrains, expiry: Date.now() + CACHE_TTL });
