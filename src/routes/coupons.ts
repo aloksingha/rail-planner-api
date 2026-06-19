@@ -5,7 +5,7 @@ import { requireAuth, requireRole } from '../middleware/auth';
 const router = Router();
 
 // GET / - List all coupons (Super Admin and Admin)
-router.get('/', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+router.get('/', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'MANAGE_COUPONS' }), async (req, res) => {
     const coupons = await prisma.coupon.findMany({
         orderBy: { createdAt: 'desc' }
     });
@@ -70,7 +70,7 @@ router.post('/validate', async (req, res) => {
 });
 
 // POST / - Create a coupon (Super Admin only)
-router.post('/', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+router.post('/', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'MANAGE_COUPONS' }), async (req, res) => {
     const { 
         code, 
         discountType, 
@@ -108,7 +108,7 @@ router.post('/', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => 
 });
 
 // PUT /:id - Update a coupon (Super Admin only)
-router.put('/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+router.put('/:id', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'MANAGE_COUPONS' }), async (req, res) => {
     const { id } = req.params;
     const { 
         isActive, 
@@ -138,7 +138,7 @@ router.put('/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) =
 });
 
 // DELETE /:id - Delete a coupon (Super Admin only)
-router.delete('/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+router.delete('/:id', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'MANAGE_COUPONS' }), async (req, res) => {
     const { id } = req.params;
     console.log(`[Coupon] Delete request for ID: ${id} by user: ${req.user?.email} (${req.user?.role})`);
     try {

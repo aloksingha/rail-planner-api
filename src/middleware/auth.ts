@@ -14,6 +14,7 @@ export interface JwtPayload {
     role: string;
     isSuperAdmin?: boolean; // Flag to preserve SA powers during mimicry
     name?: string | null;
+    specialPermissions?: string[];
 }
 
 declare global {
@@ -41,7 +42,7 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
         // Critical: Check user status in DB for real-time blocking
         const user = await prisma.user.findUnique({
             where: { id: payload.userId },
-            select: { status: true, role: true }
+            select: { status: true, role: true, specialPermissions: true }
         });
 
         if (!user) {
@@ -57,6 +58,9 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
         if (!payload.isSuperAdmin) {
             payload.role = user.role;
         }
+        
+        // Inject specialPermissions
+        payload.specialPermissions = user.specialPermissions;
 
         req.user = payload;
         next();
@@ -70,7 +74,7 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
     }
 };
 
-export const requireRole = (roles: string[]) => {
+export const requireRole = (roles: string[], options?: { allowSpecialPermission?: string }) => {
     const normalizedTargetRoles = roles.map(r => r.toUpperCase());
     return (req: Request, res: Response, next: NextFunction) => {
         if (!req.user || !req.user.role) {
@@ -83,6 +87,11 @@ export const requireRole = (roles: string[]) => {
         // If the user is a Super Admin (even if currently in mimic mode as a Customer),
         // we grant them access to all Administrative routes.
         if (req.user.isSuperAdmin) {
+            return next();
+        }
+
+        // --- SPECIAL PERMISSION BYPASS ---
+        if (options?.allowSpecialPermission && req.user.specialPermissions?.includes(options.allowSpecialPermission) && (userRole === 'ADMIN' || userRole === 'SALES_MANAGER')) {
             return next();
         }
 

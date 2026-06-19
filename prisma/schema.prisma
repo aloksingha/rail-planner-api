@@ -13,10 +13,12 @@ model User {
   passwordHash String
   name         String?
   mobile       String?
-  role         String          @default("CUSTOMER")
-  region       String?         // Applicable for SALES_MANAGER
-  status       String          @default("ACTIVE") // ACTIVE, BLOCKED, RESTRICTED
-  createdAt    DateTime        @default(now())
+  role                 String          @default("CUSTOMER")
+  hasSpecialPermission Boolean?        @default(false)
+  specialPermissions   String[]        @default([])
+  region               String?         // Applicable for SALES_MANAGER
+  status               String          @default("ACTIVE") // ACTIVE, BLOCKED, RESTRICTED
+  createdAt            DateTime        @default(now())
   
   createdByUserId String?
   createdBy       User?           @relation("UserCreator", fields: [createdByUserId], references: [id])

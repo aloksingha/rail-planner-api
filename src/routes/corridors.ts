@@ -6,7 +6,7 @@ import { createAuditLog } from '../services/auditService';
 const router = Router();
 
 // Seed default corridors (for production setup)
-router.post('/seed', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+router.post('/seed', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'CORRIDOR_PRICING' }), async (req, res) => {
     try {
         const defaults = [
             {
@@ -141,7 +141,7 @@ router.get('/', async (req, res) => {
 });
 
 // Create a new corridor pricing rule (Super Admin / Admin Only)
-router.post('/', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+router.post('/', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'CORRIDOR_PRICING' }), async (req, res) => {
     const { name, originStations, destinationStations, markupSL, markup3A, markup2A } = req.body;
 
     if (!name || !originStations || !destinationStations) {
@@ -177,7 +177,7 @@ router.post('/', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req,
 });
 
 // Update a corridor pricing rule (auto-syncs vice-versa)
-router.put('/:id', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+router.put('/:id', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'CORRIDOR_PRICING' }), async (req, res) => {
     const { id } = req.params;
     const { name, originStations, destinationStations, markupSL, markup3A, markup2A } = req.body;
 
@@ -210,7 +210,7 @@ router.put('/:id', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (re
 
 
 // Delete a corridor pricing rule
-router.delete('/:id', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+router.delete('/:id', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'CORRIDOR_PRICING' }), async (req, res) => {
     const { id } = req.params;
 
     try {

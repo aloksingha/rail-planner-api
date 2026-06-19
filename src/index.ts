@@ -11,6 +11,18 @@ app.listen(PORT, async () => {
     // Auto-seed corridor pricing rules (non-blocking)
     seedCorridors();
 
+    // Migrate legacy special permissions
+    try {
+        await prisma.$executeRawUnsafe(`
+            UPDATE "User"
+            SET "specialPermissions" = ARRAY['BROADCAST_MESSAGES', 'CORRIDOR_PRICING', 'PRICE_REQUESTS', 'FAILED_BOOKINGS', 'GLOBAL_BOOKINGS', 'WALLET_MANAGEMENT', 'MANAGE_COUPONS']
+            WHERE "hasSpecialPermission" = true AND "specialPermissions" = '{}'::text[];
+        `);
+        console.log('[Startup] Successfully migrated legacy special permissions.');
+    } catch (e) {
+        console.error('[Startup] Failed to migrate legacy special permissions:', e);
+    }
+
     // Specific update for Kolkata-Chennai pricing rules
     try {
         const targetNames = ['KOLKATA-CHENNAI', 'CHENNAI-KOLKATA'];

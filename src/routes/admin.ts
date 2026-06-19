@@ -665,6 +665,9 @@ router.get('/bookings', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES
         if (role === 'ADMIN') {
             const scope = req.query.scope as string;
             if (scope === 'all') {
+                if (!req.user!.specialPermissions?.includes('GLOBAL_BOOKINGS')) {
+                    return res.status(403).json({ error: 'Forbidden: Requires GLOBAL_BOOKINGS permission' });
+                }
                 where = {}; // Super view for management
             } else {
                 // Default: See bookings from Sales Managers created by this Admin
@@ -859,7 +862,7 @@ router.get('/transactions', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'S
 });
 
 // Cancel a booking
-router.put('/bookings/:id/cancel', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+router.put('/bookings/:id/cancel', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'GLOBAL_BOOKINGS' }), async (req, res) => {
     const id = req.params.id as string;
     try {
         const result = await prisma.$transaction(async (tx) => {
@@ -943,7 +946,7 @@ router.delete('/bookings/:id', requireAuth, requireRole(['SUPER_ADMIN']), async 
 });
 
 // Upload a PDF Ticket
-router.post('/bookings/:id/ticket', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), upload.single('ticket'), async (req, res) => {
+router.post('/bookings/:id/ticket', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'GLOBAL_BOOKINGS' }), upload.single('ticket'), async (req, res) => {
     const id = req.params.id as string;
 
     if (!req.file) {
@@ -998,7 +1001,7 @@ router.delete('/bookings/:id/ticket', requireAuth, requireRole(['SUPER_ADMIN']),
 });
 
 // Re-book a booking (Change Date)
-router.put('/bookings/:id/rebook', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+router.put('/bookings/:id/rebook', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'GLOBAL_BOOKINGS' }), async (req, res) => {
     const id = req.params.id as string;
     const { newDate } = req.body;
 
@@ -1034,7 +1037,7 @@ router.put('/bookings/:id/rebook', requireAuth, requireRole(['SUPER_ADMIN', 'ADM
 });
 
 // Update booking status manually (Success/Pending/Cancelled)
-router.patch('/bookings/:id/status', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+router.patch('/bookings/:id/status', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'GLOBAL_BOOKINGS' }), async (req, res) => {
     const id = req.params.id as string;
     const { status } = req.body;
 
@@ -1121,6 +1124,7 @@ router.get('/users', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (
                     mobile: true,
                     role: true,
                     region: true,
+                    specialPermissions: true,
                     status: true,
                     walletBalance: true,
                     createdAt: true,
@@ -1183,6 +1187,45 @@ router.patch('/users/:id/status', requireAuth, requireRole(['SUPER_ADMIN', 'ADMI
         return res.json({ success: true, user });
     } catch (error: any) {
         console.error('Update status error:', error);
+        return res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// 🛡️ Super Admin: Update a user's Special Permissions 🛡️
+router.put('/users/:id/special-permission', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+    const id = req.params.id as string;
+    const { permissions } = req.body;
+
+    if (!Array.isArray(permissions)) {
+        return res.status(400).json({ error: 'permissions must be an array of strings' });
+    }
+
+    try {
+        const targetUser = await prisma.user.findUnique({ where: { id } });
+        if (!targetUser) return res.status(404).json({ error: 'User not found' });
+
+        if (targetUser.role !== 'ADMIN' && targetUser.role !== 'SALES_MANAGER') {
+            return res.status(400).json({ error: 'Special Permissions can only be granted to ADMIN or SALES_MANAGER.' });
+        }
+
+        const user = await prisma.user.update({
+            where: { id },
+            data: { specialPermissions: permissions },
+            select: { id: true, email: true, specialPermissions: true }
+        });
+
+        await prisma.auditLog.create({
+            data: {
+                action: 'UPDATE_SPECIAL_PERMISSION',
+                performedByUserId: req.user!.userId,
+                targetUserId: id,
+                details: `Updated special permissions for ${user.email}: [${permissions.join(', ')}]`
+            }
+        });
+
+        return res.json({ success: true, user });
+    } catch (error: any) {
+        console.error('Update special permissions error:', error);
         return res.status(500).json({ error: 'Internal Server Error' });
     }
 });
@@ -1331,3 +1374,4 @@ router.get('/audit-logs', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), as
 });
 
 export default router;
+

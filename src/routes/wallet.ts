@@ -87,7 +87,7 @@ router.get('/history', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_
  * POST /api/wallet/admin/adjust
  * Super Admin only: Manually credit or debit a user's wallet.
  */
-router.post('/admin/adjust', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+router.post('/admin/adjust', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'WALLET_MANAGEMENT' }), async (req, res) => {
     const { targetUserId, amount, type, description } = req.body;
 
     if (!targetUserId || !amount || !['CREDIT', 'DEBIT'].includes(type)) {
@@ -154,7 +154,7 @@ router.post('/admin/adjust', requireAuth, requireRole(['SUPER_ADMIN']), async (r
  * GET /api/wallet/admin/all-transactions
  * Super Admin only: Fetch all wallet transactions across the platform.
  */
-router.get('/admin/all-transactions', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+router.get('/admin/all-transactions', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'WALLET_MANAGEMENT' }), async (req, res) => {
     try {
         console.log(`[WalletAdmin] Fetching transactions for user ${req.user!.userId} (${req.user!.role})`);
         
@@ -349,7 +349,7 @@ router.get('/my-withdrawals', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 
  * GET /api/wallet/admin/withdrawals
  * Super Admin only: Fetch all pending/recent withdrawal requests.
  */
-router.get('/admin/withdrawals', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+router.get('/admin/withdrawals', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'WALLET_MANAGEMENT' }), async (req, res) => {
     try {
         const withdrawals = await prisma.withdrawalRequest.findMany({
             include: {
@@ -369,7 +369,7 @@ router.get('/admin/withdrawals', requireAuth, requireRole(['SUPER_ADMIN']), asyn
  * PATCH /api/wallet/admin/process-withdrawal/:id
  * Super Admin only: Approve (COMPLETED) or Reject (REJECTED) a withdrawal.
  */
-router.patch('/admin/process-withdrawal/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+router.patch('/admin/process-withdrawal/:id', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'WALLET_MANAGEMENT' }), async (req, res) => {
     const id = req.params.id as string;
     const { status, adminComment } = req.body;
 

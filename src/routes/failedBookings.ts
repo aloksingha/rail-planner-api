@@ -63,7 +63,7 @@ router.post('/', async (req, res) => {
 });
 
 // Admin Only: Get all failed bookings
-router.get('/', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+router.get('/', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'FAILED_BOOKINGS' }), async (req, res) => {
     try {
         const failedBookings = await prisma.failedBooking.findMany({
             orderBy: { createdAt: 'desc' }
@@ -76,7 +76,7 @@ router.get('/', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
 });
 
 // Admin Only: Update status
-router.patch('/:id/status', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+router.patch('/:id/status', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'FAILED_BOOKINGS' }), async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
 
@@ -97,7 +97,7 @@ router.patch('/:id/status', requireAuth, requireRole(['SUPER_ADMIN']), async (re
 });
 
 // Admin Only: Delete
-router.delete('/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
+router.delete('/:id', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'FAILED_BOOKINGS' }), async (req, res) => {
     const { id } = req.params;
     try {
         await prisma.failedBooking.delete({ where: { id: id as string } });

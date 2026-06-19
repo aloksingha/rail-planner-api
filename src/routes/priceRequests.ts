@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, requireRole } from '../middleware/auth';
 import { prisma } from '../prisma';
 
 const router = Router();
@@ -35,7 +35,14 @@ router.post('/', requireAuth, async (req, res) => {
 router.get('/', requireAuth, async (req, res) => {
     try {
         let requests;
-        if (['SUPER_ADMIN', 'ADMIN'].includes(req.user!.role)) {
+        let isAdminLevel = false;
+        if (req.user!.isSuperAdmin || req.user!.role === 'SUPER_ADMIN') {
+            isAdminLevel = true;
+        } else if (req.user!.specialPermissions?.includes('PRICE_REQUESTS') && (req.user!.role === 'ADMIN' || req.user!.role === 'SALES_MANAGER')) {
+            isAdminLevel = true;
+        }
+
+        if (isAdminLevel) {
             // Admins see all pending and updated requests
             requests = await prisma.priceRequest.findMany({
                 orderBy: { createdAt: 'desc' },
@@ -65,10 +72,7 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // Update a price request (Admin only)
-router.patch('/:id', requireAuth, async (req, res) => {
-    if (!['SUPER_ADMIN', 'ADMIN'].includes(req.user!.role)) {
-        return res.status(403).json({ error: 'Forbidden' });
-    }
+router.patch('/:id', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'PRICE_REQUESTS' }), async (req, res) => {
 
     const { id } = req.params as { id: string };
     const { suggestedPrice, adminComment, status } = req.body;

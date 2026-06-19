@@ -34,7 +34,7 @@ router.get('/', async (req, res) => {
 });
 
 
-router.get('/admin', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+router.get('/admin', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'BROADCAST_MESSAGES' }), async (req, res) => {
     try {
         const promotions = await prisma.promotion.findMany({
             orderBy: { createdAt: 'desc' }
@@ -45,7 +45,7 @@ router.get('/admin', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (
     }
 });
 
-router.post('/admin', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), upload.single('image'), async (req, res) => {
+router.post('/admin', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'BROADCAST_MESSAGES' }), upload.single('image'), async (req, res) => {
     try {
         const { title, description, linkUrl } = req.body;
         if (!title || !description) {
@@ -74,7 +74,7 @@ router.post('/admin', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), upload
     }
 });
 
-router.patch('/admin/:id', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+router.patch('/admin/:id', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'BROADCAST_MESSAGES' }), async (req, res) => {
     const { id } = req.params as { id: string };
     const { title, description, linkUrl, isActive } = req.body;
 
@@ -94,7 +94,7 @@ router.patch('/admin/:id', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), a
     }
 });
 
-router.delete('/admin/:id', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+router.delete('/admin/:id', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'BROADCAST_MESSAGES' }), async (req, res) => {
     const { id } = req.params as { id: string };
 
     try {
