@@ -1,0 +1,164 @@
+    return (
+        <div className="pb-12 px-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* ANDROID SCI-FI HEADER */}
+            <div className="glass-panel p-6 mb-8 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-brand-blue/10 rounded-full blur-3xl" />
+                <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-10 bg-repeat bg-[length:24px_24px]" />
+                
+                <div className="flex items-center gap-4 relative z-10">
+                    <div className="w-12 h-12 rounded-2xl bg-brand-blue/10 border border-brand-blue/30 flex items-center justify-center shadow-[0_0_15px_rgba(14,165,233,0.3)]">
+                        <Fingerprint className="text-brand-blue" size={24} />
+                    </div>
+                    <div>
+                        <h1 className="text-xl font-black text-white tracking-tight uppercase italic">
+                            {isSuperAdmin ? 'Identity Node' : 'Ops Provisioning'}
+                        </h1>
+                        <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest mt-1">Access Control Terminal</p>
+                    </div>
+                </div>
+                
+                <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-brand-blue/50 via-teal-500/50 to-transparent" />
+            </div>
+
+            {/* CURRENT ROLE CONTEXT */}
+            <div className="mb-8">
+                <div className="flex items-center gap-2 mb-3 ml-1">
+                    <ShieldCheck className="text-brand-blue" size={14} />
+                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Permission Matrix</h3>
+                </div>
+                
+                <div className="glass-panel relative overflow-hidden border border-brand-blue/20">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-brand-blue" />
+                    <div className="p-5">
+                        <div className="text-[10px] font-black text-brand-blue uppercase tracking-widest mb-2">Target Profile</div>
+                        <h2 className="text-2xl font-black text-white uppercase tracking-tighter mb-2">{role.replace('_', ' ')}</h2>
+                        <p className="text-xs font-mono text-slate-400 leading-relaxed border-l-2 border-brand-blue/30 pl-3">
+                            {getRoleDescription()}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            {/* PROVISIONING FORM */}
+            <div className="glass-panel p-5 relative overflow-hidden">
+                <div className="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-brand-blue to-teal-500 shadow-[0_0_10px_rgba(14,165,233,0.8)]" />
+                
+                <div className="mb-6 flex items-center gap-2">
+                    <UserCheck className="text-white" size={16} />
+                    <h3 className="text-sm font-black text-white uppercase tracking-widest">New Identity Entry</h3>
+                </div>
+
+                <form onSubmit={handleAssignRole} className="space-y-5 relative z-10">
+                    {/* Rank Allocation */}
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-brand-blue uppercase tracking-widest ml-1">Allocated Rank</label>
+                        <div className="relative">
+                            <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-brand-blue/70" size={16} />
+                            <select
+                                value={role}
+                                onChange={e => setRole(e.target.value)}
+                                className="w-full bg-brand-blue/5 border border-brand-blue/30 rounded-xl px-12 py-3.5 text-brand-blue font-black outline-none focus:ring-1 focus:ring-brand-blue/50 transition-all appearance-none uppercase tracking-widest text-xs"
+                                disabled={!isSuperAdmin}
+                            >
+                                <option value="SALES_MANAGER" className="bg-slate-900">SALES MANAGER</option>
+                                {isSuperAdmin && (
+                                    <>
+                                        <option value="ADMIN" className="bg-slate-900">SYSTEM ADMIN</option>
+                                        <option value="SUPER_ADMIN" className="bg-slate-900">SUPER ADMIN (ROOT)</option>
+                                    </>
+                                )}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Email */}
+                    <div className="space-y-2 pt-2">
+                        <div className="relative group">
+                            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-brand-blue transition-colors" size={16} />
+                            <input
+                                type="email"
+                                value={email}
+                                onChange={e => setEmail(e.target.value)}
+                                placeholder="Registered Email ID"
+                                className="w-full bg-slate-950/50 border border-white/10 rounded-xl px-12 py-3.5 text-white font-mono placeholder:text-slate-600 focus:outline-none focus:border-brand-blue/50 focus:ring-1 focus:ring-brand-blue/50 transition-all text-sm"
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    {/* Name */}
+                    <div className="relative group">
+                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-brand-blue transition-colors" size={16} />
+                        <input
+                            type="text"
+                            value={name}
+                            onChange={e => setName(e.target.value)}
+                            placeholder="Full Legal Name"
+                            className="w-full bg-slate-950/50 border border-white/10 rounded-xl px-12 py-3.5 text-white font-mono placeholder:text-slate-600 focus:outline-none focus:border-brand-blue/50 focus:ring-1 focus:ring-brand-blue/50 transition-all text-sm"
+                        />
+                    </div>
+
+                    {/* Phone */}
+                    <div className="relative group">
+                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-brand-blue transition-colors" size={16} />
+                        <input
+                            type="tel"
+                            value={mobile}
+                            onChange={e => {
+                                const val = e.target.value.replace(/\D/g, '');
+                                if (val.length <= 10) setMobile(val);
+                            }}
+                            placeholder="Mobile (9876543210)"
+                            className={`w-full bg-slate-950/50 border rounded-xl px-12 py-3.5 text-white font-mono placeholder:text-slate-600 focus:outline-none transition-all text-sm ${
+                                mobile.length > 0 && !isValidIndianMobile(mobile) && mobile.length === 10
+                                    ? 'border-rose-500 focus:ring-1 focus:ring-rose-500' 
+                                    : mobile.length === 10 
+                                        ? 'border-emerald-500/50 focus:ring-1 focus:ring-emerald-500' 
+                                        : 'border-white/10 focus:border-brand-blue/50 focus:ring-1 focus:ring-brand-blue/50'
+                            }`}
+                        />
+                        {mobile.length > 0 && mobile.length < 10 && (
+                            <p className="text-[9px] text-amber-500 font-bold mt-1 ml-1 animate-pulse uppercase">Entering digits ({mobile.length}/10)...</p>
+                        )}
+                        {mobile.length === 10 && !isValidIndianMobile(mobile) && (
+                            <p className="text-[9px] text-rose-500 font-bold mt-1 ml-1 uppercase tracking-widest">Invalid! Must start with 6-9</p>
+                        )}
+                    </div>
+
+                    <button 
+                        type="submit" 
+                        disabled={loading || !isValidIndianMobile(mobile)}
+                        className="w-full py-4 bg-gradient-to-r from-brand-blue to-teal-500 disabled:opacity-30 text-white font-black uppercase tracking-[0.2em] text-[11px] rounded-xl transition-all active:scale-95 mt-6 border border-white/10 shadow-[0_0_15px_rgba(14,165,233,0.3)] relative overflow-hidden group"
+                    >
+                        <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 ease-in-out" />
+                        <span className="flex items-center justify-center gap-3 relative z-10">
+                            {loading ? (
+                                <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> PROVISIONING...</>
+                            ) : (
+                                <><Fingerprint size={16} /> EXECUTE PROVISIONING</>
+                            )}
+                        </span>
+                    </button>
+
+                    <AnimatePresence>
+                        {message && (
+                            <motion.div 
+                                initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                                animate={{ opacity: 1, height: 'auto', marginTop: 16 }}
+                                exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                                className={`p-4 rounded-xl border ${message.type === 'error' ? 'bg-rose-500/10 border-rose-500/30 text-rose-400' : 'bg-brand-blue/10 border-brand-blue/30 text-brand-blue'} overflow-hidden`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <Info size={16} className="shrink-0" />
+                                    <p className="text-[10px] font-black uppercase tracking-widest leading-relaxed">
+                                        {message.text}
+                                    </p>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </form>
+            </div>
+        </div>
+    );
+}

@@ -1,0 +1,95 @@
+
+const FRONTEND_NEARBY_STATIONS: Record<string, string[]> = {
+    'NDLS': ['DLI', 'NZM', 'DEC', 'DEE', 'ANVT', 'GZB', 'SZM', 'DSA', 'SSB'],
+    'DLI': ['NDLS', 'NZM', 'DEC', 'DEE', 'ANVT', 'GZB', 'SZM', 'DSA', 'SSB'],
+    'NZM': ['NDLS', 'DLI', 'DEC', 'DEE', 'ANVT', 'GZB', 'SZM', 'DSA', 'SSB'],
+    'ANVT': ['NDLS', 'DLI', 'NZM', 'GZB', 'DEE', 'SZM', 'DSA'],
+    'HWH': ['SDAH', 'KOAA', 'SHM', 'SRC', 'BDC'],
+    'SDAH': ['HWH', 'KOAA', 'SHM', 'SRC', 'BDC'],
+    'KOAA': ['HWH', 'SDAH', 'SHM', 'SRC', 'BDC'],
+    'SHM': ['HWH', 'SDAH', 'KOAA', 'SRC'],
+    'NJP': ['SGUJ', 'SGUT', 'SGU'],
+    'SGUJ': ['NJP', 'SGUT', 'SGU'],
+    'MMCT': ['BDTS', 'BCT', 'DDR', 'CSMT', 'LTT', 'BVI', 'PNVL', 'KYN', 'TNA'],
+    'BDTS': ['MMCT', 'BCT', 'DDR', 'CSMT', 'LTT', 'BVI', 'PNVL', 'KYN', 'TNA'],
+    'CSMT': ['LTT', 'DR', 'MMCT', 'BDTS', 'BVI', 'PNVL', 'KYN', 'TNA'],
+    'LTT': ['CSMT', 'DR', 'MMCT', 'BDTS', 'BVI', 'PNVL', 'KYN', 'TNA'],
+    'BVI': ['MMCT', 'BDTS', 'DDR', 'CSMT', 'LTT'],
+    'TNA': ['LTT', 'CSMT', 'KYN', 'DR', 'PNVL'],
+    'PNVL': ['LTT', 'CSMT', 'TNA', 'KYN'],
+    'SBC': ['YPR', 'SMVB', 'KJM', 'BNC', 'BAND', 'YNK', 'BNCE', 'KGI'],
+    'YPR': ['SBC', 'SMVB', 'KJM', 'BNC', 'BAND', 'YNK', 'BNCE', 'KGI'],
+    'SMVB': ['SBC', 'YPR', 'KJM', 'BNC', 'BAND', 'YNK', 'BNCE', 'KGI'],
+    'MAS': ['MS', 'TBM', 'PER', 'MSB', 'AJJ'],
+    'MS': ['MAS', 'TBM', 'PER', 'MSB', 'AJJ'],
+    'TBM': ['MAS', 'MS', 'PER', 'MSB', 'AJJ'],
+    'GHY': ['KYQ', 'NGC'],
+    'KYQ': ['GHY', 'NGC'],
+    'SC': ['HYB', 'KCG', 'CHZ', 'LPI', 'BMO', 'BMT', 'FM', 'SNF'],
+    'HYB': ['SC', 'KCG', 'CHZ', 'LPI', 'BMO', 'BMT', 'FM', 'SNF'],
+    'KCG': ['SC', 'HYB', 'CHZ', 'LPI', 'BMO', 'BMT', 'FM', 'SNF'],
+    'CHZ': ['SC', 'HYB', 'KCG', 'LPI', 'BMO', 'BMT', 'FM', 'SNF'],
+    'PUNE': ['SVJR', 'CCH', 'LNL', 'PMP'],
+    'ST': ['UDN', 'CHM'],
+    'ADI': ['SBIB', 'SBT', 'MAN', 'GNC'],
+    'SBIB': ['ADI', 'SBT', 'MAN', 'GNC'],
+import { useState, useRef, useEffect } from 'react';
+import { Train, MapPin, Phone, Users, Calendar, CheckCircle2, ArrowLeft, Ticket, Loader2, AlertCircle, ArrowLeftRight, Tags, Mail, IndianRupee, AlertTriangle, Wallet } from 'lucide-react';
+import axios from 'axios';
+// import Datepicker from "react-tailwindcss-datepicker"; // Removed due to production visibility issues
+import { isValidIndianMobile } from '../utils/validation';
+
+interface Passenger {
+    name: string;
+    age: string;
+    gender: 'M' | 'F' | 'O';
+}
+
+
+interface IRCTCTrain {
+    train_base: {
+        train_no: string;
+        train_name: string;
+        from_stn_name: string;
+        to_stn_name: string;
+        from_time: string;
+        to_time: string;
+        travel_time: string;
+        running_days?: { [key: string]: boolean };
+        available_classes?: string[];  // Class codes from API e.g. ['2A','3A','SL']
+        train_type?: string;           // Added train type for better filtering
+        prices?: Record<string, number>; // Added pre-calculated prices from backend
+    };
+    isAlternative?: boolean;           // Added for nearby station fallback logic
+}
+
+/* TrainScheduleStop removed as it's unused */
+
+const POPULAR_STATIONS = [
+    { code: 'NDLS', name: 'New Delhi' },
+    { code: 'MMCT', name: 'Mumbai Central' },
+    { code: 'HWH', name: 'Howrah Junction' },
+    { code: 'MAS', name: 'MGR Chennai Central' },
+    { code: 'SBC', name: 'KSR Bengaluru City' },
+    { code: 'OKHA', name: 'Okha' },
+    { code: 'GHY', name: 'Guwahati' }
+];
+
+const STATION_OVERRIDES = [
+    { code: 'OKHA', name: 'Okha' },
+    { code: 'GHY', name: 'Guwahati' },
+    { code: 'NDLS', name: 'New Delhi' },
+    { code: 'SC', name: 'Secunderabad' },
+    { code: 'PNBE', name: 'Patna Junction' },
+    { code: 'DNR', name: 'Danapur' },
+    { code: 'RKMP', name: 'Rani Kamalapati' },
+    { code: 'BPL', name: 'Bhopal Junction' },
+    { code: 'INDB', name: 'Indore Junction' },
+    { code: 'ADI', name: 'Ahmedabad Junction' },
+    { code: 'SUNR', name: 'Surendranagar' },
+    { code: 'RJT', name: 'Rajkot Junction' },
+    { code: 'JAM', name: 'Jamnagar' },
+    { code: 'JAM', name: 'Jamnagar' },
+    { code: 'DWK', name: 'Dwarka' }
+];
+

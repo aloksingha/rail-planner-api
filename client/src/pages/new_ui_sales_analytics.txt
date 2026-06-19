@@ -1,0 +1,192 @@
+    return (
+        <div className="pb-12 px-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* SCI-FI HEADER */}
+            <div className="glass-panel p-6 mb-6 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-brand-blue/10 rounded-full blur-3xl" />
+                <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-10 bg-repeat bg-[length:24px_24px]" />
+                
+                <div className="flex items-center justify-between relative z-10">
+                    <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-2xl bg-brand-blue/10 border border-brand-blue/30 flex items-center justify-center shadow-[0_0_15px_rgba(14,165,233,0.3)]">
+                            <TrendingUp className="text-brand-blue" size={24} />
+                        </div>
+                        <div>
+                            <h1 className="text-xl font-black text-white tracking-tight uppercase italic">Sales Intel</h1>
+                            <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest mt-1">Revenue Intelligence Node</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-brand-blue/50 via-teal-500/50 to-transparent" />
+            </div>
+
+            {/* ACTION BUTTONS */}
+            <div className="flex gap-3 mb-8">
+                <Link
+                    to="/sales/new-booking"
+                    className="flex-1 glass-panel py-4 flex items-center justify-center gap-2 text-white font-black uppercase tracking-[0.2em] text-[10px] bg-brand-blue/10 border-brand-blue/30 shadow-[0_0_15px_rgba(14,165,233,0.1)] active:scale-95 transition-all"
+                >
+                    <Plus size={16} /> New Booking
+                </Link>
+                {(() => {
+                    const user = JSON.parse(localStorage.getItem('user') || '{}');
+                    if (user.role === 'SUPER_ADMIN') {
+                        return (
+                            <Link
+                                to="/corridors"
+                                className="flex-1 glass-panel py-4 flex items-center justify-center gap-2 text-brand-teal font-black uppercase tracking-[0.2em] text-[10px] bg-brand-teal/10 border-brand-teal/30 active:scale-95 transition-all"
+                            >
+                                <RouteIcon size={16} /> Pricing
+                            </Link>
+                        );
+                    }
+                    return null;
+                })()}
+            </div>
+
+            {/* STAT TILES */}
+            <div className="grid grid-cols-1 gap-4 mb-8">
+                {/* Revenue */}
+                <div className="glass-panel p-6 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl" />
+                    <div className="flex items-start justify-between mb-4 relative z-10">
+                        <div>
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Gross Revenue</p>
+                            <h2 className="text-3xl font-black text-white font-mono">
+                                ₹{salesData.totalRevenue.toLocaleString('en-IN')}
+                            </h2>
+                        </div>
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center">
+                            <IndianRupee size={20} className="text-emerald-400" />
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-emerald-400 text-[10px] font-black uppercase tracking-widest relative z-10">
+                        <TrendingUp size={12} />
+                        <span>+12.5% Performance Boost</span>
+                    </div>
+                </div>
+
+                {/* Orders */}
+                <div className="glass-panel p-6 relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-brand-blue/10 rounded-full blur-3xl" />
+                    <div className="flex items-start justify-between mb-4 relative z-10">
+                        <div>
+                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Total Operations</p>
+                            <h2 className="text-3xl font-black text-white font-mono">
+                                {salesData.totalSalesCount.toLocaleString()}
+                            </h2>
+                        </div>
+                        <div className="w-10 h-10 rounded-xl bg-brand-blue/10 border border-brand-blue/30 flex items-center justify-center">
+                            <ShoppingBag size={20} className="text-brand-blue" />
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2 text-brand-blue text-[10px] font-black uppercase tracking-widest relative z-10">
+                        <BarChart2 size={12} />
+                        <span>Tickets Processed</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* CHART PANEL */}
+            <div className="glass-panel p-5 mb-8 relative overflow-hidden">
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 className="text-xs font-black text-white uppercase tracking-[0.2em]">Revenue Timeline</h2>
+                        <p className="text-[9px] text-slate-500 font-mono uppercase tracking-widest mt-1">Daily Accumulation Stream</p>
+                    </div>
+                    <div className="flex items-center gap-2 px-2 py-1 bg-brand-blue/10 border border-brand-blue/30 rounded text-[8px] font-black text-brand-blue uppercase tracking-widest animate-pulse">
+                        Live Data
+                    </div>
+                </div>
+                
+                <div className="h-64 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={salesData.timelineData}>
+                            <defs>
+                                <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#ffffff05" vertical={false} />
+                            <XAxis 
+                                dataKey="date" 
+                                stroke="#475569" 
+                                tick={{ fontSize: 9, fill: '#64748b', fontWeight: 800 }}
+                                tickFormatter={(v) => new Date(v).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} 
+                                axisLine={false}
+                                tickLine={false}
+                            />
+                            <YAxis 
+                                stroke="#475569" 
+                                tick={{ fontSize: 9, fill: '#64748b', fontWeight: 800 }} 
+                                tickFormatter={(v) => `₹${v}`}
+                                axisLine={false}
+                                tickLine={false}
+                            />
+                            <Tooltip
+                                contentStyle={{ 
+                                    backgroundColor: 'rgba(15, 23, 42, 0.9)', 
+                                    border: '1px solid rgba(14, 165, 233, 0.3)', 
+                                    borderRadius: '0.75rem', 
+                                    fontSize: 10,
+                                    backdropFilter: 'blur(8px)',
+                                    textTransform: 'uppercase',
+                                    fontWeight: 900,
+                                    letterSpacing: '0.1em'
+                                }}
+                                itemStyle={{ color: '#0ea5e9' }}
+                                cursor={{ stroke: 'rgba(14, 165, 233, 0.2)', strokeWidth: 2 }}
+                            />
+                            <Area 
+                                type="monotone" 
+                                dataKey="amount" 
+                                stroke="#0ea5e9" 
+                                strokeWidth={3} 
+                                fill="url(#revGrad)"
+                                animationDuration={2000}
+                            />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+
+            {/* RECENT ACTIVITY */}
+            <div className="glass-panel p-5 relative overflow-hidden">
+                <div className="flex items-center justify-between mb-5">
+                    <h2 className="text-xs font-black text-white uppercase tracking-[0.2em]">Recent Transits</h2>
+                    <Link to="/sales/bookings" className="text-[10px] font-black text-brand-teal uppercase tracking-widest flex items-center gap-1">
+                        Full Ledger <ArrowUpRight size={12} />
+                    </Link>
+                </div>
+                
+                <div className="space-y-3">
+                    {salesData.recentBookings.map((b) => (
+                        <div key={b.id} className="flex items-center justify-between p-3 bg-white/5 border border-white/5 rounded-xl hover:border-brand-blue/20 transition-all group">
+                            <div className="flex-1 min-w-0 pr-3">
+                                <p className="text-[11px] font-black text-white truncate uppercase tracking-tight">{b.event?.name || 'GENERIC TRANSIT'}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <p className="text-[9px] font-bold text-slate-500 font-mono truncate">{b.user?.email}</p>
+                                    <span className="text-[8px] text-slate-600 font-black">•</span>
+                                    <p className="text-[9px] font-bold text-slate-600 font-mono">{new Date(b.createdAt).toLocaleDateString()}</p>
+                                </div>
+                            </div>
+                            <div className={`px-2.5 py-1 rounded-lg border text-[8px] font-black uppercase tracking-widest
+                                ${b.status === 'CONFIRMED' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.2)]'
+                                    : b.status === 'CANCELLED' ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                                        : 'bg-brand-orange/10 text-brand-orange border-brand-orange/20'}`}>
+                                {b.status}
+                            </div>
+                        </div>
+                    ))}
+                    {salesData.recentBookings.length === 0 && (
+                        <div className="py-10 text-center">
+                            <ShoppingBag size={24} className="mx-auto mb-2 text-slate-700 opacity-30" />
+                            <p className="text-[10px] font-black text-slate-600 uppercase tracking-widest">No Active Sessions</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}

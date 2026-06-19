@@ -1,0 +1,344 @@
+    if (bookingState === 'confirming') {
+        return (
+            <div className="glass-panel relative overflow-hidden mb-8 border border-sky-500/30 bg-slate-950/80 rounded-2xl animate-in fade-in zoom-in-95 duration-300 shadow-[0_0_30px_rgba(14,165,233,0.15)]">
+                <div className="absolute top-0 right-0 p-4">
+                    <div className="flex gap-1">
+                        <div className="w-1 h-1 bg-sky-400 rounded-full animate-pulse"></div>
+                        <div className="w-1 h-1 bg-sky-400/50 rounded-full"></div>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-3 mb-6 relative z-10 border-b border-sky-500/20 pb-4 p-6">
+                    <div className="p-2.5 bg-sky-500/20 text-sky-400 rounded-xl border border-sky-500/30">
+                        <span className="material-symbols-outlined">check_circle</span>
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-['Space_Grotesk'] font-bold text-white uppercase tracking-tight">Confirm Booking Node</h2>
+                        <p className="text-[10px] font-bold text-sky-400 uppercase tracking-[0.2em]">Action Required: Verify and Transmit</p>
+                    </div>
+                </div>
+
+                <div className="relative z-10 space-y-6 px-6 pb-6">
+                    {/* Details Grid */}
+                    <div className="grid grid-cols-1 gap-4 bg-slate-900/60 p-5 rounded-2xl border border-sky-900/40">
+                        <div className="flex justify-between items-center pb-3 border-b border-white/5">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Journey Route</span>
+                            <span className="text-sky-100 font-bold text-sm tracking-tight">{trainNo} - {selectedTrainName}</span>
+                        </div>
+                        <div className="flex justify-between items-center pb-3 border-b border-white/5">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Date</span>
+                            <span className="text-sky-100 font-bold text-sm tracking-tight">{new Date(journeyDate).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex justify-between items-center pb-3 border-b border-white/5">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Vector</span>
+                            <span className="text-sky-100 font-bold text-sm tracking-tight">{source} &rarr; {destination}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Total Value ({trainClass})</span>
+                            <div className="text-right">
+                                <span className="text-sky-400 font-black text-xl tracking-tight flex items-center gap-1">
+                                    ₹{(((selectedUnitPrice || getTicketPrice(source, destination, trainClass, selectedTrainName, availableTrains?.find(t => t.train_base.train_no === trainNo)?.train_base.travel_time, availableTrains?.find(t => t.train_base.train_no === trainNo)?.train_base.prices)) * passengers.length) - (appliedCoupon?.discount || 0)).toLocaleString()}
+                                    {appliedCoupon && (
+                                        <span className="text-[10px] text-emerald-400 line-through ml-1 opacity-50">
+                                            ₹{((selectedUnitPrice || getTicketPrice(source, destination, trainClass, selectedTrainName, availableTrains?.find(t => t.train_base.train_no === trainNo)?.train_base.travel_time, availableTrains?.find(t => t.train_base.train_no === trainNo)?.train_base.prices)) * passengers.length).toLocaleString()}
+                                        </span>
+                                    )}
+                                </span>
+                                <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest block">{passengers.length} Occupants</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Payment Error */}
+                    {paymentError && (
+                        <div className="flex items-start gap-3 bg-rose-500/10 border border-rose-500/30 rounded-xl p-4">
+                            <div className="w-8 h-8 rounded-full bg-rose-500/20 flex items-center justify-center shrink-0">
+                                <span className="material-symbols-outlined text-rose-400 text-sm">warning</span>
+                            </div>
+                            <div className="flex-1">
+                                <p className="text-rose-300 font-semibold text-sm">Transmission Failed</p>
+                                <p className="text-rose-200/70 text-xs mt-0.5 leading-relaxed">{paymentError}</p>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex flex-col gap-3 pt-4 border-t border-sky-500/20">
+                        <button
+                            type="button"
+                            onClick={handleFinalConfirm}
+                            disabled={isProcessing}
+                            className="bg-gradient-to-r from-sky-600 to-sky-400 text-white font-bold tracking-widest uppercase text-sm py-4 rounded-xl shadow-[0_0_20px_rgba(14,165,233,0.4)] transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                            {isProcessing ? <><span className="material-symbols-outlined animate-spin text-sm">refresh</span> Transmitting...</> : 'Confirm & Transmit Payment'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => { setBookingState('editing'); setPaymentError(null); }}
+                            className="bg-slate-900/50 border border-slate-700 hover:bg-slate-800 text-slate-300 font-bold tracking-widest uppercase text-xs py-4 rounded-xl transition-colors"
+                        >
+                            Abort & Edit Parameters
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (bookingState === 'success') {
+        return (
+            <div className="glass-panel border-emerald-500/30 bg-slate-950/80 rounded-2xl p-8 text-center animate-in fade-in zoom-in-95 duration-500 shadow-[0_0_40px_rgba(16,185,129,0.15)] mb-8">
+                <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.4)]">
+                    <span className="material-symbols-outlined text-emerald-400 text-4xl">how_to_reg</span>
+                </div>
+                <h3 className="text-2xl font-['Space_Grotesk'] font-bold text-white mb-2 uppercase tracking-widest">Node Reserved</h3>
+                <p className="text-slate-400 text-sm mb-8 leading-relaxed max-w-sm mx-auto">
+                    Journey sequence on {trainNo} ({trainClass}) has been encrypted and transmitted. Confirmation sent via secure comms to {mobile}.
+                </p>
+                <button
+                    onClick={handleReset}
+                    className="w-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 font-bold tracking-widest uppercase text-sm py-4 rounded-xl transition-all active:scale-95 hover:bg-emerald-500/30"
+                >
+                    Initialize New Search
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <form onSubmit={handleInitialSubmit} className="bg-transparent relative group mb-32 animate-in fade-in duration-300 text-on-surface">
+            {/* Header Area */}
+            <div className="mb-stack-lg">
+                <h2 className="font-headline-md text-headline-md text-sky-400 mb-1 uppercase tracking-widest drop-shadow-[0_0_8px_rgba(14,165,233,0.6)]">Global Node Search</h2>
+                <p className="text-slate-400 text-xs tracking-wider uppercase">Initialize Transit Parameters</p>
+            </div>
+
+            {/* Search Grid */}
+            <div className="glass-panel bg-slate-950/40 rounded-2xl p-5 relative overflow-hidden mb-6 border border-sky-500/20">
+                <div className="absolute inset-0 scanline opacity-50"></div>
+                <div className="relative z-10 flex flex-col gap-4">
+                    
+                    {/* From Input */}
+                    <div className="relative" ref={sourceRef}>
+                        <label className="text-[9px] uppercase tracking-widest text-sky-500 font-bold mb-1 block">Departure Node</label>
+                        <div className="flex items-center gap-3 bg-slate-900/60 border border-sky-900/50 p-3 rounded-xl focus-within:border-sky-400 transition-colors">
+                            <span className="material-symbols-outlined text-sky-500/50">location_on</span>
+                            <input 
+                                className="bg-transparent border-none focus:ring-0 text-sky-100 font-['Space_Grotesk'] text-lg w-full placeholder:text-slate-600 uppercase" 
+                                placeholder="ENTER DEPARTURE" 
+                                type="text" 
+                                value={sourceSearch}
+                                onChange={(e) => { setSourceSearch(e.target.value); setSource(''); setShowSourceDropdown(true); }}
+                                onFocus={() => setShowSourceDropdown(true)}
+                                required={!source}
+                            />
+                        </div>
+                        {showSourceDropdown && (
+                            <div className="absolute left-0 right-0 top-full mt-2 bg-slate-900 border border-sky-500/30 rounded-xl shadow-xl overflow-hidden z-[100] max-h-60 overflow-y-auto">
+                                <StationDropdown search={sourceSearch} onSelect={(stn) => { setSource(stn.code); setSourceSearch(stn.code); setShowSourceDropdown(false); addToRecent(stn); }} />
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex justify-center -my-3 relative z-20">
+                        <button type="button" onClick={handleExchangeStations} className="bg-slate-900 border border-sky-500/50 w-10 h-10 rounded-full flex items-center justify-center text-sky-400 shadow-[0_0_15px_rgba(14,165,233,0.3)] active:scale-90 transition-transform">
+                            <span className="material-symbols-outlined text-sm">sync_alt</span>
+                        </button>
+                    </div>
+
+                    {/* To Input */}
+                    <div className="relative" ref={destRef}>
+                        <label className="text-[9px] uppercase tracking-widest text-sky-500 font-bold mb-1 block">Destination Node</label>
+                        <div className="flex items-center gap-3 bg-slate-900/60 border border-sky-900/50 p-3 rounded-xl focus-within:border-sky-400 transition-colors">
+                            <span className="material-symbols-outlined text-sky-500/50">near_me</span>
+                            <input 
+                                className="bg-transparent border-none focus:ring-0 text-sky-100 font-['Space_Grotesk'] text-lg w-full placeholder:text-slate-600 uppercase" 
+                                placeholder="ENTER DESTINATION" 
+                                type="text" 
+                                value={destinationSearch}
+                                onChange={(e) => { setDestinationSearch(e.target.value); setDestination(''); setShowDestDropdown(true); }}
+                                onFocus={() => setShowDestDropdown(true)}
+                                required={!destination}
+                            />
+                        </div>
+                        {showDestDropdown && (
+                            <div className="absolute left-0 right-0 top-full mt-2 bg-slate-900 border border-sky-500/30 rounded-xl shadow-xl overflow-hidden z-[100] max-h-60 overflow-y-auto">
+                                <StationDropdown search={destinationSearch} onSelect={(stn) => { setDestination(stn.code); setDestinationSearch(stn.code); setShowDestDropdown(false); addToRecent(stn); }} />
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Date Input */}
+                    <div>
+                        <label className="text-[9px] uppercase tracking-widest text-sky-500 font-bold mb-1 block">Temporal Sync</label>
+                        <div className="flex items-center gap-3 bg-slate-900/60 border border-sky-900/50 p-3 rounded-xl focus-within:border-sky-400">
+                            <span className="material-symbols-outlined text-sky-500/50">calendar_today</span>
+                            <input 
+                                type="date"
+                                value={journeyDate}
+                                onChange={(e) => setJourneyDate(e.target.value)}
+                                min={new Date().toISOString().split('T')[0]}
+                                className="bg-transparent border-none focus:ring-0 text-sky-100 font-['Space_Grotesk'] text-lg w-full p-0"
+                            />
+                        </div>
+                    </div>
+
+                    <button 
+                        type="button"
+                        onClick={handleSearchTrains}
+                        disabled={isLoadingTrains}
+                        className="mt-4 w-full bg-gradient-to-r from-sky-600 to-sky-400 text-white font-bold tracking-widest uppercase text-sm py-4 rounded-xl shadow-[0_0_20px_rgba(14,165,233,0.4)] active:scale-95 transition-transform disabled:opacity-50"
+                    >
+                        {isLoadingTrains ? 'Initializing...' : 'Search Network'}
+                    </button>
+                    {trainSearchError && <p className="text-rose-400 text-xs text-center font-bold tracking-wider uppercase mt-2">{trainSearchError}</p>}
+                </div>
+            </div>
+
+            {/* Train Results */}
+            {availableTrains && availableTrains.length > 0 && (
+                <div className="mb-8 space-y-4">
+                    <div className="flex items-center justify-between mb-4 px-2">
+                        <span className="font-label-sm text-slate-400 uppercase tracking-tighter">Available Nodes ({availableTrains.length})</span>
+                    </div>
+
+                    {availableTrains.map((train, idx) => {
+                        const t = train.train_base;
+                        const isSelected = trainNo === t.train_no;
+                        const price = getTicketPrice(source, destination, trainClass, t.train_name, t.travel_time, t.prices);
+                        
+                        return (
+                            <div 
+                                key={idx}
+                                onClick={() => { setTrainNo(t.train_no); setSelectedTrainName(t.train_name); setSelectedUnitPrice(price); }}
+                                className={`glass-panel rounded-xl p-5 relative group transition-all cursor-pointer ${isSelected ? 'bg-sky-900/40 border-l-4 border-l-sky-500 border-t-sky-500/30 border-r-sky-500/30 border-b-sky-500/30' : 'bg-slate-950/40 border-l-4 border-l-emerald-500/50 border-white/5 hover:bg-slate-900/60'}`}
+                            >
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className={`w-2 h-2 rounded-full ${isSelected ? 'bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.8)]' : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]'}`}></span>
+                                            <span className={`font-label-sm uppercase ${isSelected ? 'text-sky-400' : 'text-emerald-400'}`}>
+                                                {isSelected ? 'Node Selected' : 'Available'}
+                                            </span>
+                                        </div>
+                                        <h4 className="font-headline-md text-lg text-white tracking-tight">{t.train_name}</h4>
+                                        <p className="text-[9px] font-mono text-slate-500 tracking-widest uppercase">ID: {t.train_no}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="font-label-lg text-sky-400 text-xl block">{t.from_time}</span>
+                                        <span className="font-label-sm text-slate-500 uppercase">Departure</span>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-4 py-3 border-y border-white/5 mb-4">
+                                    <div className="flex-1">
+                                        <span className="font-label-sm text-slate-500 block uppercase">Transit</span>
+                                        <span className="font-body-md text-sky-100 font-bold">{t.travel_time}</span>
+                                    </div>
+                                    <span className="material-symbols-outlined text-sky-900">arrow_forward</span>
+                                    <div className="flex-1 text-right">
+                                        <span className="font-label-sm text-slate-500 block uppercase">Arrival</span>
+                                        <span className="font-body-md text-sky-100 font-bold">{t.to_time}</span>
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3 mb-2">
+                                    <button 
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); setTrainClass('2A'); setTrainNo(t.train_no); setSelectedTrainName(t.train_name); }}
+                                        className={`p-3 rounded-xl border text-center transition-all ${trainClass === '2A' && isSelected ? 'bg-sky-500/20 border-sky-500/50' : 'bg-slate-900/50 border-slate-800'}`}
+                                    >
+                                        <span className="block text-[9px] text-slate-400 font-bold uppercase mb-1">EXECUTIVE (2A)</span>
+                                    </button>
+                                    <button 
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); setTrainClass('3A'); setTrainNo(t.train_no); setSelectedTrainName(t.train_name); }}
+                                        className={`p-3 rounded-xl border text-center transition-all ${trainClass === '3A' && isSelected ? 'bg-sky-500/20 border-sky-500/50' : 'bg-slate-900/50 border-slate-800'}`}
+                                    >
+                                        <span className="block text-[9px] text-slate-400 font-bold uppercase mb-1">PREMIUM (3A)</span>
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* Passenger Form */}
+            <div className={`transition-all duration-500 ${!trainNo ? 'opacity-30 pointer-events-none' : ''}`} ref={passengerSectionRef}>
+                <div className="glass-panel bg-slate-950/40 rounded-2xl p-5 relative overflow-hidden mb-6 border border-sky-500/20">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-headline-md text-sky-400 uppercase tracking-widest text-sm flex items-center gap-2">
+                            <span className="material-symbols-outlined text-sm">group</span> Occupants
+                        </h3>
+                        <button type="button" onClick={handleAddPassenger} className="text-sky-400 text-[10px] font-bold tracking-widest uppercase border border-sky-500/30 px-3 py-1 rounded-full active:scale-95">
+                            + Add
+                        </button>
+                    </div>
+
+                    <div className="space-y-4">
+                        {passengers.map((passenger, index) => (
+                            <div key={index} className="bg-slate-900/50 p-4 rounded-xl border border-slate-800 relative">
+                                {passengers.length > 1 && (
+                                    <button type="button" onClick={() => handleRemovePassenger(index)} className="absolute right-3 top-3 text-rose-500/50 hover:text-rose-400">
+                                        <span className="material-symbols-outlined text-sm">close</span>
+                                    </button>
+                                )}
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="text-[9px] uppercase tracking-widest text-slate-500 font-bold mb-1 block">Identity Tag</label>
+                                        <input type="text" value={passenger.name} onChange={(e) => handlePassengerChange(index, 'name', e.target.value)} required placeholder="ENTER NAME" className="w-full bg-slate-950/50 border border-slate-800 rounded-lg px-3 py-2 text-sky-100 text-sm focus:border-sky-500 outline-none" />
+                                    </div>
+                                    <div className="flex gap-3">
+                                        <div className="flex-1">
+                                            <label className="text-[9px] uppercase tracking-widest text-slate-500 font-bold mb-1 block">Age</label>
+                                            <input type="number" value={passenger.age} onChange={(e) => handlePassengerChange(index, 'age', e.target.value)} required placeholder="AGE" className="w-full bg-slate-950/50 border border-slate-800 rounded-lg px-3 py-2 text-sky-100 text-sm focus:border-sky-500 outline-none" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <label className="text-[9px] uppercase tracking-widest text-slate-500 font-bold mb-1 block">Gender</label>
+                                            <select value={passenger.gender} onChange={(e) => handlePassengerChange(index, 'gender', e.target.value as any)} className="w-full bg-slate-950/50 border border-slate-800 rounded-lg px-3 py-2 text-sky-100 text-sm focus:border-sky-500 outline-none appearance-none">
+                                                <option value="M">MALE</option>
+                                                <option value="F">FEMALE</option>
+                                                <option value="O">OTHER</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Comms Channels */}
+                <div className="glass-panel bg-slate-950/40 rounded-2xl p-5 relative overflow-hidden mb-6 border border-sky-500/20">
+                    <h3 className="font-headline-md text-sky-400 uppercase tracking-widest text-sm flex items-center gap-2 mb-4">
+                        <span className="material-symbols-outlined text-sm">cell_tower</span> Comms Links
+                    </h3>
+                    <div className="space-y-4">
+                        <div>
+                            <label className="text-[9px] uppercase tracking-widest text-slate-500 font-bold mb-1 block">Uplink (Mobile)</label>
+                            <input type="tel" value={mobile} onChange={(e) => setMobile(e.target.value.replace(/\D/g, ''))} required placeholder="ENTER 10-DIGIT ID" className="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-4 py-3 text-sky-100 text-sm focus:border-sky-500 outline-none" />
+                        </div>
+                        <div>
+                            <label className="text-[9px] uppercase tracking-widest text-slate-500 font-bold mb-1 block">Data Node (Email)</label>
+                            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="ENTER EMAIL" className="w-full bg-slate-900/60 border border-slate-800 rounded-xl px-4 py-3 text-sky-100 text-sm focus:border-sky-500 outline-none" />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Final Action */}
+                <div className="mt-8">
+                    {getTicketPrice(source, destination, trainClass, selectedTrainName, availableTrains?.find(t => t.train_base.train_no === trainNo)?.train_base.travel_time, availableTrains?.find(t => t.train_base.train_no === trainNo)?.train_base.prices) > 0 ? (
+                        <button type="submit" disabled={!trainNo || !trainClass || passengers.some(p => !p.name || !p.age) || !isValidIndianMobile(mobile)} className="w-full bg-sky-500 text-white font-bold py-4 rounded-xl shadow-[0_0_20px_rgba(14,165,233,0.4)] active:scale-95 transition-transform uppercase tracking-widest disabled:opacity-50 flex items-center justify-center gap-2">
+                            <span className="material-symbols-outlined text-sm">rocket_launch</span> Initialize Protocol
+                        </button>
+                    ) : (
+                        <button type="button" onClick={handleRequestPrice} disabled={isProcessing || !trainNo || !trainClass} className="w-full bg-sky-500/20 border border-sky-500 text-sky-400 font-bold py-4 rounded-xl active:scale-95 transition-transform uppercase tracking-widest disabled:opacity-50 flex items-center justify-center gap-2">
+                            {isProcessing ? <span className="material-symbols-outlined animate-spin text-sm">refresh</span> : <span className="material-symbols-outlined text-sm">request_quote</span>}
+                            Request Value Quote
+                        </button>
+                    )}
+                </div>
+            </div>
+        </form>
+    );
+}
