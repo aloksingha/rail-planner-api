@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Users, Shield, Zap, Train, Settings, Search, RefreshCw, ChevronDown, CheckCircle2, AlertCircle, UserCog, UserPlus, X, Wallet, Minus, Loader2, AlertTriangle, Trash2, Star } from 'lucide-react';
 import { isValidIndianMobile } from '../utils/validation';
 import { STATUS_META, ALL_ROLES, ROLE_META } from '../utils/constants';
@@ -38,10 +38,24 @@ export default function UserManagement() {
         handleAdjustWallet,
         handleMimicUser,
         handleDeleteUser,
+        handleUpdateSpecialPermissions,
         filteredUsers,
         groupedUsers,
         totalByRole
     } = useUserManagement();
+
+    const [selectedUserForPermissions, setSelectedUserForPermissions] = useState<User | null>(null);
+    const [modalPermissions, setModalPermissions] = useState<string[]>([]);
+
+    const PERMISSION_OPTIONS = [
+        { key: 'BROADCAST_MESSAGES', label: 'Broadcast Messages' },
+        { key: 'CORRIDOR_PRICING', label: 'Corridor Pricing' },
+        { key: 'PRICE_REQUESTS', label: 'Price Requests' },
+        { key: 'FAILED_BOOKINGS', label: 'Failed Bookings' },
+        { key: 'GLOBAL_BOOKINGS', label: 'Global Bookings' },
+        { key: 'WALLET_MANAGEMENT', label: 'Wallet Management' },
+        { key: 'MANAGE_COUPONS', label: 'Manage Coupons' },
+    ];
 
     useEffect(() => {
         const handler = () => setOpenDropdown(null);
@@ -266,7 +280,7 @@ export default function UserManagement() {
                                                         {user.status === 'BLOCKED' ? (
                                                             <button
                                                                 onClick={() => handleStatusUpdate(user.id, 'ACTIVE', user.email)}
-                                                                className="flex items-center gap-2 px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 transition-all"
+                                                                className="flex items-center justify-center gap-2 h-8 min-w-[100px] px-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 transition-all font-mono"
                                                                 title="Unblock Identity"
                                                             >
                                                                 <CheckCircle2 size={12} />
@@ -276,18 +290,21 @@ export default function UserManagement() {
                                                             <>
                                                                 {isSuperAdmin && (user.role === 'ADMIN' || user.role === 'SALES_MANAGER') && (
                                                                     <button
-                                                                        onClick={() => handleToggleSpecialPermission(user.id, !!user.hasSpecialPermission, user.email)}
-                                                                        className={`flex items-center gap-2 px-3 py-2 border rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${user.hasSpecialPermission ? 'bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/20 text-indigo-600 dark:text-indigo-400' : 'bg-slate-500/10 hover:bg-slate-500/20 border-slate-500/20 text-slate-600 dark:text-slate-400'}`}
-                                                                        title={user.hasSpecialPermission ? "Revoke Special Permission" : "Grant Special Permission"}
+                                                                        onClick={() => {
+                                                                            setSelectedUserForPermissions(user);
+                                                                            setModalPermissions(user.specialPermissions || []);
+                                                                        }}
+                                                                        className={`flex items-center justify-center gap-2 h-8 min-w-[100px] px-2 border rounded-xl text-[10px] font-black uppercase tracking-widest transition-all font-mono ${(user.specialPermissions?.length || 0) > 0 ? 'bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/20 text-indigo-600 dark:text-indigo-400' : 'bg-slate-500/10 hover:bg-slate-500/20 border-slate-500/20 text-slate-600 dark:text-slate-400'}`}
+                                                                        title="Manage Special Permissions"
                                                                     >
-                                                                        <Star size={12} className={user.hasSpecialPermission ? 'fill-indigo-500' : ''} />
+                                                                        <Star size={12} className={(user.specialPermissions?.length || 0) > 0 ? 'fill-indigo-500' : ''} />
                                                                         Special
                                                                     </button>
                                                                 )}
                                                                 <button
                                                                     onClick={() => handleStatusUpdate(user.id, 'BLOCKED', user.email)}
                                                                     disabled={user.role === 'SUPER_ADMIN'}
-                                                                    className="flex items-center gap-2 px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 transition-all disabled:opacity-20"
+                                                                    className="flex items-center justify-center gap-2 h-8 min-w-[100px] px-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 transition-all disabled:opacity-20 font-mono"
                                                                     title="Suspend Access"
                                                                 >
                                                                     <X size={12} />
@@ -296,7 +313,7 @@ export default function UserManagement() {
                                                                 {user.status === 'RESTRICTED' ? (
                                                                     <button
                                                                         onClick={() => handleStatusUpdate(user.id, 'ACTIVE', user.email)}
-                                                                        className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 transition-all"
+                                                                        className="flex items-center justify-center gap-2 h-8 min-w-[100px] px-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 transition-all font-mono"
                                                                         title="Restore Full Permissions"
                                                                     >
                                                                         <RefreshCw size={12} />
@@ -306,7 +323,7 @@ export default function UserManagement() {
                                                                     <button
                                                                         onClick={() => handleStatusUpdate(user.id, 'RESTRICTED', user.email)}
                                                                         disabled={user.role === 'SUPER_ADMIN'}
-                                                                        className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 transition-all disabled:opacity-20"
+                                                                        className="flex items-center justify-center gap-2 h-8 min-w-[100px] px-2 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 transition-all disabled:opacity-20 font-mono"
                                                                         title="Apply Throttling"
                                                                     >
                                                                         <AlertCircle size={12} />
@@ -320,7 +337,7 @@ export default function UserManagement() {
                                                     {isSuperAdmin && (
                                                         <button
                                                              onClick={() => setSelectedUserForWallet(user)}
-                                                             className="flex items-center gap-2 px-3 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 transition-all font-mono"
+                                                             className="flex items-center justify-center gap-2 h-8 min-w-[100px] px-2 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 transition-all font-mono"
                                                              title="Manage Capital"
                                                         >
                                                             <Wallet size={12} />
@@ -331,7 +348,7 @@ export default function UserManagement() {
                                                     <button
                                                         onClick={() => handleMimicUser(user)}
                                                         disabled={changingRole === user.id || user.role === 'SUPER_ADMIN'}
-                                                        className="flex items-center gap-2 px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 transition-all disabled:opacity-20"
+                                                        className="flex items-center justify-center gap-2 h-8 min-w-[100px] px-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 transition-all disabled:opacity-20 font-mono"
                                                         title="Launch Impersonation"
                                                     >
                                                         <Zap size={12} />
@@ -342,7 +359,7 @@ export default function UserManagement() {
                                                          <button
                                                              onClick={() => handleDeleteUser(user.id, user.email)}
                                                              disabled={changingRole === user.id || user.id === currentUser?.id || user.role === 'SUPER_ADMIN'}
-                                                             className="flex items-center gap-2 px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 transition-all disabled:opacity-20 font-mono"
+                                                             className="flex items-center justify-center gap-2 h-8 min-w-[100px] px-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 rounded-xl text-[10px] font-black uppercase tracking-widest text-rose-600 dark:text-rose-400 transition-all disabled:opacity-20 font-mono"
                                                              title="Permanently Delete User"
                                                          >
                                                              <Trash2 size={12} />
@@ -354,7 +371,7 @@ export default function UserManagement() {
                                                         <button
                                                             onClick={() => setOpenDropdown(openDropdown === user.id ? null : user.id)}
                                                             disabled={changingRole === user.id}
-                                                            className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 transition-all font-mono shadow-sm"
+                                                            className="flex items-center justify-center gap-2 h-8 min-w-[100px] px-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-white/10 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 transition-all font-mono shadow-sm"
                                                         >
                                                             <UserCog size={12} />
                                                             <span className="sm:hidden lg:inline">{changingRole === user.id ? 'Saving...' : 'Role'}</span>
@@ -457,6 +474,70 @@ export default function UserManagement() {
                                 >
                                     {isAdjustingWallet ? <Loader2 size={16} className="animate-spin" /> : <Minus size={16} />}
                                     Debit Balance (Penalty / Refund)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Special Permissions Modal */}
+            {selectedUserForPermissions && (
+                <div className="fixed inset-0 z-[1000] overflow-y-auto bg-slate-950/80 backdrop-blur-sm p-4 flex justify-center items-start animate-in fade-in duration-200">
+                    <div className="my-auto bg-slate-900 border border-slate-700/50 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 relative">
+                        <div className="flex items-center justify-between p-5 border-b border-slate-800">
+                            <div>
+                                <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                    <Star size={20} className="text-indigo-400" />
+                                    Special Permissions
+                                </h3>
+                                <p className="text-slate-400 text-xs mt-1">{selectedUserForPermissions.email}</p>
+                            </div>
+                            <button onClick={() => setSelectedUserForPermissions(null)} className="text-slate-500 hover:text-white transition-colors">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div className="space-y-3">
+                                {PERMISSION_OPTIONS.map(opt => (
+                                    <label key={opt.key} className="flex items-center gap-3 cursor-pointer group">
+                                        <div className={`w-5 h-5 rounded border flex flex-shrink-0 items-center justify-center transition-colors ${modalPermissions.includes(opt.key) ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-600 bg-slate-800 group-hover:border-indigo-400'}`}>
+                                            {modalPermissions.includes(opt.key) && <CheckCircle2 size={14} />}
+                                        </div>
+                                        <span className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
+                                            {opt.label}
+                                        </span>
+                                        <input
+                                            type="checkbox"
+                                            className="hidden"
+                                            checked={modalPermissions.includes(opt.key)}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setModalPermissions(prev => [...prev, opt.key]);
+                                                } else {
+                                                    setModalPermissions(prev => prev.filter(k => k !== opt.key));
+                                                }
+                                            }}
+                                        />
+                                    </label>
+                                ))}
+                            </div>
+                            
+                            <div className="flex items-center gap-3 pt-4 border-t border-slate-800">
+                                <button
+                                    onClick={() => setSelectedUserForPermissions(null)}
+                                    className="flex-1 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm font-bold rounded-xl transition-colors uppercase tracking-wider"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        handleUpdateSpecialPermissions(selectedUserForPermissions.id, modalPermissions, selectedUserForPermissions.email);
+                                        setSelectedUserForPermissions(null);
+                                    }}
+                                    className="flex-1 flex justify-center items-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-xl transition-colors shadow-lg shadow-indigo-600/20 uppercase tracking-wider"
+                                >
+                                    Save
                                 </button>
                             </div>
                         </div>
