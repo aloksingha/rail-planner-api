@@ -43,17 +43,25 @@ export const updateRememberMe = (rememberMe: boolean, email: string, roleType: s
 };
 
 /**
- * High Intensity Asset Warming & Component Pre-fetching
+ * High Intensity Asset Warming & Component Pre-fetching (Deferred)
  */
 export const warmUpAssets = (roleType: string) => {
-    if (roleType === 'CUSTOMER') {
-        import('../pages/CustomerDashboard');
-        import('../pages/CustomerBookings');
-    } else if (roleType === 'ADMIN') {
-        import('../pages/DashboardHome');
-        import('../pages/BookingManagement');
-    } else if (roleType === 'SALES_MANAGER') {
-        import('../pages/DashboardHome');
-        import('../pages/SalesOptions');
+    const doWarmup = () => {
+        if (roleType === 'CUSTOMER') {
+            import('../pages/CustomerDashboard');
+            import('../pages/CustomerBookings');
+        } else if (roleType === 'ADMIN') {
+            import('../pages/DashboardHome');
+            import('../pages/BookingManagement');
+        } else if (roleType === 'SALES_MANAGER') {
+            import('../pages/DashboardHome');
+            import('../pages/SalesOptions');
+        }
+    };
+
+    if ('requestIdleCallback' in window) {
+        window.requestIdleCallback(() => setTimeout(doWarmup, 500));
+    } else {
+        setTimeout(doWarmup, 1000);
     }
 };
