@@ -131,7 +131,7 @@ interface AuthState {
   token: string | null;
   role: string | null;
   isSuperAdmin?: boolean;
-  hasSpecialPermission?: boolean;
+  specialPermissions?: string[];
   email: string | null;
   name: string | null;
 }
@@ -145,10 +145,10 @@ function NavLink({ to, icon: Icon, children }: { to: string; icon: any; children
   return (
     <Link
       to={to}
-      className={`flex items-center gap-4 py-3 px-6 transition-all font-headline tracking-tight uppercase font-medium text-[10px] relative group
+      className={`flex items-center gap-3 py-2 px-3 transition-all font-headline tracking-tight uppercase font-medium text-[10px] relative group
         ${isActive ? 'text-primary bg-sky-50 border-r-4 border-primary' : 'text-slate-500 hover:text-primary hover:bg-slate-50'}`}
     >
-      <Icon size={18} className={isActive ? 'text-primary' : 'text-slate-400 group-hover:text-primary'} />
+      <Icon size={16} className={isActive ? 'text-primary' : 'text-slate-400 group-hover:text-primary'} />
       <span className="tracking-widest">{children}</span>
     </Link>
   );
@@ -156,7 +156,7 @@ function NavLink({ to, icon: Icon, children }: { to: string; icon: any; children
 
 function SidebarSection({ label }: { label: string }) {
   return (
-    <div className="pt-6 pb-2 px-4 flex items-center gap-3">
+    <div className="pt-4 pb-1.5 px-3 flex items-center gap-3">
       <div className="h-px bg-slate-200 dark:bg-white/5 flex-1" />
       <p className="text-[9px] uppercase tracking-[0.3em] text-slate-500 dark:text-slate-600 font-black">{label}</p>
       <div className="h-px bg-slate-200 dark:bg-white/5 flex-1" />
@@ -175,7 +175,7 @@ function App() {
         try {
             const decoded = jwtDecode<any>(mimicToken);
             sessionStorage.setItem('mimic_user', JSON.stringify(decoded));
-            return { token: mimicToken, role: decoded.role, email: decoded.email, name: decoded.name, isSuperAdmin: decoded.isSuperAdmin, hasSpecialPermission: decoded.hasSpecialPermission };
+            return { token: mimicToken, role: decoded.role, email: decoded.email, name: decoded.name, isSuperAdmin: decoded.isSuperAdmin, specialPermissions: decoded.specialPermissions };
         } catch { 
             sessionStorage.removeItem('mimic_token'); 
             sessionStorage.removeItem('mimic_user');
@@ -197,7 +197,7 @@ function App() {
             sessionStorage.setItem('mimic_user', JSON.stringify(decoded));
             // Remove the token from URL immediately to prevent re-parsing
             window.history.replaceState({}, document.title, window.location.pathname);
-            return { token: urlToken, role: decoded.role, email: decoded.email, name: decoded.name, isSuperAdmin: decoded.isSuperAdmin, hasSpecialPermission: decoded.hasSpecialPermission };
+            return { token: urlToken, role: decoded.role, email: decoded.email, name: decoded.name, isSuperAdmin: decoded.isSuperAdmin, specialPermissions: decoded.specialPermissions };
         } catch { /* Fail silently */ }
     }
 
@@ -208,7 +208,7 @@ function App() {
         const decoded = jwtDecode<any>(ownerToken);
         localStorage.setItem('user', JSON.stringify(decoded));
         localStorage.setItem('user_role', decoded.role);
-        return { token: ownerToken, role: decoded.role, email: decoded.email, name: decoded.name, isSuperAdmin: decoded.isSuperAdmin, hasSpecialPermission: decoded.hasSpecialPermission };
+        return { token: ownerToken, role: decoded.role, email: decoded.email, name: decoded.name, isSuperAdmin: decoded.isSuperAdmin, specialPermissions: decoded.specialPermissions };
       } catch { return { token: null, role: null, email: null, name: null, isSuperAdmin: false }; }
     }
     return { token: null, role: null, email: null, name: null, isSuperAdmin: false };
@@ -248,7 +248,7 @@ function App() {
             try {
                 const decoded = jwtDecode<any>(auth.token);
                 if (auth.role !== decoded.role || auth.email !== decoded.email || auth.name !== decoded.name) {
-                  setAuth(prev => ({ ...prev, role: decoded.role, email: decoded.email, name: decoded.name, isSuperAdmin: decoded.isSuperAdmin, hasSpecialPermission: decoded.hasSpecialPermission }));
+                  setAuth(prev => ({ ...prev, role: decoded.role, email: decoded.email, name: decoded.name, isSuperAdmin: decoded.isSuperAdmin, specialPermissions: decoded.specialPermissions }));
                   if (!isMimicking) {
                     localStorage.setItem('user', JSON.stringify(decoded));
                   }
@@ -327,7 +327,7 @@ function App() {
       const decoded = jwtDecode<any>(newToken);
       const isMimic = !!sessionStorage.getItem('mimic_token');
       
-      setAuth({ token: newToken, role: decoded.role, email: decoded.email, name: decoded.name, isSuperAdmin: decoded.isSuperAdmin, hasSpecialPermission: decoded.hasSpecialPermission });
+      setAuth({ token: newToken, role: decoded.role, email: decoded.email, name: decoded.name, isSuperAdmin: decoded.isSuperAdmin, specialPermissions: decoded.specialPermissions });
       
       if (!isMimic) {
         localStorage.setItem('token', newToken);
@@ -701,11 +701,11 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
           className={`flex flex-col w-64 h-[100dvh] fixed inset-y-0 left-0 bg-slate-50 dark:bg-slate-950 border-r border-slate-200/80 shadow-sm z-50 transition-transform duration-300 lg:static lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
           style={{ paddingTop: 'env(safe-area-inset-top)' }}
         >
-          <div className="px-6 py-10 flex flex-col items-center gap-4 border-b border-slate-200/50 dark:border-slate-800/50 bg-slate-100/40 dark:bg-slate-900/10">
+          <div className="px-6 py-6 flex flex-col items-center gap-3 border-b border-slate-200/50 dark:border-slate-800/50 bg-slate-100/40 dark:bg-slate-900/10">
             <div className="relative group">
               <div className="absolute inset-0 bg-primary/30 rounded-3xl blur-2xl group-hover:blur-3xl transition-all duration-700 opacity-50"></div>
-              <div className="relative w-20 h-20 rounded-[2rem] bg-white dark:bg-slate-900 flex items-center justify-center shadow-[0_12px_24px_-8px_rgba(14,165,233,0.5)] dark:shadow-[0_12px_24px_-8px_rgba(0,0,0,0.8)] border border-slate-200 dark:border-white/10 overflow-hidden holographic-glow">
-                <img src={brandLogo} alt="Logo" className="w-14 h-14 object-contain transition-all duration-700 group-hover:scale-110 group-hover:rotate-3" />
+              <div className="relative w-16 h-16 rounded-[1.5rem] bg-white dark:bg-slate-900 flex items-center justify-center shadow-[0_12px_24px_-8px_rgba(14,165,233,0.5)] dark:shadow-[0_12px_24px_-8px_rgba(0,0,0,0.8)] border border-slate-200 dark:border-white/10 overflow-hidden holographic-glow">
+                <img src={brandLogo} alt="Logo" className="w-10 h-10 object-contain transition-all duration-700 group-hover:scale-110 group-hover:rotate-3" />
               </div>
             </div>
             <div className="text-center">
@@ -776,16 +776,16 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
               </>
             )}
 
-            {auth.hasSpecialPermission && (auth.role === 'ADMIN' || auth.role === 'SALES_MANAGER') && (
+            {(auth.specialPermissions?.length || 0) > 0 && (auth.role === 'ADMIN' || auth.role === 'SALES_MANAGER') && (
               <>
                 <SidebarSection label="Special Permissions" />
-                <NavLink to="/manage-promotions" icon={Sparkles}>Manage Campaigns</NavLink>
-                <NavLink to="/corridors" icon={RouteIcon}>Corridor Pricing</NavLink>
-                <NavLink to="/price-requests" icon={BadgeIndianRupee}>Price Requests</NavLink>
-                <NavLink to="/failed-bookings" icon={AlertCircle}>Failed Bookings</NavLink>
-                <NavLink to="/manage-bookings" icon={Settings}>Global Bookings</NavLink>
-                <NavLink to="/admin/wallet-management" icon={Wallet}>Global Wallet</NavLink>
-                <NavLink to="/coupons" icon={Tags}>Manage Coupons</NavLink>
+                {auth.specialPermissions?.includes('BROADCAST_MESSAGES') && <NavLink to="/manage-promotions" icon={Sparkles}>Manage Campaigns</NavLink>}
+                {auth.specialPermissions?.includes('CORRIDOR_PRICING') && <NavLink to="/corridors" icon={RouteIcon}>Corridor Pricing</NavLink>}
+                {auth.specialPermissions?.includes('PRICE_REQUESTS') && <NavLink to="/price-requests" icon={BadgeIndianRupee}>Price Requests</NavLink>}
+                {auth.specialPermissions?.includes('FAILED_BOOKINGS') && <NavLink to="/failed-bookings" icon={AlertCircle}>Failed Bookings</NavLink>}
+                {auth.specialPermissions?.includes('GLOBAL_BOOKINGS') && <NavLink to="/manage-bookings" icon={Settings}>Global Bookings</NavLink>}
+                {auth.specialPermissions?.includes('WALLET_MANAGEMENT') && <NavLink to="/admin/wallet-management" icon={Wallet}>Global Wallet</NavLink>}
+                {auth.specialPermissions?.includes('MANAGE_COUPONS') && <NavLink to="/coupons" icon={Tags}>Manage Coupons</NavLink>}
               </>
             )}
             {auth.role === 'SUPER_ADMIN' && (
@@ -1040,7 +1040,7 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
                   <Route path="/admin/wallet-management" element={<WalletManagement />} />
                   <Route path="/manage-settings" element={<ManageSettings />} />
                   <Route path="/manage-promotions" element={
-                    auth.role === 'SUPER_ADMIN' || auth.role === 'ADMIN' || (auth.hasSpecialPermission && auth.role === 'SALES_MANAGER')
+                    auth.role === 'SUPER_ADMIN' || auth.role === 'ADMIN' || (auth.specialPermissions?.includes('BROADCAST_MESSAGES') && auth.role === 'SALES_MANAGER')
                       ? <Suspense fallback={<PageLoader />}><ManagePromotions /></Suspense>
                       : <Navigate to="/" replace />
                   } />
@@ -1162,4 +1162,5 @@ export default function RootApp() {
     </GoogleOAuthProvider>
   );
 }
+
 

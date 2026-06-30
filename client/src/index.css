@@ -302,8 +302,8 @@
 
   .sidebar-footer {
     @apply mt-auto bg-white dark:bg-slate-950/95 border-t border-slate-300 dark:border-white/10 backdrop-blur-2xl;
-    padding: 16px;
-    padding-bottom: calc(16px + env(safe-area-inset-bottom, 24px));
+    padding: 12px;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 24px));
     z-index: 10;
   }
 
