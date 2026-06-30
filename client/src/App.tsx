@@ -858,11 +858,19 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
             <NavLink to="/refund-policy" icon={RotateCcw}>Refund Policy</NavLink>
           </nav>
 
-          {isMimicMode && (
-            <div className="sidebar-footer">
-              <button onClick={handleExitMimic} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-violet-600 text-white shadow-lg transition-all text-[11px] font-black uppercase tracking-widest">Terminate Mimic</button>
-            </div>
-          )}
+          <div className="sidebar-footer border-t border-slate-200/50 dark:border-white/5 p-4 mt-auto space-y-2 bg-white dark:bg-slate-950/95 backdrop-blur-2xl">
+            <button 
+              onClick={handleLogout} 
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-rose-50 hover:bg-rose-100 dark:bg-rose-500/10 dark:hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-xl font-bold text-[11px] uppercase tracking-widest transition-all border border-rose-100 dark:border-rose-500/20"
+            >
+              <LogOut size={16} /> Sign Out
+            </button>
+            {isMimicMode && (
+              <button onClick={handleExitMimic} className="w-full flex items-center justify-center gap-2.5 px-3 py-3 rounded-xl bg-violet-600 hover:bg-violet-700 text-white shadow-lg transition-all text-[11px] font-black uppercase tracking-widest">
+                <AlertTriangle size={14} /> Terminate Mimic
+              </button>
+            )}
+          </div>
         </aside>
 
         <main className="flex-1 flex flex-col min-w-0 w-full relative z-[25] transition-colors duration-500 bg-[#fafbfc] dark:bg-slate-950/40 h-[100dvh] overflow-y-auto">
@@ -987,15 +995,6 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
                 <span className="text-slate-900 dark:text-white text-[10px] font-black uppercase tracking-widest">{auth.role?.split('_')[0]}</span>
               </div>
 
-              <div className="hidden md:flex items-center gap-2 pl-4 border-l border-slate-200 dark:border-white/10">
-
-                <button 
-                  onClick={handleLogout} 
-                  className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-900 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-xl font-bold text-[11px] uppercase tracking-widest border border-slate-200 dark:border-white/10 hover:border-rose-200 dark:hover:border-rose-500/20 transition-all"
-                >
-                  <LogOut size={16} /> Sign Out
-                </button>
-              </div>
             </div>
           </header>
 
