@@ -298,11 +298,6 @@
   .sidebar-nav {
     @apply flex-1 px-3 py-4 space-y-0.5 overflow-y-auto;
     min-height: 0;
-    scrollbar-width: none; /* Hide scrollbar for cleaner look */
-  }
-
-  .sidebar-nav::-webkit-scrollbar {
-    display: none; /* Chrome/Safari */
   }
 
   .sidebar-footer {
