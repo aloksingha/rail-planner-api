@@ -70,15 +70,17 @@ export default function UserManagement() {
 
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                        <div className="p-2 sm:p-2.5 bg-rose-500/10 dark:bg-rose-500/15 rounded-xl border border-rose-500/20">
+                    <div className="flex flex-row items-center gap-4">
+                        <div className="p-2 sm:p-2.5 bg-rose-500/10 dark:bg-rose-500/15 rounded-xl border border-rose-500/20 shrink-0">
                             <Users size={20} className="text-rose-500 dark:text-rose-400" />
                         </div>
                         <div>
                             <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight italic leading-tight">
                                 User Management
                             </h1>
-                            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium">Control platform access and provision executive roles.</p>
+                            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium mt-1">Control platform access and provision executive roles.</p>
                         </div>
+                    </div>
                     <button
                         onClick={() => setShowAddUser(v => !v)}
                         className="flex items-center justify-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-500 text-white text-sm font-bold rounded-xl transition-colors w-full sm:w-auto"
