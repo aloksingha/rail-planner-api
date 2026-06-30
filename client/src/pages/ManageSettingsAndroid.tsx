@@ -264,39 +264,6 @@ export default function ManageSettings() {
                     </button>
                 </div>
             </form>
-
-            {/* OTA update section (Super Admin Only) */}
-            <div className="space-y-4 mt-8">
-                <div className="flex items-center gap-2 mb-2 ml-1">
-                    <div className="w-1.5 h-1.5 rounded-full bg-brand-blue animate-pulse" />
-                    <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">OTA Update Release</h3>
-                </div>
-
-                <div className="glass-panel p-5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-white/10 space-y-4">
-                    <div className="flex justify-between items-center">
-                        <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Current Authorized Version</span>
-                        <span className="text-sm font-black text-brand-blue font-mono">{otaVersion || 'None'}</span>
-                    </div>
-                    
-                    <p className="text-[9px] text-slate-500 uppercase tracking-widest leading-relaxed">
-                        Only client builds matching this version will be installed automatically for end-users. Release the update when major codebase modifications are finalized.
-                    </p>
-
-                    <button
-                        type="button"
-                        onClick={handleOtaUpdate}
-                        disabled={otaLoading}
-                        className="w-full flex items-center justify-center gap-3 py-3.5 bg-slate-900 border border-slate-800 disabled:opacity-50 text-white rounded-xl transition-all active:scale-95 text-[10px] font-black uppercase tracking-widest"
-                    >
-                        {otaLoading ? (
-                            <Loader2 className="animate-spin" size={14} />
-                        ) : (
-                            <Sparkles className="text-brand-blue animate-pulse" size={14} />
-                        )}
-                        {otaLoading ? 'PUSHING RELEASE...' : 'RELEASE OTA UPDATE'}
-                    </button>
-                </div>
-            </div>
         </div>
     );
 }

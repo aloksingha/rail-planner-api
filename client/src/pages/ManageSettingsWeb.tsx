@@ -251,45 +251,6 @@ export default function ManageSettings() {
                     </button>
                 </div>
             </form>
-
-            {/* OTA update section (Super Admin Only) */}
-            <div className="bg-slate-900/40 backdrop-blur-md border border-white/5 p-6 rounded-3xl space-y-6 mt-8">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                        <span className="w-1.5 h-6 bg-brand-blue rounded-full animate-pulse"></span>
-                        OTA / Hot Update Release Control
-                    </h3>
-                    <div className="px-3 py-1 rounded-full bg-brand-blue/10 border border-brand-blue/20 text-brand-blue text-[10px] font-black uppercase tracking-wider">
-                        Active Release
-                    </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                    <div className="space-y-1">
-                        <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Current Authorized Version</p>
-                        <p className="text-xl font-black text-white font-mono">{otaVersion || 'None'}</p>
-                        <p className="text-slate-400 text-xs leading-relaxed mt-2">
-                            Only client builds matching this version will be installed automatically for end-users. Release the update when major codebase modifications are finalized.
-                        </p>
-                    </div>
-                    
-                    <div className="flex justify-end">
-                        <button
-                            type="button"
-                            onClick={handleOtaUpdate}
-                            disabled={otaLoading}
-                            className="w-full md:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-brand-blue to-teal-500 hover:shadow-[0_0_25px_rgba(14,165,233,0.3)] disabled:opacity-50 text-white font-black uppercase tracking-widest text-xs rounded-2xl transition-all hover:scale-[1.02] active:scale-95 shrink-0 cursor-pointer"
-                        >
-                            {otaLoading ? (
-                                <Loader2 className="animate-spin" size={16} />
-                            ) : (
-                                <Sparkles className="animate-pulse" size={16} />
-                            )}
-                            {otaLoading ? 'Pushing Release...' : 'Release OTA Update'}
-                        </button>
-                    </div>
-                </div>
-            </div>
         </div>
     );
 }
