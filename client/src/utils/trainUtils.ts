@@ -25,11 +25,7 @@ export const isACOnlyTrain = (trainName: string | undefined): boolean => {
         upperName.includes(' AC ') || 
         upperName.includes('AC ') || 
         upperName.endsWith(' AC') ||
-        upperName.includes('RAJDHANI') ||
-        upperName.includes('SHATABDI') ||
-        upperName.includes('DURONTO') ||
-        upperName.includes('TEJAS') ||
-        upperName.includes('VANDE BHARAT')
+        upperName.includes('RAJDHANI')
     );
 };
 
@@ -47,14 +43,39 @@ export const getClassesToShow = (
     const tName = trainName ? String(trainName).toUpperCase() : '';
     const tType = trainType ? String(trainType).toUpperCase() : '';
 
-    // If it's a Passenger train, it only has Second Sitting (2S)
+    const avCls = availableClasses || [];
+    if (avCls.length > 0) {
+        // Return filtered list of supported classes that are available
+        return ['SL', '3A', '2A', 'CC', '3E', '1A', '2S', 'FC', 'EV', 'EC'].filter(c => avCls.includes(c));
+    }
+
+    // Specific train type heuristics
     if (tType === 'PASSENGER' || tType.includes('PASS') || tName.includes('PASSENGER') || tName.includes('PASSGR')) {
         return ['2S'];
     }
-
-    // If it's a Humsafar Express, it only has AC 3 Tier (3A)
     if (tName.includes('HUMSAFAR')) {
+        return ['SL', '3A'];
+    }
+    if (tName.includes('GARIB RATH')) {
         return ['3A'];
+    }
+    if (tName.includes('VANDE BHARAT')) {
+        return ['CC', 'EC'];
+    }
+    if (tName.includes('SHATABDI') && !tName.includes('JAN SHATABDI')) {
+        return ['CC', 'EC'];
+    }
+    if (tName.includes('JAN SHATABDI')) {
+        return ['2S', 'CC'];
+    }
+    if (tName.includes('TEJAS')) {
+        return ['CC', 'EC'];
+    }
+    if (tName.includes('RAJDHANI')) {
+        return ['3A', '2A', '1A'];
+    }
+    if (tName.includes('DURONTO')) {
+        return ['SL', '3A', '2A', '1A'];
     }
 
     // Hardcoded override for Kulik Express (13053 / 13054)
@@ -62,27 +83,14 @@ export const getClassesToShow = (
         return ['CC', '2S', '3E', 'EV'];
     }
 
-    const avCls = availableClasses || [];
-    
-    if (avCls.length > 0) {
-        // Return filtered list of supported classes that are available
-        return ['SL', '3A', '2A', 'CC', '3E', '1A', '2S', 'FC', 'EV', 'EC'].filter(c => avCls.includes(c));
-    }
-
-    // Fallback heuristic if available_classes is missing.
-    // CC (Chair Car) is NOT included in default fallback — most Mail/Express/SF trains
-    // don't have Chair Car coaches. CC only shows when API returns it in available_classes,
-    // OR for day-train types (Intercity / Jan Shatabdi / Chair Car specials).
-    const isChairCarTrain = tName.includes('INTERCITY') || tName.includes('JAN SHATABDI') || 
-                             tName.includes('CHAIR') || tType.includes('INTERCITY');
-    const isAC = isACOnlyTrain(trainName);
-
+    // Fallback heuristic for generic trains
+    const isChairCarTrain = tName.includes('INTERCITY') || tName.includes('CHAIR') || tType.includes('INTERCITY');
     if (isChairCarTrain) {
-        return ['SL', '3A', '2A', 'CC'];
+        return ['2S', 'CC'];
     }
-    return isAC 
-        ? ['3A', '2A', '1A'] 
-        : ['SL', '3A', '2A'];
+
+    const isAC = isACOnlyTrain(trainName);
+    return isAC ? ['3A', '2A', '1A'] : ['SL', '3A', '2A'];
 };
 
 /**
