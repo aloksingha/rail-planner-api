@@ -712,15 +712,26 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
               <h1 className="text-slate-900 dark:text-white font-black tracking-[-0.05em] text-2xl font-headline italic leading-none">
                 TICKETS<span className="text-primary"> </span>PRO
               </h1>
-              <div className="flex flex-col items-center gap-1 mt-2">
-                <div className="flex items-center gap-1.5">
+              <div 
+                className="flex flex-col items-center gap-1 mt-2 p-2 mx-[-0.5rem] rounded-xl hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer relative group"
+                onClick={() => {
+                  setEditName(auth.name || '');
+                  setNameError('');
+                  setIsEditProfileOpen(true);
+                }}
+                title="Click to edit profile"
+              >
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400">
+                  <span className="material-symbols-outlined text-sm">edit</span>
+                </div>
+                <div className="flex items-center gap-1.5 pr-2">
                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,1)]"></div>
                   <p className="text-[10px] text-slate-500 dark:text-sky-400/80 font-black uppercase tracking-[0.3em] truncate max-w-[200px]" title={auth.name || auth.email || 'Node_Operator_01'}>
                     {auth.name || auth.email || 'Node_Operator_01'}
                   </p>
                 </div>
                 {auth.email && auth.name && (
-                  <p className="text-[8px] text-slate-400 dark:text-slate-500 font-mono truncate max-w-[180px]">{auth.email}</p>
+                  <p className="text-[8px] text-slate-400 dark:text-slate-500 font-mono truncate max-w-[180px] pr-2">{auth.email}</p>
                 )}
               </div>
             </div>
@@ -977,32 +988,7 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
               </div>
 
               <div className="hidden md:flex items-center gap-2 pl-4 border-l border-slate-200 dark:border-white/10">
-                <div 
-                  onClick={() => {
-                    setEditName(auth.name || '');
-                    setNameError('');
-                    setIsEditProfileOpen(true);
-                  }}
-                  className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer border border-slate-200 dark:border-white/10 hover:border-brand-blue/30 relative group"
-                  title="Click to edit name"
-                >
-                  <div className={`w-8 h-8 rounded-lg bg-white dark:bg-slate-950 flex items-center justify-center shrink-0 shadow-sm border border-slate-200 dark:border-white/10 overflow-hidden`}>
-                    <img src={brandLogo} alt="Logo" className="w-6 h-6 object-contain" />
-                  </div>
-                  <div className="min-w-0 pr-6 text-left">
-                    <p className="text-slate-900 dark:text-white text-xs font-semibold truncate">{auth.name || auth.email?.split('@')[0]}</p>
-                    {auth.email && (
-                      <p className="text-[9px] text-slate-500 dark:text-slate-400 truncate max-w-[120px]" title={auth.email}>{auth.email}</p>
-                    )}
-                    <div className="flex items-center gap-1 mt-0.5">
-                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${cfg.badge}`}>{cfg.label}</span>
-                       {isMimicMode && <span className="bg-rose-500 text-white text-[8px] font-black px-1 py-0.5 rounded leading-none uppercase">Mimic</span>}
-                    </div>
-                  </div>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity text-slate-400">
-                    <span className="material-symbols-outlined text-sm">edit</span>
-                  </div>
-                </div>
+
                 <button 
                   onClick={handleLogout} 
                   className="flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-900 hover:bg-rose-50 dark:hover:bg-rose-500/10 text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-xl font-bold text-[11px] uppercase tracking-widest border border-slate-200 dark:border-white/10 hover:border-rose-200 dark:hover:border-rose-500/20 transition-all"
