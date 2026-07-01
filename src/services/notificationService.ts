@@ -103,12 +103,7 @@ export const sendWhatsApp = async (mobile: string, templateId: string, params: R
 
 // ─── Booking Confirmed ────────────────────────────────────────────────────────
 export const notifyBookingConfirmed = async (email: string, eventName: string, mobile?: string) => {
-    // 1. Send Email (non-blocking Promise)
-    transporter.sendMail({
-        from: FROM,
-        to: email,
-        subject: '✅ Booking Confirmed — Tickets Pro',
-        html: `
+    const htmlContent = `
 <!DOCTYPE html>
 <html>
 <body style="margin:0;padding:0;background:#0f172a;font-family:'Segoe UI',sans-serif;">
@@ -152,14 +147,38 @@ export const notifyBookingConfirmed = async (email: string, eventName: string, m
     </td></tr>
   </table>
 </body>
-</html>`,
-    })
-    .then(() => {
-        console.log(`✅ Booking confirmation email sent to ${email}`);
-    })
-    .catch((e: any) => {
-        console.error('❌ Email send failed (non-fatal):', e?.message || e);
-    });
+</html>`;
+
+    // 1. Send Email (non-blocking Promise)
+    if (process.env.RESEND_API_KEY) {
+        // Use Resend HTTP API to bypass Render SMTP block
+        axios.post('https://api.resend.com/emails', {
+            from: FROM,
+            to: email,
+            subject: '✅ Booking Confirmed — Tickets Pro',
+            html: htmlContent
+        }, {
+            headers: { 'Authorization': `Bearer ${process.env.RESEND_API_KEY}` }
+        }).then(() => {
+            console.log(`✅ Booking confirmation email sent to ${email} via Resend API`);
+        }).catch((e: any) => {
+            console.error('❌ Resend Email API failed:', e?.response?.data || e.message);
+        });
+    } else {
+        // Fallback to Zoho SMTP
+        transporter.sendMail({
+            from: FROM,
+            to: email,
+            subject: '✅ Booking Confirmed — Tickets Pro',
+            html: htmlContent,
+        })
+        .then(() => {
+            console.log(`✅ Booking confirmation email sent to ${email} via SMTP`);
+        })
+        .catch((e: any) => {
+            console.error('❌ SMTP Email send failed (non-fatal):', e?.message || e);
+        });
+    }
 
     // 2. Send SMS via Infozy
     try {
@@ -181,12 +200,7 @@ export const notifyBookingConfirmed = async (email: string, eventName: string, m
 
 // ─── Booking Cancelled ────────────────────────────────────────────────────────
 export const notifyBookingCancelled = async (email: string, reason: string, mobile?: string) => {
-    // 1. Send Email (non-blocking Promise)
-    transporter.sendMail({
-        from: FROM,
-        to: email,
-        subject: '❌ Booking Cancelled — Tickets Pro',
-        html: `
+    const htmlContent = `
 <!DOCTYPE html>
 <html>
 <body style="margin:0;padding:0;background:#0f172a;font-family:'Segoe UI',sans-serif;">
@@ -229,14 +243,37 @@ export const notifyBookingCancelled = async (email: string, reason: string, mobi
     </td></tr>
   </table>
 </body>
-</html>`,
-    })
-    .then(() => {
-        console.log(`✅ Cancellation email sent to ${email}`);
-    })
-    .catch((e: any) => {
-        console.error('❌ Email send failed (non-fatal):', e?.message || e);
-    });
+</html>`;
+
+    // 1. Send Email (non-blocking Promise)
+    if (process.env.RESEND_API_KEY) {
+        // Use Resend HTTP API to bypass Render SMTP block
+        axios.post('https://api.resend.com/emails', {
+            from: FROM,
+            to: email,
+            subject: '❌ Booking Cancelled — Tickets Pro',
+            html: htmlContent
+        }, {
+            headers: { 'Authorization': `Bearer ${process.env.RESEND_API_KEY}` }
+        }).then(() => {
+            console.log(`✅ Cancellation email sent to ${email} via Resend API`);
+        }).catch((e: any) => {
+            console.error('❌ Resend Email API failed:', e?.response?.data || e.message);
+        });
+    } else {
+        transporter.sendMail({
+            from: FROM,
+            to: email,
+            subject: '❌ Booking Cancelled — Tickets Pro',
+            html: htmlContent,
+        })
+        .then(() => {
+            console.log(`✅ Cancellation email sent to ${email} via SMTP`);
+        })
+        .catch((e: any) => {
+            console.error('❌ SMTP Email send failed (non-fatal):', e?.message || e);
+        });
+    }
 
     // 2. Send SMS via Infozy
     try {
