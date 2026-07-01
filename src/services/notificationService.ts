@@ -10,9 +10,9 @@ const transporter = nodemailer.createTransport({
         user: process.env.ZOHO_MAIL_USER || 'noreply@ticketspro.in',
         pass: process.env.ZOHO_MAIL_PASSWORD || '',
     },
-    connectionTimeout: 5000, // 5s timeout to prevent hanging
-    greetingTimeout: 5000,
-    socketTimeout: 5000,
+    connectionTimeout: 20000, // Increased to 20s to prevent hanging on high latency
+    greetingTimeout: 20000,
+    socketTimeout: 20000,
 });
 
 const FROM = `"Tickets Pro" <${process.env.ZOHO_MAIL_USER || 'noreply@ticketspro.in'}>`;
