@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import axios from 'axios';
+import { prisma } from '../prisma';
 
 // Configurable SMTP transporter (Zoho defaults)
 const transporter = nodemailer.createTransport({
@@ -103,6 +104,36 @@ export const sendWhatsApp = async (mobile: string, templateId: string, params: R
 
 // ─── Booking Confirmed ────────────────────────────────────────────────────────
 export const notifyBookingConfirmed = async (email: string, eventName: string, mobile?: string) => {
+    let additionalDetailsHTML = '';
+    try {
+        const user = await prisma.user.findUnique({ where: { email } });
+        if (user) {
+            const latestBooking = await prisma.booking.findFirst({
+                where: { userId: user.id, event: { name: eventName } },
+                orderBy: { createdAt: 'desc' },
+                include: { event: true }
+            });
+            if (latestBooking) {
+                let amountStr = '';
+                if (latestBooking.paymentId) {
+                    const payment = await prisma.paymentRecord.findUnique({ where: { paymentId: latestBooking.paymentId } });
+                    if (payment) {
+                        amountStr = `<p style="color:#f1f5f9;font-size:14px;font-weight:500;margin:12px 0 0;line-height:1.6;border-top:1px solid #334155;padding-top:12px;"><strong>Payment Status:</strong> Confirmed (₹${payment.amount})<br><strong>Transaction ID:</strong> ${payment.paymentId}</p>`;
+                    }
+                }
+
+                additionalDetailsHTML = `
+                <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:24px;">
+                  <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Additional Details</p>
+                  <p style="color:#f1f5f9;font-size:14px;font-weight:500;margin:0;line-height:1.6;">${latestBooking.event.description}</p>
+                  ${amountStr}
+                </div>`;
+            }
+        }
+    } catch (dbErr) {
+        console.error('Error fetching additional booking details for email:', dbErr);
+    }
+
     const htmlContent = `
 <!DOCTYPE html>
 <html>
@@ -125,6 +156,7 @@ export const notifyBookingConfirmed = async (email: string, eventName: string, m
               <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Journey Details</p>
               <p style="color:#f1f5f9;font-size:18px;font-weight:800;margin:0;">${eventName}</p>
             </div>
+            ${additionalDetailsHTML}
             <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 24px;">
               Your booking has been confirmed and payment processed successfully. 
               Please carry a valid photo ID during your journey.
