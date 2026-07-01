@@ -109,7 +109,7 @@ export const notifyBookingConfirmed = async (email: string, eventName: string, m
         const user = await prisma.user.findUnique({ where: { email } });
         if (user) {
             const latestBooking = await prisma.booking.findFirst({
-                where: { userId: user.id, event: { name: eventName } },
+                where: { userId: user.id },
                 orderBy: { createdAt: 'desc' },
                 include: { event: true }
             });
