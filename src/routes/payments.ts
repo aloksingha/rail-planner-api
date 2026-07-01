@@ -40,7 +40,7 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
     }
 
     try {
-        await prisma.$transaction(async (tx) => {
+        const result = await prisma.$transaction(async (tx) => {
             // 1. Check & Deduct Balance
             const user = await tx.user.findUnique({
                 where: { id: req.user!.userId },
@@ -124,6 +124,7 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
                     details: `Paid ₹${amount} via wallet for Train ${trainNo}. New balance: ₹${user.walletBalance - amount}`
                 }
             });
+            return booking;
         });
 
         // Trigger notifications (non-blocking)
@@ -134,9 +135,8 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
             });
             const targetEmail = email || user?.email;
             const targetMobile = mobile || user?.mobile || undefined;
-            if (targetEmail && trainNo) {
-                const eventName = `Train ${trainNo}: ${fromStation} → ${toStation}`;
-                notifyBookingConfirmed(targetEmail, eventName, targetMobile).catch(err => console.error('Wallet notification background error:', err));
+            if (targetEmail && result?.id) {
+                notifyBookingConfirmed(targetEmail, result.id, targetMobile).catch(err => console.error('Wallet notification background error:', err));
             }
         } catch (notifErr) { console.error('Notification error:', notifErr); }
 
@@ -389,7 +389,7 @@ router.post('/verify', requireAuth, async (req, res) => {
             const targetEmail = email || user?.email;
             const targetMobile = mobile || user?.mobile || undefined;
             if (targetEmail) {
-                notifyBookingConfirmed(targetEmail, result.eventName, targetMobile).catch(err => console.error('Verify notification background error:', err));
+                notifyBookingConfirmed(targetEmail, result.booking.id, targetMobile).catch(err => console.error('Verify notification background error:', err));
             }
         } catch (e) { console.error('Notification log error:', e); }
 
@@ -482,7 +482,7 @@ router.post('/offline-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), 
             const targetEmail = email || user?.email;
             const targetMobile = mobile || user?.mobile || undefined;
             if (targetEmail) {
-                notifyBookingConfirmed(targetEmail, result.eventName, targetMobile).catch(err => console.error('Offline notification background error:', err));
+                notifyBookingConfirmed(targetEmail, result.booking.id, targetMobile).catch(err => console.error('Offline notification background error:', err));
             }
         } catch (notifErr) {
             console.error('Offline notification error:', notifErr);

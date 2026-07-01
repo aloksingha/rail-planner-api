@@ -103,17 +103,16 @@ export const sendWhatsApp = async (mobile: string, templateId: string, params: R
 };
 
 // ─── Booking Confirmed ────────────────────────────────────────────────────────
-export const notifyBookingConfirmed = async (email: string, eventName: string, mobile?: string) => {
+export const notifyBookingConfirmed = async (email: string, bookingId: string, mobile?: string) => {
     let additionalDetailsHTML = '';
+    let eventName = 'Your Train';
     try {
-        const user = await prisma.user.findUnique({ where: { email } });
-        if (user) {
-            const latestBooking = await prisma.booking.findFirst({
-                where: { userId: user.id },
-                orderBy: { createdAt: 'desc' },
-                include: { event: true }
-            });
+        const latestBooking = await prisma.booking.findUnique({
+            where: { id: bookingId },
+            include: { event: true }
+        });
             if (latestBooking) {
+                eventName = latestBooking.event.name;
                 let amountStr = '';
                 if (latestBooking.paymentId) {
                     const payment = await prisma.paymentRecord.findUnique({ where: { paymentId: latestBooking.paymentId } });
@@ -129,7 +128,6 @@ export const notifyBookingConfirmed = async (email: string, eventName: string, m
                   ${amountStr}
                 </div>`;
             }
-        }
     } catch (dbErr) {
         console.error('Error fetching additional booking details for email:', dbErr);
     }
