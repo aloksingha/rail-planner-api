@@ -118,8 +118,13 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
 
         // 2. Proximity Search - Expanding reach to capture all city-area terminals (e.g. DEC, DEE, SBIB)
         // 2. Proximity Search - Expanding reach to capture all city-area terminals
-        const sourceAlts = [from as string, ...nearbys.filter(n => n.stationCode === from).map(n => n.nearbyCode)].slice(0, 10);
-        const destAlts = [to as string, ...nearbys.filter(n => n.stationCode === to).map(n => n.nearbyCode)].slice(0, 10);
+        let sourceAlts = [from as string, ...nearbys.filter(n => n.stationCode === from).map(n => n.nearbyCode)].slice(0, 10);
+        let destAlts = [to as string, ...nearbys.filter(n => n.stationCode === to).map(n => n.nearbyCode)].slice(0, 10);
+
+        // HARD FIX: Prevent Kharagpur (KGP) from being treated as a local nearby station of Howrah (HWH)
+        if (from === 'HWH' || from === 'SHM' || from === 'SRC' || from === 'KOAA') {
+            sourceAlts = sourceAlts.filter(code => code !== 'KGP');
+        }
 
         const pairs: {s: string, d: string}[] = [];
         for (const s of sourceAlts) {
