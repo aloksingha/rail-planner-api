@@ -113,20 +113,60 @@ export const notifyBookingConfirmed = async (email: string, bookingId: string, m
         });
             if (latestBooking) {
                 eventName = latestBooking.event.name;
+                const journeyDate = new Date(latestBooking.event.date).toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                
                 let amountStr = '';
                 if (latestBooking.paymentId) {
                     const payment = await prisma.paymentRecord.findUnique({ where: { paymentId: latestBooking.paymentId } });
                     if (payment) {
-                        amountStr = `<p style="color:#f1f5f9;font-size:14px;font-weight:500;margin:12px 0 0;line-height:1.6;border-top:1px solid #334155;padding-top:12px;"><strong>Payment Status:</strong> Confirmed (₹${payment.amount})<br><strong>Transaction ID:</strong> ${payment.paymentId}</p>`;
+                        amountStr = `<table width="100%" cellpadding="0" cellspacing="0" style="color:#f1f5f9;font-size:14px;">
+                            <tr><td style="padding:6px 0;color:#94a3b8;">Status</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#10b981;">Confirmed (₹${payment.amount})</td></tr>
+                            <tr><td style="padding:6px 0;color:#94a3b8;">Transaction ID</td><td style="padding:6px 0;text-align:right;font-family:monospace;">${payment.paymentId}</td></tr>
+                        </table>`;
                     }
                 }
 
-                additionalDetailsHTML = `
-                <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:24px;">
-                  <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Additional Details</p>
-                  <p style="color:#f1f5f9;font-size:14px;font-weight:500;margin:0;line-height:1.6;">${latestBooking.event.description}</p>
-                  ${amountStr}
-                </div>`;
+                const passMatch = latestBooking.event.description.match(/Passengers:\s*([^.]+)/);
+                
+                if (passMatch && passMatch[1]) {
+                    const pList = passMatch[1].split(';').map(p => p.trim()).filter(Boolean);
+                    
+                    additionalDetailsHTML = `
+                    <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:24px;">
+                        <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 16px;">Journey Date</p>
+                        <p style="color:#f1f5f9;font-size:16px;font-weight:600;margin:0 0 8px;">${journeyDate}</p>
+                    </div>
+
+                    <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:24px;">
+                        <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 16px;">Passenger Details</p>
+                        <table width="100%" cellpadding="0" cellspacing="0" style="color:#f1f5f9;font-size:14px;border-collapse:collapse;">
+                            ${pList.map((p, i) => `
+                            <tr>
+                                <td style="padding:12px 0;border-bottom:${i === pList.length - 1 ? 'none' : '1px solid #334155'};">
+                                    <span style="color:#0ea5e9;font-weight:700;margin-right:8px;">0${i+1}</span>
+                                    <strong style="color:#fff;">${p.split('(')[0]?.trim() || p}</strong>
+                                    <span style="color:#94a3b8;font-size:13px;margin-left:8px;">(${p.split('(')[1] || ''}</span>
+                                </td>
+                            </tr>`).join('')}
+                        </table>
+                    </div>`;
+
+                    if (amountStr) {
+                        additionalDetailsHTML += `
+                        <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:24px;">
+                            <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 16px;">Payment Summary</p>
+                            ${amountStr}
+                        </div>`;
+                    }
+                } else {
+                    // Fallback to raw description if regex fails
+                    additionalDetailsHTML = `
+                    <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:24px;">
+                      <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Additional Details</p>
+                      <p style="color:#f1f5f9;font-size:14px;font-weight:500;margin:0;line-height:1.6;">${latestBooking.event.description}</p>
+                      ${amountStr ? `<div style="margin-top:16px;border-top:1px solid #334155;padding-top:16px;">${amountStr}</div>` : ''}
+                    </div>`;
+                }
             }
     } catch (dbErr) {
         console.error('Error fetching additional booking details for email:', dbErr);
