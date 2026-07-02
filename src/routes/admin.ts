@@ -439,7 +439,15 @@ router.get('/sales', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MA
         ]);
 
         const recentPayments = await prisma.paymentRecord.findMany({
-            where: paymentWhere,
+            where: {
+                ...paymentWhere,
+                status: 'CAPTURED',
+                NOT: [
+                    { paymentId: { startsWith: 'WAL_' } },
+                    { paymentId: { startsWith: 'OFF_' } },
+                    { paymentId: { startsWith: 'TEST_' } }
+                ]
+            },
             orderBy: { createdAt: 'desc' },
             take: 100
         });
@@ -1107,7 +1115,7 @@ router.patch('/bookings/:id/status', requireAuth, requireRole(['SUPER_ADMIN'], {
             });
             const event = await prisma.event.findUnique({ where: { id: booking.eventId } });
             if (user && event) {
-                notifyBookingConfirmed(user.email, event.name, user.mobile || undefined).catch(err => console.error('Admin status update notification background error:', err));
+                notifyBookingConfirmed(user.email, booking.id, user.mobile || undefined).catch(err => console.error('Admin status update notification background error:', err));
             }
         }
 

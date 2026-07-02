@@ -140,14 +140,28 @@ export const notifyBookingConfirmed = async (email: string, bookingId: string, m
                     <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:24px;">
                         <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 16px;">Passenger Details</p>
                         <table width="100%" cellpadding="0" cellspacing="0" style="color:#f1f5f9;font-size:14px;border-collapse:collapse;">
-                            ${pList.map((p, i) => `
+                            ${pList.map((p, i) => {
+                                let name = p.split(/[(\d]/)[0].trim();
+                                if (name.includes('Passengers:')) name = name.replace('Passengers:', '').trim();
+                                const ageMatch = p.match(/\((\d+)\)/);
+                                const age = ageMatch ? ageMatch[1] : 'N/A';
+                                const gMatch = p.match(/,\s*(M|F|O|MALE|FEMALE|OTHER)/i);
+                                let gender = 'N/A';
+                                if (gMatch) {
+                                    const g = gMatch[1].toUpperCase();
+                                    if (g === 'M' || g === 'MALE') gender = 'MALE';
+                                    if (g === 'F' || g === 'FEMALE') gender = 'FEMALE';
+                                    if (g === 'O' || g === 'OTHER') gender = 'OTHER';
+                                }
+                                return `
                             <tr>
                                 <td style="padding:12px 0;border-bottom:${i === pList.length - 1 ? 'none' : '1px solid #334155'};">
                                     <span style="color:#0ea5e9;font-weight:700;margin-right:8px;">0${i+1}</span>
-                                    <strong style="color:#fff;">${p.split('(')[0]?.trim() || p}</strong>
-                                    <span style="color:#94a3b8;font-size:13px;margin-left:8px;">(${p.split('(')[1] || ''}</span>
+                                    <strong style="color:#fff;">${name}</strong>
+                                    <span style="color:#94a3b8;font-size:13px;margin-left:8px;">(Age: ${age}, Gender: ${gender})</span>
                                 </td>
-                            </tr>`).join('')}
+                            </tr>`;
+                            }).join('')}
                         </table>
                     </div>`;
 
