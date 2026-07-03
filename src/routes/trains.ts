@@ -23,7 +23,7 @@ const formatTravelTime = (minutes: number) => {
 const trainCache = new Map<string, { data: any, expiry: number }>();
 const scheduleCache = new Map<string, { data: any, expiry: number }>();
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
-const SEARCH_VERSION = 'v3.8-kne-tvc-corridor-update'; // Bump for enroute Northeast-South corridor pricing
+const SEARCH_VERSION = 'v3.9-pricing-fix';
 
 import { PricingContext, getTicketPrice } from '../utils/pricing';
 import { prisma } from '../prisma';
