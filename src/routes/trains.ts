@@ -256,6 +256,7 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
 
                 return {
                     isAlternative: t.isAlternative,
+                    prices: prices,
                     train_base: {
                         train_no: t.trainNumber || t.train_no,
                         train_name: t.trainName || t.train_name,
