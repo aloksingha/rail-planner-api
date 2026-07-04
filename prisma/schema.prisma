@@ -70,8 +70,6 @@ model Booking {
   @@index([class, createdAt])
   @@index([userId, createdAt])
   @@index([paymentId])
-  @@index([status, createdAt])
-  @@index([userId, status, createdAt])
 }
 
 model PaymentRecord {
@@ -88,7 +86,6 @@ model PaymentRecord {
   @@index([status])
   @@index([createdAt])
   @@index([userId, createdAt])
-  @@index([status, userId, createdAt])
 }
 
 model RefundRecord {

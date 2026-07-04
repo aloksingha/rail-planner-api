@@ -189,14 +189,14 @@ export const getTicketPrice = (
             const base3A = 300 + (80 * totalHours);
             const base2A = 450 + (125 * totalHours);
 
-            if (cls === 'SL') baseResult = baseSL;
-            else if (cls === '3A' || cls === '3E' || cls === 'CC') baseResult = base3A;
-            else if (cls === '2A' || cls === 'FC') baseResult = base2A;
-            else if (cls === '2S') baseResult = Math.round(baseSL * 0.6);
-            else if (cls === '1A') baseResult = Math.round(base2A * 1.35);
-            else if (cls === 'EC') baseResult = Math.round(base3A * 2.4);
-            else if (cls === 'EV') baseResult = Math.round(base3A * 2.65);
-            else baseResult = baseSL;
+            if (cls === 'SL') baseResult = baseSL + 1400;
+            else if (cls === '3A' || cls === '3E' || cls === 'CC') baseResult = base3A + 1400;
+            else if (cls === '2A' || cls === 'FC') baseResult = base2A + 1300;
+            else if (cls === '2S') baseResult = Math.round((baseSL + 1400) * 0.6);
+            else if (cls === '1A') baseResult = Math.round((base2A + 1300) * 1.35);
+            else if (cls === 'EC') baseResult = Math.round((base3A + 1400) * 2.4);
+            else if (cls === 'EV') baseResult = Math.round((base3A + 1400) * 2.65);
+            else baseResult = baseSL + 1400;
 
             console.log(`${logPrefix} Match Success: Hardcoded Fallback (H:${totalHours.toFixed(1)}) Result: ₹${baseResult}`);
             matchType = 'HARD_FALLBACK';

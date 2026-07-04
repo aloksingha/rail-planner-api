@@ -23,7 +23,7 @@ const formatTravelTime = (minutes: number) => {
 const trainCache = new Map<string, { data: any, expiry: number }>();
 const scheduleCache = new Map<string, { data: any, expiry: number }>();
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
-const SEARCH_VERSION = 'v3.9-pricing-fix';
+const SEARCH_VERSION = 'v3.8-kne-tvc-corridor-update'; // Bump for enroute Northeast-South corridor pricing
 
 import { PricingContext, getTicketPrice } from '../utils/pricing';
 import { prisma } from '../prisma';
@@ -118,13 +118,8 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
 
         // 2. Proximity Search - Expanding reach to capture all city-area terminals (e.g. DEC, DEE, SBIB)
         // 2. Proximity Search - Expanding reach to capture all city-area terminals
-        let sourceAlts = [from as string, ...nearbys.filter(n => n.stationCode === from).map(n => n.nearbyCode)].slice(0, 10);
-        let destAlts = [to as string, ...nearbys.filter(n => n.stationCode === to).map(n => n.nearbyCode)].slice(0, 10);
-
-        // HARD FIX: Prevent Kharagpur (KGP) from being treated as a local nearby station of Howrah (HWH)
-        if (from === 'HWH' || from === 'SHM' || from === 'SRC' || from === 'KOAA') {
-            sourceAlts = sourceAlts.filter(code => code !== 'KGP');
-        }
+        const sourceAlts = [from as string, ...nearbys.filter(n => n.stationCode === from).map(n => n.nearbyCode)].slice(0, 10);
+        const destAlts = [to as string, ...nearbys.filter(n => n.stationCode === to).map(n => n.nearbyCode)].slice(0, 10);
 
         const pairs: {s: string, d: string}[] = [];
         for (const s of sourceAlts) {
@@ -256,7 +251,6 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
 
                 return {
                     isAlternative: t.isAlternative,
-                    prices: prices,
                     train_base: {
                         train_no: t.trainNumber || t.train_no,
                         train_name: t.trainName || t.train_name,

@@ -248,12 +248,7 @@ router.get('/stats', requireAuth, async (req, res) => {
                     where: { 
                         ...paymentWhere, 
                         status: 'CAPTURED', 
-                        createdAt: { gte: todayStart },
-                        NOT: [
-                            { paymentId: { startsWith: 'WAL_' } },
-                            { paymentId: { startsWith: 'OFF_' } },
-                            { paymentId: { startsWith: 'TEST_' } }
-                        ]
+                        createdAt: { gte: todayStart } 
                     },
                     _sum: { amount: true }
                 }),
@@ -268,7 +263,6 @@ router.get('/stats', requireAuth, async (req, res) => {
                     SELECT DATE_TRUNC('day', "createdAt") as day, COUNT(id) as count, SUM(amount) as amount
                     FROM "PaymentRecord"
                     WHERE status = 'CAPTURED' AND "createdAt" >= ${thirtyDaysAgo}
-                      AND "paymentId" NOT LIKE 'WAL_%' AND "paymentId" NOT LIKE 'OFF_%' AND "paymentId" NOT LIKE 'TEST_%'
                     GROUP BY day
                     ORDER BY day ASC
                 `
@@ -281,7 +275,6 @@ router.get('/stats', requireAuth, async (req, res) => {
                       AND p."createdAt" >= ${thirtyDaysAgo}
                       AND sm."createdByUserId" = ${userId}
                       AND sm.role = 'SALES_MANAGER'
-                      AND p."paymentId" NOT LIKE 'WAL_%' AND p."paymentId" NOT LIKE 'OFF_%' AND p."paymentId" NOT LIKE 'TEST_%'
                     GROUP BY day
                     ORDER BY day ASC
                 `;
@@ -412,14 +405,7 @@ router.get('/sales', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MA
 
         const [revenueStats, recentBookings, commissionStats] = await Promise.all([
             prisma.paymentRecord.aggregate({
-                where: {
-                    ...paymentWhere,
-                    NOT: [
-                        { paymentId: { startsWith: 'WAL_' } },
-                        { paymentId: { startsWith: 'OFF_' } },
-                        { paymentId: { startsWith: 'TEST_' } }
-                    ]
-                },
+                where: paymentWhere,
                 _sum: { amount: true },
                 _count: { id: true }
             }),
@@ -439,15 +425,7 @@ router.get('/sales', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MA
         ]);
 
         const recentPayments = await prisma.paymentRecord.findMany({
-            where: {
-                ...paymentWhere,
-                status: 'CAPTURED',
-                NOT: [
-                    { paymentId: { startsWith: 'WAL_' } },
-                    { paymentId: { startsWith: 'OFF_' } },
-                    { paymentId: { startsWith: 'TEST_' } }
-                ]
-            },
+            where: paymentWhere,
             orderBy: { createdAt: 'desc' },
             take: 100
         });
@@ -563,7 +541,6 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
                 SELECT DATE_TRUNC('day', "createdAt") as day, COUNT(id) as count, SUM(amount) as amount
                 FROM "PaymentRecord"
                 WHERE status = 'CAPTURED' AND "createdAt" >= ${thirtyDaysAgo}
-                  AND "paymentId" NOT LIKE 'WAL_%' AND "paymentId" NOT LIKE 'OFF_%' AND "paymentId" NOT LIKE 'TEST_%'
                 GROUP BY day
                 ORDER BY day ASC
             `
@@ -576,7 +553,6 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
                   AND p."createdAt" >= ${thirtyDaysAgo}
                   AND sm."createdByUserId" = ${userId}
                   AND sm.role = 'SALES_MANAGER'
-                  AND p."paymentId" NOT LIKE 'WAL_%' AND p."paymentId" NOT LIKE 'OFF_%' AND p."paymentId" NOT LIKE 'TEST_%'
                 GROUP BY day
                 ORDER BY day ASC
             `;
@@ -604,12 +580,7 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
                 where: { 
                     ...paymentWhere, 
                     status: 'CAPTURED', 
-                    createdAt: { gte: todayStart },
-                    NOT: [
-                        { paymentId: { startsWith: 'WAL_' } },
-                        { paymentId: { startsWith: 'OFF_' } },
-                        { paymentId: { startsWith: 'TEST_' } }
-                    ]
+                    createdAt: { gte: todayStart } 
                 },
                 _sum: { amount: true }
             }),
@@ -1115,7 +1086,7 @@ router.patch('/bookings/:id/status', requireAuth, requireRole(['SUPER_ADMIN'], {
             });
             const event = await prisma.event.findUnique({ where: { id: booking.eventId } });
             if (user && event) {
-                notifyBookingConfirmed(user.email, booking.id, user.mobile || undefined).catch(err => console.error('Admin status update notification background error:', err));
+                notifyBookingConfirmed(user.email, event.name, user.mobile || undefined).catch(err => console.error('Admin status update notification background error:', err));
             }
         }
 

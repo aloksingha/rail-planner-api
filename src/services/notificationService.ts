@@ -1,6 +1,5 @@
 import nodemailer from 'nodemailer';
 import axios from 'axios';
-import { prisma } from '../prisma';
 
 // Configurable SMTP transporter (Zoho defaults)
 const transporter = nodemailer.createTransport({
@@ -11,9 +10,9 @@ const transporter = nodemailer.createTransport({
         user: process.env.ZOHO_MAIL_USER || 'noreply@ticketspro.in',
         pass: process.env.ZOHO_MAIL_PASSWORD || '',
     },
-    connectionTimeout: 20000, // Increased to 20s to prevent hanging on high latency
-    greetingTimeout: 20000,
-    socketTimeout: 20000,
+    connectionTimeout: 5000, // 5s timeout to prevent hanging
+    greetingTimeout: 5000,
+    socketTimeout: 5000,
 });
 
 const FROM = `"Tickets Pro" <${process.env.ZOHO_MAIL_USER || 'noreply@ticketspro.in'}>`;
@@ -103,90 +102,13 @@ export const sendWhatsApp = async (mobile: string, templateId: string, params: R
 };
 
 // ─── Booking Confirmed ────────────────────────────────────────────────────────
-export const notifyBookingConfirmed = async (email: string, bookingId: string, mobile?: string) => {
-    let additionalDetailsHTML = '';
-    let eventName = 'Your Train';
-    try {
-        const latestBooking = await prisma.booking.findUnique({
-            where: { id: bookingId },
-            include: { event: true }
-        });
-            if (latestBooking) {
-                eventName = latestBooking.event.name;
-                const journeyDate = new Date(latestBooking.event.date).toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                
-                let amountStr = '';
-                if (latestBooking.paymentId) {
-                    const payment = await prisma.paymentRecord.findUnique({ where: { paymentId: latestBooking.paymentId } });
-                    if (payment) {
-                        amountStr = `<table width="100%" cellpadding="0" cellspacing="0" style="color:#f1f5f9;font-size:14px;">
-                            <tr><td style="padding:6px 0;color:#94a3b8;">Status</td><td style="padding:6px 0;text-align:right;font-weight:600;color:#10b981;">Confirmed (₹${payment.amount})</td></tr>
-                            <tr><td style="padding:6px 0;color:#94a3b8;">Transaction ID</td><td style="padding:6px 0;text-align:right;font-family:monospace;">${payment.paymentId}</td></tr>
-                        </table>`;
-                    }
-                }
-
-                const passMatch = latestBooking.event.description.match(/Passengers:\s*([^.]+)/);
-                
-                if (passMatch && passMatch[1]) {
-                    const pList = passMatch[1].split(';').map(p => p.trim()).filter(Boolean);
-                    
-                    additionalDetailsHTML = `
-                    <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:24px;">
-                        <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 16px;">Journey Date</p>
-                        <p style="color:#f1f5f9;font-size:16px;font-weight:600;margin:0 0 8px;">${journeyDate}</p>
-                    </div>
-
-                    <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:24px;">
-                        <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 16px;">Passenger Details</p>
-                        <table width="100%" cellpadding="0" cellspacing="0" style="color:#f1f5f9;font-size:14px;border-collapse:collapse;">
-                            ${pList.map((p, i) => {
-                                let name = p.split(/[(\d]/)[0].trim();
-                                if (name.includes('Passengers:')) name = name.replace('Passengers:', '').trim();
-                                const ageMatch = p.match(/\((\d+)\)/);
-                                const age = ageMatch ? ageMatch[1] : 'N/A';
-                                const gMatch = p.match(/,\s*(M|F|O|MALE|FEMALE|OTHER)/i);
-                                let gender = 'N/A';
-                                if (gMatch) {
-                                    const g = gMatch[1].toUpperCase();
-                                    if (g === 'M' || g === 'MALE') gender = 'MALE';
-                                    if (g === 'F' || g === 'FEMALE') gender = 'FEMALE';
-                                    if (g === 'O' || g === 'OTHER') gender = 'OTHER';
-                                }
-                                return `
-                            <tr>
-                                <td style="padding:12px 0;border-bottom:${i === pList.length - 1 ? 'none' : '1px solid #334155'};">
-                                    <span style="color:#0ea5e9;font-weight:700;margin-right:8px;">0${i+1}</span>
-                                    <strong style="color:#fff;">${name}</strong>
-                                    <span style="color:#94a3b8;font-size:13px;margin-left:8px;">(Age: ${age}, Gender: ${gender})</span>
-                                </td>
-                            </tr>`;
-                            }).join('')}
-                        </table>
-                    </div>`;
-
-                    if (amountStr) {
-                        additionalDetailsHTML += `
-                        <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:24px;">
-                            <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 16px;">Payment Summary</p>
-                            ${amountStr}
-                        </div>`;
-                    }
-                } else {
-                    // Fallback to raw description if regex fails
-                    additionalDetailsHTML = `
-                    <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:24px;">
-                      <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Additional Details</p>
-                      <p style="color:#f1f5f9;font-size:14px;font-weight:500;margin:0;line-height:1.6;">${latestBooking.event.description}</p>
-                      ${amountStr ? `<div style="margin-top:16px;border-top:1px solid #334155;padding-top:16px;">${amountStr}</div>` : ''}
-                    </div>`;
-                }
-            }
-    } catch (dbErr) {
-        console.error('Error fetching additional booking details for email:', dbErr);
-    }
-
-    const htmlContent = `
+export const notifyBookingConfirmed = async (email: string, eventName: string, mobile?: string) => {
+    // 1. Send Email (non-blocking Promise)
+    transporter.sendMail({
+        from: FROM,
+        to: email,
+        subject: '✅ Booking Confirmed — Tickets Pro',
+        html: `
 <!DOCTYPE html>
 <html>
 <body style="margin:0;padding:0;background:#0f172a;font-family:'Segoe UI',sans-serif;">
@@ -208,7 +130,6 @@ export const notifyBookingConfirmed = async (email: string, bookingId: string, m
               <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Journey Details</p>
               <p style="color:#f1f5f9;font-size:18px;font-weight:800;margin:0;">${eventName}</p>
             </div>
-            ${additionalDetailsHTML}
             <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 24px;">
               Your booking has been confirmed and payment processed successfully. 
               Please carry a valid photo ID during your journey.
@@ -231,38 +152,14 @@ export const notifyBookingConfirmed = async (email: string, bookingId: string, m
     </td></tr>
   </table>
 </body>
-</html>`;
-
-    // 1. Send Email (non-blocking Promise)
-    if (process.env.RESEND_API_KEY) {
-        // Use Resend HTTP API to bypass Render SMTP block
-        axios.post('https://api.resend.com/emails', {
-            from: FROM,
-            to: email,
-            subject: '✅ Booking Confirmed — Tickets Pro',
-            html: htmlContent
-        }, {
-            headers: { 'Authorization': `Bearer ${process.env.RESEND_API_KEY}` }
-        }).then(() => {
-            console.log(`✅ Booking confirmation email sent to ${email} via Resend API`);
-        }).catch((e: any) => {
-            console.error('❌ Resend Email API failed:', e?.response?.data || e.message);
-        });
-    } else {
-        // Fallback to Zoho SMTP
-        transporter.sendMail({
-            from: FROM,
-            to: email,
-            subject: '✅ Booking Confirmed — Tickets Pro',
-            html: htmlContent,
-        })
-        .then(() => {
-            console.log(`✅ Booking confirmation email sent to ${email} via SMTP`);
-        })
-        .catch((e: any) => {
-            console.error('❌ SMTP Email send failed (non-fatal):', e?.message || e);
-        });
-    }
+</html>`,
+    })
+    .then(() => {
+        console.log(`✅ Booking confirmation email sent to ${email}`);
+    })
+    .catch((e: any) => {
+        console.error('❌ Email send failed (non-fatal):', e?.message || e);
+    });
 
     // 2. Send SMS via Infozy
     try {
@@ -284,7 +181,12 @@ export const notifyBookingConfirmed = async (email: string, bookingId: string, m
 
 // ─── Booking Cancelled ────────────────────────────────────────────────────────
 export const notifyBookingCancelled = async (email: string, reason: string, mobile?: string) => {
-    const htmlContent = `
+    // 1. Send Email (non-blocking Promise)
+    transporter.sendMail({
+        from: FROM,
+        to: email,
+        subject: '❌ Booking Cancelled — Tickets Pro',
+        html: `
 <!DOCTYPE html>
 <html>
 <body style="margin:0;padding:0;background:#0f172a;font-family:'Segoe UI',sans-serif;">
@@ -327,37 +229,14 @@ export const notifyBookingCancelled = async (email: string, reason: string, mobi
     </td></tr>
   </table>
 </body>
-</html>`;
-
-    // 1. Send Email (non-blocking Promise)
-    if (process.env.RESEND_API_KEY) {
-        // Use Resend HTTP API to bypass Render SMTP block
-        axios.post('https://api.resend.com/emails', {
-            from: FROM,
-            to: email,
-            subject: '❌ Booking Cancelled — Tickets Pro',
-            html: htmlContent
-        }, {
-            headers: { 'Authorization': `Bearer ${process.env.RESEND_API_KEY}` }
-        }).then(() => {
-            console.log(`✅ Cancellation email sent to ${email} via Resend API`);
-        }).catch((e: any) => {
-            console.error('❌ Resend Email API failed:', e?.response?.data || e.message);
-        });
-    } else {
-        transporter.sendMail({
-            from: FROM,
-            to: email,
-            subject: '❌ Booking Cancelled — Tickets Pro',
-            html: htmlContent,
-        })
-        .then(() => {
-            console.log(`✅ Cancellation email sent to ${email} via SMTP`);
-        })
-        .catch((e: any) => {
-            console.error('❌ SMTP Email send failed (non-fatal):', e?.message || e);
-        });
-    }
+</html>`,
+    })
+    .then(() => {
+        console.log(`✅ Cancellation email sent to ${email}`);
+    })
+    .catch((e: any) => {
+        console.error('❌ Email send failed (non-fatal):', e?.message || e);
+    });
 
     // 2. Send SMS via Infozy
     try {
