@@ -540,7 +540,9 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
             ? prisma.$queryRaw<Array<{ day: Date; count: bigint; amount: number }>>`
                 SELECT DATE_TRUNC('day', "createdAt") as day, COUNT(id) as count, SUM(amount) as amount
                 FROM "PaymentRecord"
-                WHERE status = 'CAPTURED' AND "createdAt" >= ${thirtyDaysAgo}
+                WHERE status = 'CAPTURED' 
+                  AND "paymentId" NOT LIKE 'OFF_%'
+                  AND "createdAt" >= ${thirtyDaysAgo}
                 GROUP BY day
                 ORDER BY day ASC
             `
@@ -550,6 +552,7 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
                 JOIN "User" c ON p."userId" = c.id
                 JOIN "User" sm ON c."createdByUserId" = sm.id
                 WHERE p.status = 'CAPTURED'
+                  AND p."paymentId" NOT LIKE 'OFF_%'
                   AND p."createdAt" >= ${thirtyDaysAgo}
                   AND sm."createdByUserId" = ${userId}
                   AND sm.role = 'SALES_MANAGER'
@@ -574,12 +577,13 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
                 _count: { _all: true }
             }),
             prisma.user.count({ where: userWhere }),
-            prisma.booking.count({ where: { ...bookingWhere, createdAt: { gte: todayStart } } }),
-            prisma.booking.count({ where: bookingWhere }),
+            prisma.booking.count({ where: { ...bookingWhere, createdAt: { gte: todayStart }, paymentId: { not: { startsWith: 'OFF_' } } } }),
+            prisma.booking.count({ where: { ...bookingWhere, paymentId: { not: { startsWith: 'OFF_' } } } }),
             prisma.paymentRecord.aggregate({
                 where: { 
                     ...paymentWhere, 
                     status: 'CAPTURED', 
+                    paymentId: { not: { startsWith: 'OFF_' } },
                     createdAt: { gte: todayStart } 
                 },
                 _sum: { amount: true }
@@ -593,7 +597,7 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
                 include: { performedByUser: { select: { name: true, email: true, role: true } } }
             }),
             prisma.booking.findMany({
-                where: bookingWhere,
+                where: { ...bookingWhere, paymentId: { not: { startsWith: 'OFF_' } } },
                 take: 15,
                 orderBy: { createdAt: 'desc' },
                 include: { 
