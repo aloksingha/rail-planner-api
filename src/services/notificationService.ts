@@ -1,31 +1,23 @@
 import nodemailer from 'nodemailer';
 import axios from 'axios';
 
-// Configurable SMTP transporter
-const isResend = !!process.env.RESEND_API_KEY;
-
-const smtpHost = isResend ? 'smtp.resend.com' : (process.env.SMTP_HOST || process.env.ZOHO_MAIL_HOST || 'smtp.zoho.in');
-const smtpPort = isResend ? 465 : parseInt(process.env.SMTP_PORT || process.env.ZOHO_MAIL_PORT || '587');
-const smtpSecure = isResend ? true : (process.env.SMTP_SECURE || process.env.ZOHO_MAIL_SECURE) === 'true';
-const smtpUser = isResend ? 'resend' : (process.env.SMTP_USER || process.env.ZOHO_MAIL_USER || 'noreply@ticketspro.in');
-const smtpPass = process.env.RESEND_API_KEY || process.env.SMTP_PASSWORD || process.env.ZOHO_MAIL_PASSWORD || '';
-
-const isEmailConfigured = !!smtpPass;
+// ─── Resend SMTP Configuration ──────────────────────────────────────────────────
+const isEmailConfigured = !!process.env.RESEND_API_KEY;
 
 const transporter = nodemailer.createTransport({
-    host: smtpHost,
-    port: smtpPort,
-    secure: smtpSecure,
+    host: 'smtp.resend.com',
+    port: 465,
+    secure: true,
     auth: {
-        user: smtpUser,
-        pass: smtpPass,
+        user: 'resend',
+        pass: process.env.RESEND_API_KEY || '',
     },
-    connectionTimeout: 5000, // 5s timeout to prevent hanging
+    connectionTimeout: 5000,
     greetingTimeout: 5000,
     socketTimeout: 5000,
 });
 
-const FROM = `"Tickets Pro" <${process.env.ZOHO_MAIL_USER || 'noreply@ticketspro.in'}>`;
+const FROM = `"Tickets Pro" <noreply@ticketspro.in>`;
 
 // ─── Infozy SMS Utility ────────────────────────────────────────────────────────
 /**
