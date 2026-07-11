@@ -4,18 +4,21 @@ import axios from 'axios';
 // ─── Resend SMTP Configuration ──────────────────────────────────────────────────
 const isEmailConfigured = !!process.env.RESEND_API_KEY;
 
-const transporter = nodemailer.createTransport({
-    host: 'smtp.resend.com',
-    port: 465,
-    secure: true,
-    auth: {
-        user: 'resend',
-        pass: process.env.RESEND_API_KEY || '',
-    },
-    connectionTimeout: 5000,
-    greetingTimeout: 5000,
-    socketTimeout: 5000,
-});
+const transporter = {
+    sendMail: async (options: any) => {
+        return axios.post('https://api.resend.com/emails', {
+            from: options.from,
+            to: options.to,
+            subject: options.subject,
+            html: options.html
+        }, {
+            headers: {
+                'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        });
+    }
+};
 
 const FROM = `"Tickets Pro" <noreply@ticketspro.in>`;
 
