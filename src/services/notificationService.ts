@@ -2,14 +2,21 @@ import nodemailer from 'nodemailer';
 import axios from 'axios';
 
 // Configurable SMTP transporter
-const isEmailConfigured = !!process.env.ZOHO_MAIL_PASSWORD;
+const smtpHost = process.env.SMTP_HOST || process.env.ZOHO_MAIL_HOST || 'smtp.zoho.in';
+const smtpPort = parseInt(process.env.SMTP_PORT || process.env.ZOHO_MAIL_PORT || '587');
+const smtpSecure = (process.env.SMTP_SECURE || process.env.ZOHO_MAIL_SECURE) === 'true';
+const smtpUser = process.env.SMTP_USER || process.env.ZOHO_MAIL_USER || 'noreply@ticketspro.in';
+const smtpPass = process.env.SMTP_PASSWORD || process.env.ZOHO_MAIL_PASSWORD || '';
+
+const isEmailConfigured = !!smtpPass;
+
 const transporter = nodemailer.createTransport({
-    host: process.env.ZOHO_MAIL_HOST || 'smtp.zoho.in',
-    port: parseInt(process.env.ZOHO_MAIL_PORT || '587'),
-    secure: process.env.ZOHO_MAIL_SECURE === 'true', // default to false for 587 (uses STARTTLS)
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpSecure,
     auth: {
-        user: process.env.ZOHO_MAIL_USER || 'noreply@ticketspro.in',
-        pass: process.env.ZOHO_MAIL_PASSWORD || '',
+        user: smtpUser,
+        pass: smtpPass,
     },
     connectionTimeout: 5000, // 5s timeout to prevent hanging
     greetingTimeout: 5000,
