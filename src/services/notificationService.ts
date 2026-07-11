@@ -107,8 +107,48 @@ export const sendWhatsApp = async (mobile: string, templateId: string, params: R
 };
 
 // ─── Booking Confirmed ────────────────────────────────────────────────────────
-export const notifyBookingConfirmed = async (email: string, eventName: string, mobile?: string) => {
+export const notifyBookingConfirmed = async (
+    email: string, 
+    eventName: string, 
+    mobile?: string,
+    details?: {
+        journeyDate?: string;
+        passengerDetails?: string;
+        transactionId?: string;
+        amount?: string | number;
+    }
+) => {
     if (isEmailConfigured) {
+        const journeyDateHtml = details?.journeyDate ? `
+            <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:24px;">
+              <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Journey Date</p>
+              <p style="color:#f1f5f9;font-size:16px;font-weight:700;margin:0;">${details.journeyDate}</p>
+            </div>
+        ` : '';
+
+        const passengerHtml = details?.passengerDetails ? `
+            <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:24px;">
+              <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Passenger Details</p>
+              <p style="color:#0ea5e9;font-size:14px;font-weight:600;margin:0;line-height:1.6;">${details.passengerDetails}</p>
+            </div>
+        ` : '';
+
+        const paymentHtml = details?.transactionId ? `
+            <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:24px;">
+              <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 16px;">Payment Summary</p>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="color:#94a3b8;font-size:14px;padding-bottom:8px;">Status</td>
+                  <td align="right" style="color:#10b981;font-size:14px;font-weight:700;padding-bottom:8px;">Confirmed (₹${details.amount || '0'})</td>
+                </tr>
+                <tr>
+                  <td style="color:#94a3b8;font-size:14px;">Transaction ID</td>
+                  <td align="right" style="color:#f1f5f9;font-size:14px;font-weight:600;">${details.transactionId}</td>
+                </tr>
+              </table>
+            </div>
+        ` : '';
+
         transporter.sendMail({
             from: FROM,
             to: email,
@@ -135,6 +175,11 @@ export const notifyBookingConfirmed = async (email: string, eventName: string, m
                   <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Journey Details</p>
                   <p style="color:#f1f5f9;font-size:18px;font-weight:800;margin:0;">${eventName}</p>
                 </div>
+                
+                ${journeyDateHtml}
+                ${passengerHtml}
+                ${paymentHtml}
+
                 <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 24px;">
                   Your booking has been confirmed and payment processed successfully. 
                   Please carry a valid photo ID during your journey.

@@ -135,8 +135,20 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
             const targetEmail = email || user?.email;
             const targetMobile = mobile || user?.mobile || undefined;
             if (targetEmail && trainNo) {
-                const eventName = `Train ${trainNo}: ${fromStation} → ${toStation}`;
-                notifyBookingConfirmed(targetEmail, eventName, targetMobile).catch(err => console.error('Wallet notification background error:', err));
+                const eventName = `${trainName || 'Express'} (${trainNo}) - ${fromStation} to ${toStation}`;
+                
+                const pDesc = Array.isArray(passengerList)
+                    ? passengerList.map((p: any, i: number) => `0${i+1} ${p.name} (Age: ${p.age}, Gender: ${p.gender})`).join('<br/>')
+                    : `Passengers: ${passengers}`;
+
+                const emailDetails = {
+                    journeyDate: journeyDate ? new Date(journeyDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '',
+                    passengerDetails: pDesc,
+                    transactionId: 'WALLET_PAYMENT',
+                    amount: amount
+                };
+
+                notifyBookingConfirmed(targetEmail, eventName, targetMobile, emailDetails).catch(err => console.error('Wallet notification background error:', err));
             }
         } catch (notifErr) { console.error('Notification error:', notifErr); }
 
@@ -389,7 +401,18 @@ router.post('/verify', requireAuth, async (req, res) => {
             const targetEmail = email || user?.email;
             const targetMobile = mobile || user?.mobile || undefined;
             if (targetEmail) {
-                notifyBookingConfirmed(targetEmail, result.eventName, targetMobile).catch(err => console.error('Verify notification background error:', err));
+                const pDesc = Array.isArray(passengerList)
+                    ? passengerList.map((p: any, i: number) => `0${i+1} ${p.name} (Age: ${p.age}, Gender: ${p.gender})`).join('<br/>')
+                    : `Passengers: ${passengers}`;
+                    
+                const emailDetails = {
+                    journeyDate: journeyDate ? new Date(journeyDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '',
+                    passengerDetails: pDesc,
+                    transactionId: result.booking.paymentId || razorpay_payment_id,
+                    amount: amount
+                };
+                
+                notifyBookingConfirmed(targetEmail, result.eventName, targetMobile, emailDetails).catch(err => console.error('Verify notification background error:', err));
             }
         } catch (e) { console.error('Notification log error:', e); }
 
@@ -482,7 +505,18 @@ router.post('/offline-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), 
             const targetEmail = email || user?.email;
             const targetMobile = mobile || user?.mobile || undefined;
             if (targetEmail) {
-                notifyBookingConfirmed(targetEmail, result.eventName, targetMobile).catch(err => console.error('Offline notification background error:', err));
+                const pDesc = Array.isArray(passengerList)
+                    ? passengerList.map((p: any, i: number) => `0${i+1} ${p.name} (Age: ${p.age}, Gender: ${p.gender})`).join('<br/>')
+                    : `Passengers: ${passengers}`;
+                    
+                const emailDetails = {
+                    journeyDate: journeyDate ? new Date(journeyDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '',
+                    passengerDetails: pDesc,
+                    transactionId: result.booking.paymentId || 'OFFLINE',
+                    amount: amount
+                };
+
+                notifyBookingConfirmed(targetEmail, result.eventName, targetMobile, emailDetails).catch(err => console.error('Offline notification background error:', err));
             }
         } catch (notifErr) {
             console.error('Offline notification error:', notifErr);
