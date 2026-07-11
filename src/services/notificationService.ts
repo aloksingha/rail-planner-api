@@ -2,11 +2,13 @@ import nodemailer from 'nodemailer';
 import axios from 'axios';
 
 // Configurable SMTP transporter
-const smtpHost = process.env.SMTP_HOST || process.env.ZOHO_MAIL_HOST || 'smtp.zoho.in';
-const smtpPort = parseInt(process.env.SMTP_PORT || process.env.ZOHO_MAIL_PORT || '587');
-const smtpSecure = (process.env.SMTP_SECURE || process.env.ZOHO_MAIL_SECURE) === 'true';
-const smtpUser = process.env.SMTP_USER || process.env.ZOHO_MAIL_USER || 'noreply@ticketspro.in';
-const smtpPass = process.env.SMTP_PASSWORD || process.env.ZOHO_MAIL_PASSWORD || '';
+const isResend = !!process.env.RESEND_API_KEY;
+
+const smtpHost = isResend ? 'smtp.resend.com' : (process.env.SMTP_HOST || process.env.ZOHO_MAIL_HOST || 'smtp.zoho.in');
+const smtpPort = isResend ? 465 : parseInt(process.env.SMTP_PORT || process.env.ZOHO_MAIL_PORT || '587');
+const smtpSecure = isResend ? true : (process.env.SMTP_SECURE || process.env.ZOHO_MAIL_SECURE) === 'true';
+const smtpUser = isResend ? 'resend' : (process.env.SMTP_USER || process.env.ZOHO_MAIL_USER || 'noreply@ticketspro.in');
+const smtpPass = process.env.RESEND_API_KEY || process.env.SMTP_PASSWORD || process.env.ZOHO_MAIL_PASSWORD || '';
 
 const isEmailConfigured = !!smtpPass;
 
