@@ -114,7 +114,7 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             // --- ENGINE 2: RAPIDAPI (Fallback) ---
             try {
                 console.log(`[SearchEngine] RailRadar failed. Trying RapidAPI v3 for ${src}->${dst}...`);
-                const dateParts = date.split('-');
+                const dateParts = (date as string).split('-');
                 const rapidApiDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
                 const response = await axios.get(`https://irctc1.p.rapidapi.com/api/v3/trainBetweenStations?fromStationCode=${src}&toStationCode=${dst}&dateOfJourney=${rapidApiDate}`, {
                     headers: { 
