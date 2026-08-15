@@ -112,30 +112,60 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             }
             
 
-            console.warn(`[SearchEngine] ALL ENGINES FAILED! Using Emergency Mock Data for ${src}->${dst}`);
-            // --- ENGINE 3: EMERGENCY MOCK FALLBACK ---
-            return [{
-                train_name: 'Emergency Mock Express',
-                train_no: '99999',
-                from_stn_name: src,
-                to_stn_name: dst,
-                from_time: '08:00',
-                to_time: '20:00',
-                travel_time: '12:00',
-                from_std_mins: 480,
-                to_sta_mins: 1200,
-                running_days: {
-                    days: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-                    allDays: true
-                },
-                train_class_details: [
-                    { classCode: 'SL' },
-                    { classCode: '3A' },
-                    { classCode: '2A' },
-                    { classCode: '1A' }
-                ],
-                isAlternative: isFallback
-            }];
+            console.warn(`[SearchEngine] ALL ENGINES FAILED! Using Offline Trains Fallback for ${src}->${dst}`);
+            // --- ENGINE 3: OFFLINE TRAINS FALLBACK ---
+            try {
+                const fs = require('fs');
+                const path = require('path');
+                const localPath = path.join(__dirname, '../data/offline_trains.json');
+                if (fs.existsSync(localPath)) {
+                    const offlineData = JSON.parse(fs.readFileSync(localPath, 'utf8'));
+                    const matchedTrains = offlineData.filter((t: any) => 
+                        t.stops.includes(src) && t.stops.includes(dst) && 
+                        t.stops.indexOf(src) < t.stops.indexOf(dst)
+                    );
+                    
+                    if (matchedTrains.length > 0) {
+                        return matchedTrains.map((t: any) => {
+                            const srcTime = t.times[src];
+                            const dstTime = t.times[dst];
+                            
+                            const parseToMins = (timeStr: string) => {
+                                const [h, m] = timeStr.split(':').map(Number);
+                                return h * 60 + m;
+                            };
+                            const srcMins = parseToMins(srcTime.dep) + (srcTime.day - 1) * 1440;
+                            const dstMins = parseToMins(dstTime.arr) + (dstTime.day - 1) * 1440;
+                            const durMins = dstMins - srcMins;
+                            const durHrs = Math.floor(durMins / 60);
+                            const durRem = durMins % 60;
+                            
+                            return {
+                                train_name: t.train_name,
+                                train_no: t.train_no,
+                                from_stn_name: src,
+                                to_stn_name: dst,
+                                from_time: srcTime.dep,
+                                to_time: dstTime.arr,
+                                travel_time: `${durHrs.toString().padStart(2, '0')}:${durRem.toString().padStart(2, '0')}`,
+                                from_std_mins: srcMins,
+                                to_sta_mins: dstMins,
+                                running_days: {
+                                    days: t.run_days,
+                                    allDays: t.run_days.length === 7
+                                },
+                                train_class_details: t.classes.map((c: string) => ({ classCode: c })),
+                                isAlternative: isFallback
+                            };
+                        });
+                    }
+                }
+            } catch (e: any) {
+                console.error(`[SearchEngine] Offline Fallback Error: ${e.message}`);
+            }
+
+            // If even offline fails or no trains found, return empty array instead of crashing
+            return [];
         };
 
         // 1. Primary Direct Search
