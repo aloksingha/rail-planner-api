@@ -95,34 +95,6 @@ router.get('/search', async (req, res) => {
             }
         }
 
-        // --- ENGINE 2: RAPIDAPI (Fallback) ---
-        try {
-            const response = await axios.get(`https://irctc1.p.rapidapi.com/api/v1/searchStation?query=${encodeURIComponent(query)}`, {
-                headers: { 
-                    'x-rapidapi-key': NEW_API_KEY,
-                    'x-rapidapi-host': 'irctc1.p.rapidapi.com',
-                    'Accept': 'application/json' 
-                },
-                timeout: 4000
-            });
-            if (response.data?.status && response.data?.data?.length > 0) {
-                console.log(`[Stations] RapidAPI HIT for "${query}"`);
-                const mappedStations = response.data.data.map((s: any) => ({
-                    code: s.code,
-                    name: s.name
-                }));
-                const sorted = sortStationsByCode(mappedStations, query);
-                return res.json({
-                    success: true,
-                    data: {
-                        stations: sorted
-                    }
-                });
-            }
-        } catch (e: any) {
-            console.warn(`[Stations] RapidAPI failed for "${query}": ${e.message}`);
-        }
-
         // --- ENGINE 3: LOCAL JSON FALLBACK ---
         try {
             console.warn(`[Stations] ALL APIs FAILED! Using local JSON fallback for "${query}"`);
