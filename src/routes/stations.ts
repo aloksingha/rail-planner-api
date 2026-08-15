@@ -1,5 +1,7 @@
 import express from 'express';
 import axios from 'axios';
+import fs from 'fs';
+import path from 'path';
 
 const router = express.Router();
 
@@ -119,6 +121,32 @@ router.get('/search', async (req, res) => {
             }
         } catch (e: any) {
             console.warn(`[Stations] RapidAPI failed for "${query}": ${e.message}`);
+        }
+
+        // --- ENGINE 3: LOCAL JSON FALLBACK ---
+        try {
+            console.warn(`[Stations] ALL APIs FAILED! Using local JSON fallback for "${query}"`);
+            const localPath = path.join(__dirname, '../data/stations.json');
+            if (fs.existsSync(localPath)) {
+                const data = fs.readFileSync(localPath, 'utf8');
+                const allStations = JSON.parse(data);
+                const q = query.toLowerCase();
+                const matched = allStations.filter((s: any) => 
+                    s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q)
+                ).slice(0, 10);
+                
+                if (matched.length > 0) {
+                    const sorted = sortStationsByCode(matched, query);
+                    return res.json({
+                        success: true,
+                        data: {
+                            stations: sorted
+                        }
+                    });
+                }
+            }
+        } catch (e: any) {
+            console.error(`[Stations] Local JSON fallback failed: ${e.message}`);
         }
 
         throw lastError || new Error('All station APIs failed');
