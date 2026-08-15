@@ -85,7 +85,6 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         console.log(`[TrainSearch] ${from} to ${to} on ${date} [Day: ${dayFullName}]`);
 
         // Helper to fetch from API with dual-engine failover
-        // Helper to fetch from API using RailRadar (Primary)
         const fetchRemote = async (src: string, dst: string, isFallback = false) => {
             const maxRetries = 3;
             let lastError: any = null;
@@ -94,7 +93,8 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                 const key = getRailRadarKey();
                 try {
                     const response = await axios.get(`${RAILRADAR_BASE_URL}/trains/between?from=${src}&to=${dst}&date=${date}`, {
-                        headers: { 'X-Api-Key': key, 'Accept': 'application/json' }
+                        headers: { 'X-Api-Key': key, 'Accept': 'application/json' },
+                        timeout: 5000
                     });
                     const externalTrains = response.data?.data?.trains || [];
                     console.log(`[SearchEngine] RailRadar ${isFallback ? 'Proximity' : 'Direct'} HIT for ${src}->${dst} (${externalTrains.length} trains)`);
@@ -106,9 +106,58 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                         console.log(`[RailRadar] Key ${key.substring(0, 8)} throttled/invalid. Trying next...`);
                         continue; 
                     }
-                    throw e; 
+                    console.warn(`[RailRadar] Failed with status ${status}, breaking loop to try RapidAPI`);
+                    break;
                 }
             }
+            
+            // --- ENGINE 2: RAPIDAPI (Fallback) ---
+            try {
+                console.log(`[SearchEngine] RailRadar failed. Trying RapidAPI v3 for ${src}->${dst}...`);
+                const response = await axios.get(`https://irctc1.p.rapidapi.com/api/v3/trainBetweenStations?fromStationCode=${src}&toStationCode=${dst}&dateOfJourney=${date}`, {
+                    headers: { 
+                        'x-rapidapi-key': NEW_API_KEY,
+                        'x-rapidapi-host': 'irctc1.p.rapidapi.com',
+                        'Accept': 'application/json' 
+                    },
+                    timeout: 8000
+                });
+                
+                if (response.data?.status && response.data?.data?.length > 0) {
+                    console.log(`[SearchEngine] RapidAPI HIT for ${src}->${dst} (${response.data.data.length} trains)`);
+                    
+                    // Map RapidAPI response to RailRadar structure expected by the rest of the code
+                    const externalTrains = response.data.data.map((t: any) => ({
+                        train_name: t.train_name,
+                        train_no: t.train_number,
+                        from_stn_name: t.from_station_name,
+                        to_stn_name: t.to_station_name,
+                        from_time: t.from_std,
+                        to_time: t.to_sta,
+                        travel_time: t.duration,
+                        from_std_mins: t.from_std_mins || 0,
+                        to_sta_mins: t.to_sta_mins || 0,
+                        running_days: {
+                            days: [
+                                t.run_days.includes('Sun') ? 'Sun' : null,
+                                t.run_days.includes('Mon') ? 'Mon' : null,
+                                t.run_days.includes('Tue') ? 'Tue' : null,
+                                t.run_days.includes('Wed') ? 'Wed' : null,
+                                t.run_days.includes('Thu') ? 'Thu' : null,
+                                t.run_days.includes('Fri') ? 'Fri' : null,
+                                t.run_days.includes('Sat') ? 'Sat' : null
+                            ].filter(Boolean),
+                            allDays: t.run_days.length === 7
+                        },
+                        train_class_details: t.class_type,
+                        isAlternative: isFallback
+                    }));
+                    return externalTrains;
+                }
+            } catch (e: any) {
+                console.warn(`[SearchEngine] RapidAPI failed: ${e.message}`);
+            }
+
             throw lastError || new Error('All search engines failed');
         };
 

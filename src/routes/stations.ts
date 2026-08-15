@@ -95,7 +95,7 @@ router.get('/search', async (req, res) => {
 
         // --- ENGINE 2: RAPIDAPI (Fallback) ---
         try {
-            const response = await axios.get(`https://irctc1.p.rapidapi.com/api/v2/searchStation?query=${encodeURIComponent(query)}`, {
+            const response = await axios.get(`https://irctc1.p.rapidapi.com/api/v1/searchStation?query=${encodeURIComponent(query)}`, {
                 headers: { 
                     'x-rapidapi-key': NEW_API_KEY,
                     'x-rapidapi-host': 'irctc1.p.rapidapi.com',
