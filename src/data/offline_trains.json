@@ -344,5 +344,145 @@
       "CC",
       "EC"
     ]
+  },
+  {
+    "train_no": "12301",
+    "train_name": "Howrah Rajdhani Express",
+    "stops": [
+      "HWH",
+      "ASN",
+      "DHN",
+      "PNME",
+      "GAYA",
+      "DDU",
+      "PRYJ",
+      "CNB",
+      "NDLS"
+    ],
+    "times": {
+      "HWH": {
+        "arr": "16:50",
+        "dep": "16:50",
+        "day": 1
+      },
+      "ASN": {
+        "arr": "18:57",
+        "dep": "18:59",
+        "day": 1
+      },
+      "DHN": {
+        "arr": "19:55",
+        "dep": "20:00",
+        "day": 1
+      },
+      "GAYA": {
+        "arr": "22:31",
+        "dep": "22:34",
+        "day": 1
+      },
+      "DDU": {
+        "arr": "00:45",
+        "dep": "00:55",
+        "day": 2
+      },
+      "PRYJ": {
+        "arr": "02:43",
+        "dep": "02:45",
+        "day": 2
+      },
+      "CNB": {
+        "arr": "04:50",
+        "dep": "04:55",
+        "day": 2
+      },
+      "NDLS": {
+        "arr": "10:05",
+        "dep": "10:05",
+        "day": 2
+      }
+    },
+    "run_days": [
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri",
+      "Sat"
+    ],
+    "classes": [
+      "1A",
+      "2A",
+      "3A"
+    ]
+  },
+  {
+    "train_no": "12302",
+    "train_name": "Howrah Rajdhani Express",
+    "stops": [
+      "NDLS",
+      "CNB",
+      "PRYJ",
+      "DDU",
+      "GAYA",
+      "PNME",
+      "DHN",
+      "ASN",
+      "HWH"
+    ],
+    "times": {
+      "NDLS": {
+        "arr": "16:50",
+        "dep": "16:50",
+        "day": 1
+      },
+      "CNB": {
+        "arr": "21:32",
+        "dep": "21:37",
+        "day": 1
+      },
+      "PRYJ": {
+        "arr": "23:43",
+        "dep": "23:45",
+        "day": 1
+      },
+      "DDU": {
+        "arr": "01:52",
+        "dep": "02:02",
+        "day": 2
+      },
+      "GAYA": {
+        "arr": "04:31",
+        "dep": "04:34",
+        "day": 2
+      },
+      "DHN": {
+        "arr": "07:05",
+        "dep": "07:10",
+        "day": 2
+      },
+      "ASN": {
+        "arr": "08:08",
+        "dep": "08:10",
+        "day": 2
+      },
+      "HWH": {
+        "arr": "09:55",
+        "dep": "09:55",
+        "day": 2
+      }
+    },
+    "run_days": [
+      "Sun",
+      "Mon",
+      "Tue",
+      "Wed",
+      "Thu",
+      "Fri"
+    ],
+    "classes": [
+      "1A",
+      "2A",
+      "3A"
+    ]
   }
 ]
