@@ -12,7 +12,14 @@ import { cancelPassengersOrBooking } from '../utils/cancellation';
 import path from 'path';
 import fs from 'fs';
 
+import usersRouter from './admin/users';
+import refundsRouter from './admin/refunds';
+import bookingsRouter from './admin/bookings';
+
 const router = Router();
+router.use('/', usersRouter);
+router.use('/', refundsRouter);
+router.use('/', bookingsRouter);
 
 // Configure multer for PDF uploads
 const storage = multer.diskStorage({
@@ -29,7 +36,7 @@ const upload = multer({
 });
 
 
-// Only Super Admins can assign roles
+
 // Admin or Super Admin can assign roles/register users
 router.post('/assign-role', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
     const { email, name, mobile, role } = req.body;
@@ -89,77 +96,8 @@ router.post('/assign-role', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), 
     }
 });
 
-// Super Admins can assign regions to Sales Managers
-router.post('/assign-region', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
-    const { targetUserId, region } = req.body;
 
-    if (!targetUserId || !region) {
-        return res.status(400).json({ error: 'Missing targetUserId or region' });
-    }
 
-    try {
-        await prisma.$transaction(async (tx) => {
-            const user = await tx.user.findUnique({ where: { id: targetUserId } });
-            if (!user || user.role !== 'SALES_MANAGER') {
-                throw new Error('Target user must be a Sales Manager');
-            }
-
-            await tx.user.update({
-                where: { id: targetUserId },
-                data: { region }
-            });
-
-            await createAuditLog({
-                action: 'ASSIGN_REGION',
-                targetUserId,
-                performedByUserId: req.user!.userId,
-                details: `Assigned region ${region}`
-            });
-        });
-
-        return res.json({ success: true, message: `Region ${region} assigned successfully` });
-    } catch (error: any) {
-        console.error('Assign region error:', error);
-        return res.status(400).json({ error: error.message || 'Error occurred' });
-    }
-});
-
-// Get manual refunds
-router.get('/refunds', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
-    try {
-        const refunds = await prisma.refundRecord.findMany({
-            where: { status: 'MANUAL_PENDING' },
-            orderBy: { manualCreditDueDate: 'asc' }
-        });
-        return res.json({ refunds });
-    } catch (error) {
-        console.error('Fetch manual refunds error:', error);
-        return res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-// Mark manual refund as resolved
-router.post('/refunds/:id/resolve', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
-    const id = req.params.id as string;
-    try {
-        const refund = await prisma.refundRecord.update({
-            where: { id },
-            data: { status: 'MANUAL_RESOLVED' }
-        });
-
-        await createAuditLog({
-            action: 'RESOLVE_MANUAL_REFUND',
-            performedByUserId: req.user!.userId,
-            details: `Resolved manual refund for payment ${refund.paymentId}`,
-            targetUserId: refund.userId
-        });
-
-        return res.json({ success: true, message: 'Refund marked as resolved.' });
-    } catch (error) {
-        console.error('Resolve manual refund error:', error);
-        return res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
 
 // Admin: Get team members (Sales Managers created by this Admin) with stats
 router.get('/team', requireAuth, requireRole(['ADMIN']), async (req, res) => {
@@ -540,9 +478,7 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
             ? prisma.$queryRaw<Array<{ day: Date; count: bigint; amount: number }>>`
                 SELECT DATE_TRUNC('day', "createdAt") as day, COUNT(id) as count, SUM(amount) as amount
                 FROM "PaymentRecord"
-                WHERE status = 'CAPTURED' 
-                  AND "paymentId" NOT LIKE 'OFF_%'
-                  AND "createdAt" >= ${thirtyDaysAgo}
+                WHERE status = 'CAPTURED' AND "createdAt" >= ${thirtyDaysAgo}
                 GROUP BY day
                 ORDER BY day ASC
             `
@@ -552,7 +488,6 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
                 JOIN "User" c ON p."userId" = c.id
                 JOIN "User" sm ON c."createdByUserId" = sm.id
                 WHERE p.status = 'CAPTURED'
-                  AND p."paymentId" NOT LIKE 'OFF_%'
                   AND p."createdAt" >= ${thirtyDaysAgo}
                   AND sm."createdByUserId" = ${userId}
                   AND sm.role = 'SALES_MANAGER'
@@ -577,13 +512,12 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
                 _count: { _all: true }
             }),
             prisma.user.count({ where: userWhere }),
-            prisma.booking.count({ where: { ...bookingWhere, createdAt: { gte: todayStart }, paymentId: { not: { startsWith: 'OFF_' } } } }),
-            prisma.booking.count({ where: { ...bookingWhere, paymentId: { not: { startsWith: 'OFF_' } } } }),
+            prisma.booking.count({ where: { ...bookingWhere, createdAt: { gte: todayStart } } }),
+            prisma.booking.count({ where: bookingWhere }),
             prisma.paymentRecord.aggregate({
                 where: { 
                     ...paymentWhere, 
                     status: 'CAPTURED', 
-                    paymentId: { not: { startsWith: 'OFF_' } },
                     createdAt: { gte: todayStart } 
                 },
                 _sum: { amount: true }
@@ -597,7 +531,7 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
                 include: { performedByUser: { select: { name: true, email: true, role: true } } }
             }),
             prisma.booking.findMany({
-                where: { ...bookingWhere, paymentId: { not: { startsWith: 'OFF_' } } },
+                where: bookingWhere,
                 take: 15,
                 orderBy: { createdAt: 'desc' },
                 include: { 
@@ -659,7 +593,7 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
     }
 });
 
-// Get all bookings
+
 // Get bookings
 router.get('/bookings', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER']), async (req, res) => {
     const { role, userId } = req.user!;
@@ -865,475 +799,10 @@ router.get('/transactions', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'S
     }
 });
 
-// Cancel a booking
-router.put('/bookings/:id/cancel', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'GLOBAL_BOOKINGS' }), async (req, res) => {
-    const id = req.params.id as string;
-    try {
-        const result = await prisma.$transaction(async (tx) => {
-            return await cancelPassengersOrBooking(tx, id);
-        });
 
-        const booking = await prisma.booking.findUnique({ where: { id } });
-        if (!booking) {
-            return res.status(404).json({ error: 'Booking not found' });
-        }
 
-        if (result.refund && booking) {
-            await refundQueue.add('process-refund', {
-                refundId: result.refund.id,
-                paymentId: booking.paymentId,
-                amount: result.refund.amount
-            });
 
-            // Trigger background processing asynchronously
-            processTicketRefund(result.refund.id).catch((err) => {
-                console.error(`[Background Refund] Auto-refund failed for request ${result.refund.id}:`, err);
-            });
-        }
 
-        await createAuditLog({
-            action: 'CANCEL_BOOKING',
-            performedByUserId: req.user!.userId,
-            details: `Booking ${id} was cancelled by Admin.`,
-            targetUserId: booking.userId
-        });
-
-        // Trigger Notification Webhook
-        const targetUser = await prisma.user.findUnique({ 
-            where: { id: booking.userId },
-            select: { email: true, mobile: true }
-        });
-        if (targetUser) {
-            await notifyBookingCancelled(targetUser.email, 'Cancelled by Admin', targetUser.mobile || undefined);
-        }
-
-        return res.json({ success: true, message: 'Booking cancelled successfully' });
-    } catch (error) {
-        console.error('Cancel booking error:', error);
-        return res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-// Hard Delete a booking (Super Admin Only)
-router.delete('/bookings/:id', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
-    const id = req.params.id as string;
-
-    try {
-        const booking = await prisma.booking.findUnique({ where: { id } });
-        if (!booking) {
-            return res.status(404).json({ error: 'Booking not found' });
-        }
-
-        // Clean up ticket file if it exists
-        if (booking.ticketUrl) {
-            const filename = path.basename(booking.ticketUrl);
-            const filePath = path.join(__dirname, '..', '..', 'uploads', filename);
-            if (fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath);
-            }
-        }
-
-        await prisma.booking.delete({ where: { id } });
-
-        await createAuditLog({
-            action: 'DELETE_BOOKING',
-            performedByUserId: req.user!.userId,
-            details: `Booking ${id} was permanently deleted by Super Admin.`,
-            targetUserId: booking.userId
-        });
-
-        return res.json({ success: true, message: 'Booking permanently deleted.' });
-    } catch (error) {
-        console.error('Delete booking error:', error);
-        return res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-// Upload a PDF Ticket
-router.post('/bookings/:id/ticket', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'GLOBAL_BOOKINGS' }), upload.single('ticket'), async (req, res) => {
-    const id = req.params.id as string;
-
-    if (!req.file) {
-        return res.status(400).json({ error: 'No PDF file uploaded.' });
-    }
-
-    try {
-        const ticketPath = `/uploads/${req.file.filename}`;
-
-        await prisma.booking.update({
-            where: { id },
-            data: {
-                ticketUrl: ticketPath,
-                status: 'CONFIRMED'
-            }
-        });
-
-        return res.json({ success: true, ticketUrl: ticketPath });
-    } catch (error) {
-        console.error('Ticket upload error:', error);
-        return res.status(500).json({ error: 'Failed to save ticket URL.' });
-    }
-});
-
-// Delete a PDF Ticket
-router.delete('/bookings/:id/ticket', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
-    const id = req.params.id as string;
-
-    try {
-        const booking = await prisma.booking.findUnique({ where: { id } });
-        if (!booking || !booking.ticketUrl) {
-            return res.status(404).json({ error: 'Ticket not found or already deleted.' });
-        }
-
-        const filename = path.basename(booking.ticketUrl);
-        const filePath = path.join(__dirname, '..', '..', 'uploads', filename);
-
-        if (fs.existsSync(filePath)) {
-            fs.unlinkSync(filePath);
-        }
-
-        await prisma.booking.update({
-            where: { id },
-            data: { ticketUrl: null }
-        });
-
-        return res.json({ success: true, message: 'Ticket deleted successfully.' });
-    } catch (error) {
-        console.error('Ticket deletion error:', error);
-        return res.status(500).json({ error: 'Failed to delete ticket.' });
-    }
-});
-
-// Re-book a booking (Change Date)
-router.put('/bookings/:id/rebook', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'GLOBAL_BOOKINGS' }), async (req, res) => {
-    const id = req.params.id as string;
-    const { newDate } = req.body;
-
-    if (!newDate) return res.status(400).json({ error: 'New date is required.' });
-
-    try {
-        const booking = await prisma.booking.findUnique({
-            where: { id },
-            include: { event: true }
-        });
-
-        if (!booking) return res.status(404).json({ error: 'Booking not found.' });
-
-        // Create a new event with the new date but same name/description template
-        const newEvent = await prisma.event.create({
-            data: {
-                name: booking.event.name,
-                description: booking.event.description.replace(/on .* Passengers/, `on ${new Date(newDate).toDateString()}. Passengers`),
-                date: new Date(newDate)
-            }
-        });
-
-        await prisma.booking.update({
-            where: { id },
-            data: { eventId: newEvent.id }
-        });
-
-        return res.json({ success: true, newEvent });
-    } catch (error) {
-        console.error('Re-booking error:', error);
-        return res.status(500).json({ error: 'Failed to re-book.' });
-    }
-});
-
-// Update booking status manually (Success/Pending/Cancelled)
-router.patch('/bookings/:id/status', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'GLOBAL_BOOKINGS' }), async (req, res) => {
-    const id = req.params.id as string;
-    const { status } = req.body;
-
-    const validStatuses = ['PENDING', 'SUCCESS', 'CANCELLED', 'CONFIRMED'];
-    if (!validStatuses.includes(status)) {
-        return res.status(400).json({ error: 'Invalid status' });
-    }
-
-    try {
-        const booking = await prisma.$transaction(async (tx) => {
-            if (status === 'CANCELLED') {
-                const cancelRes = await cancelPassengersOrBooking(tx, id);
-                if (cancelRes.refund) {
-                    await refundQueue.add('process-refund', {
-                        refundId: cancelRes.refund.id,
-                        paymentId: cancelRes.refund.paymentId,
-                        amount: cancelRes.refund.amount
-                    });
-                    processTicketRefund(cancelRes.refund.id).catch((err) => {
-                        console.error(`[Background Refund] Auto-refund failed for request ${cancelRes.refund.id}:`, err);
-                    });
-                }
-                return await tx.booking.findUnique({ where: { id } });
-            }
-
-            const updatedBooking = await tx.booking.update({
-                where: { id },
-                data: { status }
-            });
-
-            return updatedBooking;
-        });
-
-        await createAuditLog({
-            action: 'UPDATE_BOOKING_STATUS',
-            performedByUserId: req.user!.userId,
-            details: `Booking ${id} status updated to ${status} by Admin.`,
-            targetUserId: booking.userId
-        });
-
-        // Trigger Notification if status becomes CONFIRMED
-        if (status === 'CONFIRMED') {
-            const user = await prisma.user.findUnique({ 
-                where: { id: booking.userId },
-                select: { email: true, mobile: true }
-            });
-            const event = await prisma.event.findUnique({ where: { id: booking.eventId } });
-            if (user && event) {
-                notifyBookingConfirmed(user.email, event.name, user.mobile || undefined).catch(err => console.error('Admin status update notification background error:', err));
-            }
-        }
-
-        return res.json({ success: true, booking });
-    } catch (error) {
-        console.error('Update status error:', error);
-        return res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-// ── Super Admin & Admin: Get all users (grouped data for User Management page) ──────────
-router.get('/users', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
-    try {
-        const { role, userId } = req.user!;
-        let where = {};
-        
-        if (role === 'ADMIN') {
-            where = { createdByUserId: userId };
-        }
-
-        const limit = parseInt(req.query.limit as string) || 5000;
-        const page = parseInt(req.query.page as string) || 1;
-        const skip = (page - 1) * limit;
-
-        const [users, total] = await Promise.all([
-            prisma.user.findMany({
-                where,
-                orderBy: [{ role: 'asc' }, { createdAt: 'desc' }],
-                take: limit,
-                skip,
-                select: {
-                    id: true,
-                    email: true,
-                    name: true,
-                    mobile: true,
-                    role: true,
-                    region: true,
-                    specialPermissions: true,
-                    status: true,
-                    walletBalance: true,
-                    createdAt: true,
-                    createdByUserId: true,
-                    _count: { select: { bookings: true } }
-                }
-            }),
-            prisma.user.count({ where })
-        ]);
-        return res.json({ success: true, users, total, page, limit });
-    } catch (error: any) {
-        console.error('Fetch all users error:', error);
-        return res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-// ── Super Admin: Update a user's status (Block/Restrict) ────────────────────
-router.patch('/users/:id/status', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
-    const id = req.params.id as string;
-    const { status } = req.body;
-
-    const validStatuses = ['ACTIVE', 'BLOCKED', 'RESTRICTED'];
-    if (!status || !validStatuses.includes(status)) {
-        return res.status(400).json({ error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` });
-    }
-
-    if (id === req.user!.userId) {
-        return res.status(400).json({ error: 'You cannot block your own account.' });
-    }
-
-    try {
-        const targetUser = await prisma.user.findUnique({ where: { id } });
-        if (!targetUser) return res.status(404).json({ error: 'User not found' });
-
-        // ADMIN can only update users they created
-        if (req.user!.role === 'ADMIN') {
-            if (targetUser.createdByUserId !== req.user!.userId) {
-                return res.status(403).json({ error: 'Unauthorized: You can only manage users you created.' });
-            }
-            if (targetUser.role === 'SUPER_ADMIN') {
-                return res.status(403).json({ error: 'Unauthorized: Admins cannot block Super Admins.' });
-            }
-        }
-
-        const user = await prisma.user.update({
-            where: { id },
-            data: { status },
-            select: { id: true, email: true, status: true }
-        });
-
-        await prisma.auditLog.create({
-            data: {
-                action: 'UPDATE_USER_STATUS',
-                performedByUserId: req.user!.userId,
-                targetUserId: id,
-                details: `Updated status of ${user.email} to ${status}`
-            }
-        });
-
-        return res.json({ success: true, user });
-    } catch (error: any) {
-        console.error('Update status error:', error);
-        return res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-// 🛡️ Super Admin: Update a user's Special Permissions 🛡️
-router.put('/users/:id/special-permission', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
-    const id = req.params.id as string;
-    const { permissions } = req.body;
-
-    if (!Array.isArray(permissions)) {
-        return res.status(400).json({ error: 'permissions must be an array of strings' });
-    }
-
-    try {
-        const targetUser = await prisma.user.findUnique({ where: { id } });
-        if (!targetUser) return res.status(404).json({ error: 'User not found' });
-
-        if (targetUser.role !== 'ADMIN' && targetUser.role !== 'SALES_MANAGER') {
-            return res.status(400).json({ error: 'Special Permissions can only be granted to ADMIN or SALES_MANAGER.' });
-        }
-
-        const user = await prisma.user.update({
-            where: { id },
-            data: { specialPermissions: permissions },
-            select: { id: true, email: true, specialPermissions: true }
-        });
-
-        await prisma.auditLog.create({
-            data: {
-                action: 'UPDATE_SPECIAL_PERMISSION',
-                performedByUserId: req.user!.userId,
-                targetUserId: id,
-                details: `Updated special permissions for ${user.email}: [${permissions.join(', ')}]`
-            }
-        });
-
-        return res.json({ success: true, user });
-    } catch (error: any) {
-        console.error('Update special permissions error:', error);
-        return res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-// ── Super Admin: Change a user's role ────────────────────────────────────────
-router.patch('/users/:id/role', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
-    const id = req.params.id as string;
-    const { role } = req.body;
-
-    const validRoles = ['CUSTOMER', 'SALES_MANAGER', 'ADMIN', 'SUPER_ADMIN'];
-    if (!role || !validRoles.includes(role)) {
-        return res.status(400).json({ error: `Invalid role. Must be one of: ${validRoles.join(', ')}` });
-    }
-
-    if (id === req.user!.userId) {
-        return res.status(400).json({ error: 'You cannot change your own role.' });
-    }
-
-    try {
-        const targetUser = await prisma.user.findUnique({ where: { id } });
-        if (!targetUser) return res.status(404).json({ error: 'User not found' });
-
-        // ADMIN restrictions
-        if (req.user!.role === 'ADMIN') {
-            if (targetUser.createdByUserId !== req.user!.userId) {
-                return res.status(403).json({ error: 'Unauthorized: You can only manage users you created.' });
-            }
-            if (role === 'SUPER_ADMIN') {
-                return res.status(403).json({ error: 'Admins cannot promote users to Super Admin.' });
-            }
-        }
-
-        const user = await prisma.user.update({
-            where: { id },
-            data: { role },
-            select: { id: true, email: true, role: true }
-        });
-
-        await prisma.auditLog.create({
-            data: {
-                action: 'CHANGE_USER_ROLE',
-                performedByUserId: req.user!.userId,
-                targetUserId: id,
-                details: `Changed role of ${user.email} to ${role}`
-            }
-        });
-
-        return res.json({ success: true, user });
-    } catch (error: any) {
-        console.error('Change role error:', error);
-        return res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-// ── Super Admin & Admin: Delete a user and cascade clear their records ────────────────────
-router.delete('/users/:id', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
-    const id = req.params.id as string;
-
-    if (id === req.user!.userId) {
-        return res.status(400).json({ error: 'You cannot delete your own account.' });
-    }
-
-    try {
-        const targetUser = await prisma.user.findUnique({ where: { id } });
-        if (!targetUser) return res.status(404).json({ error: 'User not found' });
-
-        // ADMIN restrictions
-        if (req.user!.role === 'ADMIN') {
-            if (targetUser.createdByUserId !== req.user!.userId) {
-                return res.status(403).json({ error: 'Unauthorized: You can only delete users you created.' });
-            }
-            if (targetUser.role === 'SUPER_ADMIN' || targetUser.role === 'ADMIN') {
-                return res.status(403).json({ error: 'Unauthorized: Admins cannot delete Admin or Super Admin accounts.' });
-            }
-        }
-
-        // Cascade delete all relations to avoid foreign key violations in database
-        await prisma.$transaction([
-            prisma.walletTransaction.deleteMany({ where: { userId: id } }),
-            prisma.withdrawalRequest.deleteMany({ where: { userId: id } }),
-            prisma.priceRequest.deleteMany({ where: { userId: id } }),
-            prisma.auditLog.deleteMany({ where: { targetUserId: id } }),
-            prisma.auditLog.deleteMany({ where: { performedByUserId: id } }),
-            prisma.refundRecord.deleteMany({ where: { userId: id } }),
-            prisma.paymentRecord.deleteMany({ where: { userId: id } }),
-            prisma.booking.deleteMany({ where: { userId: id } }),
-            prisma.user.updateMany({ where: { createdByUserId: id }, data: { createdByUserId: null } }),
-            prisma.user.delete({ where: { id } })
-        ]);
-
-        await prisma.auditLog.create({
-            data: {
-                action: 'DELETE_USER',
-                performedByUserId: req.user!.userId,
-                details: `Permanently deleted user account ${targetUser.email} (ID: ${id})`
-            }
-        });
-
-        return res.json({ success: true, message: `User ${targetUser.email} was permanently deleted.` });
-    } catch (error: any) {
-        console.error('Delete user error:', error);
-        return res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
 
 
 // Get Audit Logs

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { prisma } from '../prisma';
+import { CacheService } from '../utils/cache';
 import { createAuditLog } from '../services/auditService';
 
 const router = Router();
@@ -117,9 +118,14 @@ router.post('/seed', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPer
 // Get all corridor pricing rules (Legacy alias for public access)
 router.get('/public', async (req, res) => {
     try {
+        const cached = await CacheService.get('corridors_all');
+        if (cached) {
+            return res.json({ success: true, corridors: JSON.parse(cached) });
+        }
         const corridors = await prisma.corridorPricing.findMany({
             orderBy: { name: 'asc' }
         });
+        await CacheService.set('corridors_all', JSON.stringify(corridors), 60 * 60); // 1 hour cache
         return res.json({ success: true, corridors });
     } catch (error: any) {
         console.error('Fetch corridors public error:', error);
@@ -130,9 +136,14 @@ router.get('/public', async (req, res) => {
 // Get all corridor pricing rules
 router.get('/', async (req, res) => {
     try {
+        const cached = await CacheService.get('corridors_all');
+        if (cached) {
+            return res.json({ success: true, corridors: JSON.parse(cached) });
+        }
         const corridors = await prisma.corridorPricing.findMany({
             orderBy: { name: 'asc' }
         });
+        await CacheService.set('corridors_all', JSON.stringify(corridors), 60 * 60); // 1 hour cache
         return res.json({ success: true, corridors });
     } catch (error: any) {
         console.error('Fetch corridors error:', error);
@@ -149,16 +160,18 @@ router.post('/', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermiss
     }
 
     try {
-        const corridor = await prisma.corridorPricing.create({
+        const newCorridor = await prisma.corridorPricing.create({
             data: {
                 name,
-                originStations: String(originStations),
-                destinationStations: String(destinationStations),
+                originStations: JSON.stringify(originStations),
+                destinationStations: JSON.stringify(destinationStations),
                 markupSL: markupSL ? parseFloat(markupSL) : 0,
                 markup3A: markup3A ? parseFloat(markup3A) : 0,
                 markup2A: markup2A ? parseFloat(markup2A) : 0
             }
         });
+
+        await CacheService.del('corridors_all');
 
         await createAuditLog({
             action: 'CREATE_CORRIDOR',
@@ -166,7 +179,7 @@ router.post('/', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermiss
             details: `Created Corridor Pricing rule: ${name}`
         });
 
-        return res.json({ success: true, corridor });
+        return res.json({ success: true, corridor: newCorridor });
     } catch (error: any) {
         console.error('Create corridor error:', error);
         if (error.code === 'P2002') {
@@ -182,26 +195,29 @@ router.put('/:id', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermi
     const { name, originStations, destinationStations, markupSL, markup3A, markup2A } = req.body;
 
     try {
-        const corridor = await prisma.corridorPricing.update({
+        const updateData: any = {};
+        if (name) updateData.name = name;
+        if (originStations) updateData.originStations = JSON.stringify(originStations);
+        if (destinationStations) updateData.destinationStations = JSON.stringify(destinationStations);
+        if (markupSL !== undefined) updateData.markupSL = parseFloat(markupSL);
+        if (markup3A !== undefined) updateData.markup3A = parseFloat(markup3A);
+        if (markup2A !== undefined) updateData.markup2A = parseFloat(markup2A);
+
+        const updatedCorridor = await prisma.corridorPricing.update({
             where: { id: id as string },
-            data: {
-                name,
-                originStations: originStations !== undefined ? String(originStations) : undefined,
-                destinationStations: destinationStations !== undefined ? String(destinationStations) : undefined,
-                markupSL: markupSL !== undefined ? parseFloat(markupSL) : undefined,
-                markup3A: markup3A !== undefined ? parseFloat(markup3A) : undefined,
-                markup2A: markup2A !== undefined ? parseFloat(markup2A) : undefined
-            }
+            data: updateData
         });
+
+        await CacheService.del('corridors_all');
 
         await createAuditLog({
             action: 'UPDATE_CORRIDOR',
             performedByUserId: req.user!.userId,
-            details: `Updated Corridor Pricing rule: ${corridor.name}`
+            details: `Updated Corridor Pricing rule: ${updatedCorridor.name}`
         });
 
         // Note: Reverse syncing was removed because bidirectional routing applies dynamically.
-        return res.json({ success: true, corridor, mirrorUpdated: false });
+        return res.json({ success: true, corridor: updatedCorridor, mirrorUpdated: false });
     } catch (error: any) {
         console.error('Update corridor error:', error);
         return res.status(500).json({ error: error.message || 'Internal Server Error' });
@@ -217,6 +233,8 @@ router.delete('/:id', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPe
         const corridor = await prisma.corridorPricing.delete({
             where: { id: id as string }
         });
+
+        await CacheService.del('corridors_all');
 
         await createAuditLog({
             action: 'DELETE_CORRIDOR',

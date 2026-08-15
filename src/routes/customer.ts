@@ -6,6 +6,7 @@ import { refundQueue } from '../queue/refundQueue';
 import { processTicketRefund } from '../services/razorpayService';
 import { handleBookingCancellation } from '../utils/commission';
 import { cancelPassengersOrBooking } from '../utils/cancellation';
+import crypto from 'crypto';
 
 const router = express.Router();
 
@@ -33,7 +34,7 @@ router.get('/dashboard', requireAuth, async (req, res) => {
             }),
             prisma.user.findUnique({
                 where: { id: userId },
-                select: { email: true, role: true }
+                select: { email: true, role: true, walletBalance: true }
             })
         ]);
 
@@ -127,12 +128,19 @@ router.get('/stats', requireAuth, async (req, res) => {
 });
 
 // Customer Re-book (Change Date)
+// Customer Re-book (Change Date & Train)
 router.put('/bookings/:id/rebook', requireAuth, async (req, res) => {
     const id = req.params.id as string;
     const userId = req.user!.userId;
-    const { newDate } = req.body;
+    const { 
+        newDate, newTrainNo, newTrainName, newClass, 
+        amount: newPrice, paymentMethod, 
+        razorpay_payment_id, razorpay_order_id, razorpay_signature 
+    } = req.body;
 
-    if (!newDate) return res.status(400).json({ error: 'New date is required.' });
+    if (!newDate || !newTrainNo || !newClass || newPrice === undefined) {
+        return res.status(400).json({ error: 'Missing required rebooking parameters.' });
+    }
 
     try {
         const booking = await prisma.booking.findFirst({
@@ -142,24 +150,126 @@ router.put('/bookings/:id/rebook', requireAuth, async (req, res) => {
 
         if (!booking) return res.status(404).json({ error: 'Booking not found.' });
 
-        // Create a new event with the new date but same name/description template
-        const newEvent = await prisma.event.create({
-            data: {
-                name: booking.event.name,
-                description: booking.event.description.replace(/on .* Passengers/, `on ${new Date(newDate).toDateString()}. Passengers`),
-                date: new Date(newDate)
+        // Get old price from payment record
+        const oldPayment = await prisma.paymentRecord.findUnique({
+            where: { paymentId: booking.paymentId || '' }
+        });
+
+        if (!oldPayment) return res.status(400).json({ error: 'Original payment record not found.' });
+
+        const oldPrice = oldPayment.amount;
+        const diff = newPrice - oldPrice;
+
+        await prisma.$transaction(async (tx) => {
+            // 1. Handle Payment Difference
+            if (diff > 0) {
+                if (paymentMethod === 'RAZORPAY') {
+                    if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
+                        throw new Error('Missing Razorpay parameters for additional payment');
+                    }
+                    const text = `${razorpay_order_id}|${razorpay_payment_id}`;
+                    const expectedSignature = crypto.createHmac('sha256', process.env.RAZORPAY_KEY_SECRET as string)
+                                                    .update(text)
+                                                    .digest('hex');
+                    if (expectedSignature !== razorpay_signature) {
+                        throw new Error('Invalid Razorpay signature');
+                    }
+                    // Log the additional payment
+                    await tx.walletTransaction.create({
+                        data: {
+                            userId,
+                            amount: diff,
+                            type: 'CREDIT', // Technically direct pay, but log as credit+debit for simplicity or just audit log
+                            description: `Rebook extra payment (Txn: ${razorpay_payment_id})`
+                        }
+                    });
+                } else if (paymentMethod === 'WALLET') {
+                    const user = await tx.user.findUnique({ where: { id: userId } });
+                    if (!user || user.walletBalance < diff) {
+                        throw new Error('Insufficient wallet balance for rebooking diff');
+                    }
+                    await tx.user.update({
+                        where: { id: userId },
+                        data: { walletBalance: { decrement: diff } }
+                    });
+                    await tx.walletTransaction.create({
+                        data: {
+                            userId,
+                            amount: diff,
+                            type: 'DEBIT',
+                            description: `Rebook extra charge for Booking ${id}`
+                        }
+                    });
+                } else {
+                    throw new Error('Invalid payment method');
+                }
+            } else if (diff < 0) {
+                // Refund the difference to wallet
+                const refundAmount = Math.abs(diff);
+                await tx.user.update({
+                    where: { id: userId },
+                    data: { walletBalance: { increment: refundAmount } }
+                });
+                await tx.walletTransaction.create({
+                    data: {
+                        userId,
+                        amount: refundAmount,
+                        type: 'CREDIT',
+                        description: `Rebook refund for Booking ${id}`
+                    }
+                });
             }
+
+            // 2. Extract passenger info and create new event
+            let originalPassengers = '';
+            const paxMatch = booking.event.description.match(/Passengers:\s*(.*?)(?=\.\s*Mobile:|$)/);
+            if (paxMatch) originalPassengers = paxMatch[1];
+            
+            const originalMobileMatch = booking.event.description.match(/Mobile:\s*(\d+)/);
+            const originalMobile = originalMobileMatch ? originalMobileMatch[1] : '';
+
+            const newEventName = `Train ${newTrainNo} - ${newTrainName}`;
+            const newDescription = `OFFLINE/ADMIN booking. Train: ${newTrainNo}. Route: ${newEventName} on ${new Date(newDate).toDateString()}. Passengers: ${originalPassengers}. Mobile: ${originalMobile}. Amount: ₹${newPrice}`;
+
+            const newEvent = await tx.event.create({
+                data: {
+                    name: newEventName,
+                    description: newDescription,
+                    date: new Date(newDate)
+                }
+            });
+
+            // 3. Update Booking
+            await tx.booking.update({
+                where: { id },
+                data: { 
+                    eventId: newEvent.id,
+                    class: newClass,
+                    status: 'CONFIRMED' // Or pending based on rules, but keeping it CONFIRMED if it was success
+                }
+            });
+
+            // Update old PaymentRecord amount so future rebooks see the new total
+            await tx.paymentRecord.update({
+                where: { paymentId: booking.paymentId || '' },
+                data: { amount: newPrice }
+            });
+
+            // 4. Audit Log
+            await tx.auditLog.create({
+                data: {
+                    action: 'REBOOK_TICKET',
+                    targetUserId: userId,
+                    performedByUserId: userId,
+                    details: `Rebooked ticket ${id} to Train ${newTrainNo} on ${newDate}. Diff: ₹${diff}`
+                }
+            });
         });
 
-        await prisma.booking.update({
-            where: { id },
-            data: { eventId: newEvent.id }
-        });
-
-        return res.json({ success: true, newEvent });
-    } catch (error) {
+        return res.json({ success: true });
+    } catch (error: any) {
         console.error('Customer re-booking error:', error);
-        return res.status(500).json({ error: 'Failed to re-book.' });
+        return res.status(500).json({ error: error.message || 'Failed to re-book.' });
     }
 });
 

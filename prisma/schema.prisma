@@ -8,60 +8,54 @@ datasource db {
 }
 
 model User {
-  id           String          @id @default(uuid())
-  email        String          @unique
-  passwordHash String
-  name         String?
-  mobile       String?
-  role                 String          @default("CUSTOMER")
-  hasSpecialPermission Boolean?        @default(false)
-  specialPermissions   String[]        @default([])
-  region               String?         // Applicable for SALES_MANAGER
-  status               String          @default("ACTIVE") // ACTIVE, BLOCKED, RESTRICTED
-  createdAt            DateTime        @default(now())
-  
-  createdByUserId String?
-  createdBy       User?           @relation("UserCreator", fields: [createdByUserId], references: [id])
-  createdUsers    User[]          @relation("UserCreator")
-
-  bookings       Booking[]
-  paymentRecords PaymentRecord[]
-  refundRecords  RefundRecord[]
-  
-  auditLogsTarget    AuditLog[] @relation("TargetUser")
-  auditLogsPerformed AuditLog[] @relation("PerformedBy")
-  priceRequests      PriceRequest[]
-  walletBalance       Float           @default(0)
-  walletTransactions  WalletTransaction[]
-  withdrawalRequests  WithdrawalRequest[]
+  id                   String              @id @default(uuid())
+  email                String              @unique
+  passwordHash         String
+  name                 String?
+  mobile               String?
+  role                 String              @default("CUSTOMER")
+  region               String?
+  status               String              @default("ACTIVE")
+  createdAt            DateTime            @default(now())
+  createdByUserId      String?
+  walletBalance        Float               @default(0)
+  hasSpecialPermission Boolean?            @default(false)
+  specialPermissions   String[]            @default([])
+  auditLogsPerformed   AuditLog[]          @relation("PerformedBy")
+  auditLogsTarget      AuditLog[]          @relation("TargetUser")
+  bookings             Booking[]
+  paymentRecords       PaymentRecord[]
+  priceRequests        PriceRequest[]
+  refundRecords        RefundRecord[]
+  createdBy            User?               @relation("UserCreator", fields: [createdByUserId], references: [id])
+  createdUsers         User[]              @relation("UserCreator")
+  walletTransactions   WalletTransaction[]
+  withdrawalRequests   WithdrawalRequest[]
 
   @@index([role])
   @@index([createdByUserId])
 }
 
 model Event {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   name        String
   description String
   date        DateTime
-  
-  bookings Booking[]
+  bookings    Booking[]
 }
 
 model Booking {
-  id        String   @id @default(uuid())
-  userId    String
-  eventId   String
-  paymentId String?
-  ticketUrl String?
-  status    String   @default("CONFIRMED")
-  class     String?  // 'AC' (includes 2A, 3A, CC) or 'SLEEPER' (includes SL)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  user  User  @relation(fields: [userId], references: [id])
-  event Event @relation(fields: [eventId], references: [id])
-
+  id            String         @id @default(uuid())
+  userId        String
+  eventId       String
+  paymentId     String?
+  ticketUrl     String?
+  status        String         @default("CONFIRMED")
+  class         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  event         Event          @relation(fields: [eventId], references: [id])
+  user          User           @relation(fields: [userId], references: [id])
   refundRecords RefundRecord[]
 
   @@index([createdAt])
@@ -80,8 +74,7 @@ model PaymentRecord {
   status    String   @default("CAPTURED")
   userId    String
   createdAt DateTime @default(now())
-  
-  user User @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 
   @@index([status])
   @@index([createdAt])
@@ -89,23 +82,22 @@ model PaymentRecord {
 }
 
 model RefundRecord {
-  id                    String       @id @default(uuid())
+  id                    String    @id @default(uuid())
   paymentId             String
   amount                Float
-  region                String       @default("Global")
-  status                String       @default("AUTOMATED_PENDING")
+  region                String    @default("Global")
+  status                String    @default("AUTOMATED_PENDING")
   reason                String?
   originalFailureReason String?
   manualCreditDueDate   DateTime?
-  attempts              Int          @default(0)
+  attempts              Int       @default(0)
   razorpayRefundId      String?
   userId                String
   bookingId             String?
-  createdAt             DateTime     @default(now())
-  updatedAt             DateTime     @updatedAt
-  
-  user    User     @relation(fields: [userId], references: [id])
-  booking Booking? @relation(fields: [bookingId], references: [id])
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  booking               Booking?  @relation(fields: [bookingId], references: [id])
+  user                  User      @relation(fields: [userId], references: [id])
 
   @@index([status])
   @@index([userId])
@@ -120,9 +112,8 @@ model AuditLog {
   performedByUserId String
   details           String?
   timestamp         DateTime @default(now())
-  
-  targetUser      User? @relation("TargetUser", fields: [targetUserId], references: [id])
-  performedByUser User  @relation("PerformedBy", fields: [performedByUserId], references: [id])
+  performedByUser   User     @relation("PerformedBy", fields: [performedByUserId], references: [id])
+  targetUser        User?    @relation("TargetUser", fields: [targetUserId], references: [id])
 
   @@index([action])
   @@index([timestamp])
@@ -139,12 +130,11 @@ model PriceRequest {
   destination    String
   class          String
   suggestedPrice Float?
-  status         String   @default("PENDING") // PENDING, UPDATED, COMPLETED
+  status         String   @default("PENDING")
   adminComment   String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id])
+  user           User     @relation(fields: [userId], references: [id])
 
   @@index([status])
   @@index([createdAt])
@@ -153,11 +143,11 @@ model PriceRequest {
 model CorridorPricing {
   id                  String   @id @default(uuid())
   name                String   @unique
-  originStations      String   // JSON array of station codes e.g. '["GHY", "KYQ"]'
-  destinationStations String   // JSON array of station codes
-  markupSL            Float    @default(0) // Total price for Sleeper
-  markup3A            Float    @default(0) // Total price for 3A
-  markup2A            Float    @default(0) // Total price for 2A
+  originStations      String
+  destinationStations String
+  markupSL            Float    @default(0)
+  markup3A            Float    @default(0)
+  markup2A            Float    @default(0)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 }
@@ -168,23 +158,23 @@ model ContactMessage {
   email     String
   subject   String
   message   String
-  status    String   @default("UNREAD") // UNREAD, READ, RESOLVED
+  status    String   @default("UNREAD")
   createdAt DateTime @default(now())
 }
 
 model Coupon {
-  id               String   @id @default(uuid())
-  code             String   @unique
-  discountType     String   // 'PERCENTAGE' or 'FIXED'
+  id               String    @id @default(uuid())
+  code             String    @unique
+  discountType     String
   discountValue    Float
-  minBookingAmount Float    @default(0)
-  maxDiscount      Float?   // Only relevant for PERCENTAGE
+  minBookingAmount Float     @default(0)
+  maxDiscount      Float?
   expiryDate       DateTime?
-  isActive         Boolean  @default(true)
-  usageLimit       Int?     // Maximum total uses allowed
-  usageCount       Int      @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  isActive         Boolean   @default(true)
+  usageLimit       Int?
+  usageCount       Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@index([code])
 }
@@ -197,25 +187,25 @@ model GlobalSettings {
   whatsapp   String   @default("")
   facebook   String   @default("")
   telegram   String   @default("")
-  otaVersion String   @default("")
   updatedAt  DateTime @updatedAt
+  otaVersion String   @default("")
 }
 
 model FailedBooking {
-  id           String   @id @default(uuid())
-  name         String
-  email        String
-  mobile       String
-  trainName    String?
-  trainNumber  String?
-  source       String?
-  destination  String?
-  journeyDate  String?
-  class        String?
-  reason       String? // e.g. "Payment Cancelled", "Payment Failed"
-  status       String   @default("PENDING") // PENDING, FOLLOWED_UP, IGNORED
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(uuid())
+  name        String
+  email       String
+  mobile      String
+  trainName   String?
+  trainNumber String?
+  source      String?
+  destination String?
+  journeyDate String?
+  class       String?
+  reason      String?
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@index([email])
   @@index([mobile])
@@ -226,12 +216,11 @@ model WalletTransaction {
   id          String   @id @default(uuid())
   userId      String
   amount      Float
-  type        String   // 'CREDIT', 'DEBIT', 'REFUND'
+  type        String
   description String?
   bookingId   String?
   createdAt   DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([createdAt])
@@ -242,14 +231,13 @@ model WithdrawalRequest {
   userId       String
   amount       Float
   charge       Float    @default(0)
-  status       String   @default("PENDING") // PENDING, APPROVED, COMPLETED, REJECTED
-  method       String   @default("UPI")     // UPI, BANK
-  details      String?                      // e.g. "UPI: xyz@okicici"
+  status       String   @default("PENDING")
+  method       String   @default("UPI")
+  details      String?
   adminComment String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  
-  user User @relation(fields: [userId], references: [id])
+  user         User     @relation(fields: [userId], references: [id])
 
   @@index([status])
   @@index([userId])
@@ -274,7 +262,7 @@ model StationNearby {
 
 model PricingRule {
   id           String   @id @default(uuid())
-  class        String   @unique // SL, 3A, 2A, etc.
+  class        String   @unique
   basePrice    Float
   pricePerHour Float
   fixedMarkup  Float
@@ -282,13 +270,13 @@ model PricingRule {
 }
 
 model SpecialCharge {
-  id        String   @id @default(uuid())
-  name      String   @unique // e.g. "SUPERFAST"
-  pattern   String   // regex or simple string match for train name
-  amountSL  Float    @default(0)
-  amount3A  Float    @default(0)
-  amount2A  Float    @default(0)
-  amount2S  Float    @default(0)
+  id       String @id @default(uuid())
+  name     String @unique
+  pattern  String
+  amountSL Float  @default(0)
+  amount3A Float  @default(0)
+  amount2A Float  @default(0)
+  amount2S Float  @default(0)
 }
 
 model Promotion {
@@ -301,4 +289,3 @@ model Promotion {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
-

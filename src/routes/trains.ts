@@ -19,11 +19,10 @@ const formatTravelTime = (minutes: number) => {
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:00`;
 };
 
-// SIMPLE IN-MEMORY CACHE for Train Search
-const trainCache = new Map<string, { data: any, expiry: number }>();
-const scheduleCache = new Map<string, { data: any, expiry: number }>();
-const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+const CACHE_TTL = 15 * 60; // 15 minutes in seconds
 const SEARCH_VERSION = 'v3.8-kne-tvc-corridor-update'; // Bump for enroute Northeast-South corridor pricing
+
+import { CacheService } from '../utils/cache';
 
 import { PricingContext, getTicketPrice } from '../utils/pricing';
 import { prisma } from '../prisma';
@@ -37,11 +36,11 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         }
 
 
-        const cacheKey = `${from}-${to}-${date}-${reqClass || 'ALL'}-${SEARCH_VERSION}`;
-        const cached = trainCache.get(cacheKey);
-        if (cached && cached.expiry > Date.now()) {
+        const cacheKey = `train_search:${from}-${to}-${date}-${reqClass || 'ALL'}-${SEARCH_VERSION}`;
+        const cached = await CacheService.get(cacheKey);
+        if (cached) {
             console.log(`[TrainCache] HIT for ${cacheKey}`);
-            return res.json({ success: true, data: cached.data });
+            return res.json({ success: true, data: JSON.parse(cached) });
         }
 
         // Fetch all context data in parallel
@@ -314,7 +313,7 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         const uniqueTrains = Array.from(uniqueTrainsMap.values());
 
         console.log(`[TrainSearch] Returning ${uniqueTrains.length} unique trains`);
-        trainCache.set(cacheKey, { data: uniqueTrains, expiry: Date.now() + CACHE_TTL });
+        await CacheService.set(cacheKey, JSON.stringify(uniqueTrains), CACHE_TTL);
         return res.json({ success: true, data: uniqueTrains });
 
     } catch (error: any) {
@@ -327,10 +326,11 @@ router.get('/schedule/:trainNo', async (req: Request, res: Response) => {
     try {
         const { trainNo } = req.params;
 
-        const cached = scheduleCache.get(String(trainNo));
-        if (cached && cached.expiry > Date.now()) {
+        const cacheKey = `schedule:${trainNo}`;
+        const cached = await CacheService.get(cacheKey);
+        if (cached) {
             console.log(`[ScheduleCache] HIT for ${trainNo}`);
-            return res.json({ success: true, data: cached.data });
+            return res.json({ success: true, data: JSON.parse(cached) });
         }
 
         const maxRetries = 3;
@@ -367,7 +367,7 @@ router.get('/schedule/:trainNo', async (req: Request, res: Response) => {
             isHalt: stop.isHalt
         }));
 
-        scheduleCache.set(String(trainNo), { data: adaptedSchedule, expiry: Date.now() + (24 * 60 * 60 * 1000) }); // Cache schedules for 24 hours
+        await CacheService.set(`schedule:${trainNo}`, JSON.stringify(adaptedSchedule), 24 * 60 * 60); // 24 hours
         return res.json({ success: true, data: adaptedSchedule });
 
     } catch (error: any) {
