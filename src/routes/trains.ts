@@ -101,7 +101,35 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                     });
                     const externalTrains = response.data?.data?.trains || [];
                     console.log(`[SearchEngine] RailRadar ${isFallback ? 'Proximity' : 'Direct'} HIT for ${src}->${dst} (${externalTrains.length} trains)`);
-                    return externalTrains.map((t: any) => ({ ...t, isAlternative: isFallback }));
+                    return externalTrains.map((t: any) => {
+                        const durHrs = Math.floor(t.duration / 60);
+                        const durRem = t.duration % 60;
+                        const srcMins = parseInt(t.from.departure.split(':')[0]) * 60 + parseInt(t.from.departure.split(':')[1]) + (t.from.day - 1) * 1440;
+                        const dstMins = parseInt(t.to.arrival.split(':')[0]) * 60 + parseInt(t.to.arrival.split(':')[1]) + (t.to.day - 1) * 1440;
+                        const dayMap: {[key: string]: string} = {
+                            'mon': 'Mon', 'tue': 'Tue', 'wed': 'Wed', 'thu': 'Thu', 'fri': 'Fri', 'sat': 'Sat', 'sun': 'Sun'
+                        };
+
+                        return {
+                            train_name: t.train.name,
+                            train_no: t.train.number,
+                            from_stn_name: t.from.code,
+                            to_stn_name: t.to.code,
+                            from_time: t.from.departure,
+                            to_time: t.to.arrival,
+                            travel_time: `${durHrs.toString().padStart(2, '0')}:${durRem.toString().padStart(2, '0')}`,
+                            from_std_mins: srcMins,
+                            to_sta_mins: dstMins,
+                            running_days: {
+                                days: (t.train.runDays || []).map((d: string) => dayMap[d.toLowerCase()] || d),
+                                allDays: (t.train.runDays || []).length === 7
+                            },
+                            train_class_details: [
+                                { classCode: 'SL' }, { classCode: '3A' }, { classCode: '2A' }, { classCode: '1A' }
+                            ],
+                            isAlternative: isFallback
+                        };
+                    });
                 } catch (e: any) {
                     lastError = e;
                     const status = e.response?.status;
