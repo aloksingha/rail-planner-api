@@ -20,7 +20,7 @@ const formatTravelTime = (minutes: number) => {
 };
 
 const CACHE_TTL = 15 * 60; // 15 minutes in seconds
-const SEARCH_VERSION = 'v3.8-kne-tvc-corridor-update'; // Bump for enroute Northeast-South corridor pricing
+const SEARCH_VERSION = 'v3.9-railradar-in-migration'; // Bumped to clear stale caches from .org to .in migration
 
 import { CacheService } from '../utils/cache';
 
