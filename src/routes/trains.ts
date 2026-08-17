@@ -4,7 +4,7 @@ import axios from 'axios';
 const router = express.Router();
 
 import { getRailRadarKey, NEW_API_BASE_URL, NEW_API_KEY } from '../utils/keys';
-const RAILRADAR_BASE_URL = 'https://api.railradar.org/api/v1';
+const RAILRADAR_BASE_URL = 'https://api.railradar.in/v1';
 
 const formatTime = (minutes: number) => {
     const min = minutes % 60;
@@ -92,8 +92,11 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             for (let i = 0; i < maxRetries; i++) {
                 const key = getRailRadarKey();
                 try {
-                    const response = await axios.get(`${RAILRADAR_BASE_URL}/trains/between?from=${src}&to=${dst}&date=${date}`, {
-                        headers: { 'X-Api-Key': key, 'Accept': 'application/json' },
+                    console.log(`[SearchEngine] Trying RailRadar with key ${key.substring(0, 8)}...`);
+                    // Convert DD-MM-YYYY to YYYY-MM-DD for the new RailRadar API
+                    const apiDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+                    const response = await axios.get(`${RAILRADAR_BASE_URL}/trains/between/${src}/${dst}?date=${apiDate}`, {
+                        headers: { 'Authorization': `Bearer ${key}` },
                         timeout: 5000
                     });
                     const externalTrains = response.data?.data?.trains || [];

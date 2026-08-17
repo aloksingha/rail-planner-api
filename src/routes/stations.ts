@@ -6,7 +6,7 @@ import path from 'path';
 const router = express.Router();
 
 import { getRailRadarKey, NEW_API_BASE_URL, NEW_API_KEY } from '../utils/keys';
-const RAILRADAR_BASE_URL = 'https://api.railradar.org/api/v1';
+const RAILRADAR_BASE_URL = 'https://api.railradar.in/v1';
 
 interface Station {
     code: string;
@@ -70,7 +70,7 @@ router.get('/search', async (req, res) => {
             try {
                 const response = await axios.get(`${RAILRADAR_BASE_URL}/search/stations?query=${encodeURIComponent(query)}`, {
                     headers: {
-                        'X-Api-Key': key,
+                        'Authorization': `Bearer ${key}`,
                         'Accept': 'application/json'
                     },
                     timeout: 4000
