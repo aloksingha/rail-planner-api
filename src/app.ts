@@ -37,6 +37,34 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
 });
 
+app.get('/test-api', async (req, res) => {
+    try {
+        const axios = require('axios');
+        const { NEW_API_KEY, getRailRadarKey } = require('./utils/keys');
+        const key = getRailRadarKey();
+        const start = Date.now();
+        const response = await axios.get('https://api.railradar.in/v1/trains/between/ANVT/RDP?date=2026-08-30', {
+            headers: { 'Authorization': `Bearer ${key}` },
+            timeout: 10000
+        });
+        const duration = Date.now() - start;
+        res.json({ 
+            status: 'success', 
+            duration, 
+            statusText: response.statusText,
+            data: response.data 
+        });
+    } catch (e: any) {
+        res.json({ 
+            status: 'error', 
+            message: e.message, 
+            code: e.code, 
+            responseStatus: e.response?.status,
+            responseData: e.response?.data
+        });
+    }
+});
+
 app.use('/api/trains', trainRoutes);
 app.use('/api/flights', flightRoutes);
 app.use('/api/cars', carRoutes);
