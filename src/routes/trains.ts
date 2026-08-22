@@ -20,7 +20,7 @@ const formatTravelTime = (minutes: number) => {
 };
 
 const CACHE_TTL = 15 * 60; // 15 minutes in seconds
-const SEARCH_VERSION = 'v3.11-railradar-waf-bypass'; // Bumped to force WAF bypass attempt
+const SEARCH_VERSION = 'v3.12-map-bug-fix'; // Bumped to fix string map bug
 
 import { CacheService } from '../utils/cache';
 
@@ -126,8 +126,8 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                             from_std_mins: srcMins,
                             to_sta_mins: dstMins,
                             running_days: {
-                                days: (t.train.runDays || []).map((d: string) => dayMap[d.toLowerCase()] || d),
-                                allDays: (t.train.runDays || []).length === 7
+                                days: (Array.isArray(t.train.runDays) ? t.train.runDays : (typeof t.train.runDays === 'string' ? t.train.runDays.split(',') : [])).map((d: string) => dayMap[d.trim().toLowerCase()] || d),
+                                allDays: (t.train.runDays || []).length === 7 || (typeof t.train.runDays === 'string' && t.train.runDays.toLowerCase() === 'daily')
                             },
                             train_class_details: [
                                 { classCode: 'SL' }, { classCode: '3A' }, { classCode: '2A' }, { classCode: '1A' }
