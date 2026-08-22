@@ -1,488 +1,517 @@
 [
-  {
-    "train_no": "13053",
-    "train_name": "Kulik Express",
-    "stops": [
-      "HWH",
-      "BWN",
-      "BHP",
-      "RPH",
-      "PKR",
-      "MLDT",
-      "SM",
-      "BKRD",
-      "BOE",
-      "RGJ",
-      "KAJ",
-      "RDP"
-    ],
-    "times": {
-      "HWH": {
-        "arr": "08:55",
-        "dep": "08:55",
-        "day": 1
-      },
-      "BWN": {
-        "arr": "10:52",
-        "dep": "10:54",
-        "day": 1
-      },
-      "MLDT": {
-        "arr": "15:15",
-        "dep": "15:30",
-        "day": 1
-      },
-      "BOE": {
-        "arr": "16:58",
-        "dep": "17:00",
-        "day": 1
-      },
-      "RGJ": {
-        "arr": "17:20",
-        "dep": "17:25",
-        "day": 1
-      },
-      "RDP": {
-        "arr": "18:30",
-        "dep": "18:30",
-        "day": 1
-      }
+    {
+        "train_no": "13053",
+        "train_name": "Kulik Express",
+        "stops": [
+            "HWH",
+            "BWN",
+            "BHP",
+            "RPH",
+            "PKR",
+            "MLDT",
+            "SM",
+            "BKRD",
+            "BOE",
+            "RGJ",
+            "KAJ",
+            "RDP"
+        ],
+        "times": {
+            "HWH": {
+                "arr": "08:55",
+                "dep": "08:55",
+                "day": 1
+            },
+            "BWN": {
+                "arr": "10:52",
+                "dep": "10:54",
+                "day": 1
+            },
+            "MLDT": {
+                "arr": "15:15",
+                "dep": "15:30",
+                "day": 1
+            },
+            "BOE": {
+                "arr": "16:58",
+                "dep": "17:00",
+                "day": 1
+            },
+            "RGJ": {
+                "arr": "17:20",
+                "dep": "17:25",
+                "day": 1
+            },
+            "RDP": {
+                "arr": "18:30",
+                "dep": "18:30",
+                "day": 1
+            }
+        },
+        "run_days": [
+            "Sun",
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sat"
+        ],
+        "classes": [
+            "CC",
+            "2S"
+        ]
     },
-    "run_days": [
-      "Sun",
-      "Mon",
-      "Tue",
-      "Wed",
-      "Thu",
-      "Fri",
-      "Sat"
-    ],
-    "classes": [
-      "CC",
-      "2S"
-    ]
-  },
-  {
-    "train_no": "13054",
-    "train_name": "Kulik Express",
-    "stops": [
-      "RDP",
-      "KAJ",
-      "RGJ",
-      "BOE",
-      "BKRD",
-      "SM",
-      "MLDT",
-      "PKR",
-      "RPH",
-      "BHP",
-      "BWN",
-      "HWH"
-    ],
-    "times": {
-      "RDP": {
-        "arr": "05:45",
-        "dep": "05:45",
-        "day": 1
-      },
-      "RGJ": {
-        "arr": "06:20",
-        "dep": "06:25",
-        "day": 1
-      },
-      "BOE": {
-        "arr": "06:45",
-        "dep": "06:47",
-        "day": 1
-      },
-      "MLDT": {
-        "arr": "08:45",
-        "dep": "09:00",
-        "day": 1
-      },
-      "BWN": {
-        "arr": "13:31",
-        "dep": "13:33",
-        "day": 1
-      },
-      "HWH": {
-        "arr": "15:35",
-        "dep": "15:35",
-        "day": 1
-      }
+    {
+        "train_no": "13054",
+        "train_name": "Kulik Express",
+        "stops": [
+            "RDP",
+            "KAJ",
+            "RGJ",
+            "BOE",
+            "BKRD",
+            "SM",
+            "MLDT",
+            "PKR",
+            "RPH",
+            "BHP",
+            "BWN",
+            "HWH"
+        ],
+        "times": {
+            "RDP": {
+                "arr": "05:45",
+                "dep": "05:45",
+                "day": 1
+            },
+            "RGJ": {
+                "arr": "06:20",
+                "dep": "06:25",
+                "day": 1
+            },
+            "BOE": {
+                "arr": "06:45",
+                "dep": "06:47",
+                "day": 1
+            },
+            "MLDT": {
+                "arr": "08:45",
+                "dep": "09:00",
+                "day": 1
+            },
+            "BWN": {
+                "arr": "13:31",
+                "dep": "13:33",
+                "day": 1
+            },
+            "HWH": {
+                "arr": "15:35",
+                "dep": "15:35",
+                "day": 1
+            }
+        },
+        "run_days": [
+            "Sun",
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sat"
+        ],
+        "classes": [
+            "CC",
+            "2S"
+        ]
     },
-    "run_days": [
-      "Sun",
-      "Mon",
-      "Tue",
-      "Wed",
-      "Thu",
-      "Fri",
-      "Sat"
-    ],
-    "classes": [
-      "CC",
-      "2S"
-    ]
-  },
-  {
-    "train_no": "12627",
-    "train_name": "Karnataka Express",
-    "stops": [
-      "SBC",
-      "SMVB",
-      "BNC",
-      "YNK",
-      "DMM",
-      "ATP",
-      "GTL",
-      "RC",
-      "WADI",
-      "KLBG",
-      "SUR",
-      "MMR",
-      "BSL",
-      "BPL",
-      "VGLJ",
-      "AGC",
-      "NDLS"
-    ],
-    "times": {
-      "SBC": {
-        "arr": "19:20",
-        "dep": "19:20",
-        "day": 1
-      },
-      "SMVB": {
-        "arr": "19:30",
-        "dep": "19:32",
-        "day": 1
-      },
-      "BPL": {
-        "arr": "16:15",
-        "dep": "16:25",
-        "day": 2
-      },
-      "NDLS": {
-        "arr": "09:00",
-        "dep": "09:00",
-        "day": 3
-      }
+    {
+        "train_no": "12627",
+        "train_name": "Karnataka Express",
+        "stops": [
+            "SBC",
+            "SMVB",
+            "BNC",
+            "YNK",
+            "DMM",
+            "ATP",
+            "GTL",
+            "RC",
+            "WADI",
+            "KLBG",
+            "SUR",
+            "MMR",
+            "BSL",
+            "BPL",
+            "VGLJ",
+            "AGC",
+            "NDLS"
+        ],
+        "times": {
+            "SBC": {
+                "arr": "19:20",
+                "dep": "19:20",
+                "day": 1
+            },
+            "SMVB": {
+                "arr": "19:30",
+                "dep": "19:32",
+                "day": 1
+            },
+            "BPL": {
+                "arr": "16:15",
+                "dep": "16:25",
+                "day": 2
+            },
+            "NDLS": {
+                "arr": "09:00",
+                "dep": "09:00",
+                "day": 3
+            }
+        },
+        "run_days": [
+            "Sun",
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sat"
+        ],
+        "classes": [
+            "1A",
+            "2A",
+            "3A",
+            "SL"
+        ]
     },
-    "run_days": [
-      "Sun",
-      "Mon",
-      "Tue",
-      "Wed",
-      "Thu",
-      "Fri",
-      "Sat"
-    ],
-    "classes": [
-      "1A",
-      "2A",
-      "3A",
-      "SL"
-    ]
-  },
-  {
-    "train_no": "12628",
-    "train_name": "Karnataka Express",
-    "stops": [
-      "NDLS",
-      "AGC",
-      "VGLJ",
-      "BPL",
-      "BSL",
-      "MMR",
-      "SUR",
-      "KLBG",
-      "WADI",
-      "RC",
-      "GTL",
-      "ATP",
-      "DMM",
-      "YNK",
-      "BNC",
-      "SMVB",
-      "SBC"
-    ],
-    "times": {
-      "NDLS": {
-        "arr": "20:15",
-        "dep": "20:15",
-        "day": 1
-      },
-      "BPL": {
-        "arr": "06:20",
-        "dep": "06:30",
-        "day": 2
-      },
-      "SMVB": {
-        "arr": "11:40",
-        "dep": "11:42",
-        "day": 3
-      },
-      "SBC": {
-        "arr": "12:00",
-        "dep": "12:00",
-        "day": 3
-      }
+    {
+        "train_no": "12628",
+        "train_name": "Karnataka Express",
+        "stops": [
+            "NDLS",
+            "AGC",
+            "VGLJ",
+            "BPL",
+            "BSL",
+            "MMR",
+            "SUR",
+            "KLBG",
+            "WADI",
+            "RC",
+            "GTL",
+            "ATP",
+            "DMM",
+            "YNK",
+            "BNC",
+            "SMVB",
+            "SBC"
+        ],
+        "times": {
+            "NDLS": {
+                "arr": "20:15",
+                "dep": "20:15",
+                "day": 1
+            },
+            "BPL": {
+                "arr": "06:20",
+                "dep": "06:30",
+                "day": 2
+            },
+            "SMVB": {
+                "arr": "11:40",
+                "dep": "11:42",
+                "day": 3
+            },
+            "SBC": {
+                "arr": "12:00",
+                "dep": "12:00",
+                "day": 3
+            }
+        },
+        "run_days": [
+            "Sun",
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sat"
+        ],
+        "classes": [
+            "1A",
+            "2A",
+            "3A",
+            "SL"
+        ]
     },
-    "run_days": [
-      "Sun",
-      "Mon",
-      "Tue",
-      "Wed",
-      "Thu",
-      "Fri",
-      "Sat"
-    ],
-    "classes": [
-      "1A",
-      "2A",
-      "3A",
-      "SL"
-    ]
-  },
-  {
-    "train_no": "22301",
-    "train_name": "Vande Bharat Express",
-    "stops": [
-      "HWH",
-      "BHP",
-      "MLDT",
-      "BOE",
-      "NJP"
-    ],
-    "times": {
-      "HWH": {
-        "arr": "05:55",
-        "dep": "05:55",
-        "day": 1
-      },
-      "BHP": {
-        "arr": "07:37",
-        "dep": "07:39",
-        "day": 1
-      },
-      "MLDT": {
-        "arr": "10:32",
-        "dep": "10:35",
-        "day": 1
-      },
-      "BOE": {
-        "arr": "11:38",
-        "dep": "11:40",
-        "day": 1
-      },
-      "NJP": {
-        "arr": "13:25",
-        "dep": "13:25",
-        "day": 1
-      }
+    {
+        "train_no": "22301",
+        "train_name": "Vande Bharat Express",
+        "stops": [
+            "HWH",
+            "BHP",
+            "MLDT",
+            "BOE",
+            "NJP"
+        ],
+        "times": {
+            "HWH": {
+                "arr": "05:55",
+                "dep": "05:55",
+                "day": 1
+            },
+            "BHP": {
+                "arr": "07:37",
+                "dep": "07:39",
+                "day": 1
+            },
+            "MLDT": {
+                "arr": "10:32",
+                "dep": "10:35",
+                "day": 1
+            },
+            "BOE": {
+                "arr": "11:38",
+                "dep": "11:40",
+                "day": 1
+            },
+            "NJP": {
+                "arr": "13:25",
+                "dep": "13:25",
+                "day": 1
+            }
+        },
+        "run_days": [
+            "Mon",
+            "Tue",
+            "Thu",
+            "Fri",
+            "Sat",
+            "Sun"
+        ],
+        "classes": [
+            "CC",
+            "EC"
+        ]
     },
-    "run_days": [
-      "Mon",
-      "Tue",
-      "Thu",
-      "Fri",
-      "Sat",
-      "Sun"
-    ],
-    "classes": [
-      "CC",
-      "EC"
-    ]
-  },
-  {
-    "train_no": "22302",
-    "train_name": "Vande Bharat Express",
-    "stops": [
-      "NJP",
-      "BOE",
-      "MLDT",
-      "BHP",
-      "HWH"
-    ],
-    "times": {
-      "NJP": {
-        "arr": "15:05",
-        "dep": "15:05",
-        "day": 1
-      },
-      "BOE": {
-        "arr": "16:44",
-        "dep": "16:46",
-        "day": 1
-      },
-      "MLDT": {
-        "arr": "17:50",
-        "dep": "17:53",
-        "day": 1
-      },
-      "BHP": {
-        "arr": "20:13",
-        "dep": "20:15",
-        "day": 1
-      },
-      "HWH": {
-        "arr": "22:35",
-        "dep": "22:35",
-        "day": 1
-      }
+    {
+        "train_no": "22302",
+        "train_name": "Vande Bharat Express",
+        "stops": [
+            "NJP",
+            "BOE",
+            "MLDT",
+            "BHP",
+            "HWH"
+        ],
+        "times": {
+            "NJP": {
+                "arr": "15:05",
+                "dep": "15:05",
+                "day": 1
+            },
+            "BOE": {
+                "arr": "16:44",
+                "dep": "16:46",
+                "day": 1
+            },
+            "MLDT": {
+                "arr": "17:50",
+                "dep": "17:53",
+                "day": 1
+            },
+            "BHP": {
+                "arr": "20:13",
+                "dep": "20:15",
+                "day": 1
+            },
+            "HWH": {
+                "arr": "22:35",
+                "dep": "22:35",
+                "day": 1
+            }
+        },
+        "run_days": [
+            "Mon",
+            "Tue",
+            "Thu",
+            "Fri",
+            "Sat",
+            "Sun"
+        ],
+        "classes": [
+            "CC",
+            "EC"
+        ]
     },
-    "run_days": [
-      "Mon",
-      "Tue",
-      "Thu",
-      "Fri",
-      "Sat",
-      "Sun"
-    ],
-    "classes": [
-      "CC",
-      "EC"
-    ]
-  },
-  {
-    "train_no": "12301",
-    "train_name": "Howrah Rajdhani Express",
-    "stops": [
-      "HWH",
-      "ASN",
-      "DHN",
-      "PNME",
-      "GAYA",
-      "DDU",
-      "PRYJ",
-      "CNB",
-      "NDLS"
-    ],
-    "times": {
-      "HWH": {
-        "arr": "16:50",
-        "dep": "16:50",
-        "day": 1
-      },
-      "ASN": {
-        "arr": "18:57",
-        "dep": "18:59",
-        "day": 1
-      },
-      "DHN": {
-        "arr": "19:55",
-        "dep": "20:00",
-        "day": 1
-      },
-      "GAYA": {
-        "arr": "22:31",
-        "dep": "22:34",
-        "day": 1
-      },
-      "DDU": {
-        "arr": "00:45",
-        "dep": "00:55",
-        "day": 2
-      },
-      "PRYJ": {
-        "arr": "02:43",
-        "dep": "02:45",
-        "day": 2
-      },
-      "CNB": {
-        "arr": "04:50",
-        "dep": "04:55",
-        "day": 2
-      },
-      "NDLS": {
-        "arr": "10:05",
-        "dep": "10:05",
-        "day": 2
-      }
+    {
+        "train_no": "12301",
+        "train_name": "Howrah Rajdhani Express",
+        "stops": [
+            "HWH",
+            "ASN",
+            "DHN",
+            "PNME",
+            "GAYA",
+            "DDU",
+            "PRYJ",
+            "CNB",
+            "NDLS"
+        ],
+        "times": {
+            "HWH": {
+                "arr": "16:50",
+                "dep": "16:50",
+                "day": 1
+            },
+            "ASN": {
+                "arr": "18:57",
+                "dep": "18:59",
+                "day": 1
+            },
+            "DHN": {
+                "arr": "19:55",
+                "dep": "20:00",
+                "day": 1
+            },
+            "GAYA": {
+                "arr": "22:31",
+                "dep": "22:34",
+                "day": 1
+            },
+            "DDU": {
+                "arr": "00:45",
+                "dep": "00:55",
+                "day": 2
+            },
+            "PRYJ": {
+                "arr": "02:43",
+                "dep": "02:45",
+                "day": 2
+            },
+            "CNB": {
+                "arr": "04:50",
+                "dep": "04:55",
+                "day": 2
+            },
+            "NDLS": {
+                "arr": "10:05",
+                "dep": "10:05",
+                "day": 2
+            }
+        },
+        "run_days": [
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Sat"
+        ],
+        "classes": [
+            "1A",
+            "2A",
+            "3A"
+        ]
     },
-    "run_days": [
-      "Mon",
-      "Tue",
-      "Wed",
-      "Thu",
-      "Fri",
-      "Sat"
-    ],
-    "classes": [
-      "1A",
-      "2A",
-      "3A"
-    ]
-  },
-  {
-    "train_no": "12302",
-    "train_name": "Howrah Rajdhani Express",
-    "stops": [
-      "NDLS",
-      "CNB",
-      "PRYJ",
-      "DDU",
-      "GAYA",
-      "PNME",
-      "DHN",
-      "ASN",
-      "HWH"
-    ],
-    "times": {
-      "NDLS": {
-        "arr": "16:50",
-        "dep": "16:50",
-        "day": 1
-      },
-      "CNB": {
-        "arr": "21:32",
-        "dep": "21:37",
-        "day": 1
-      },
-      "PRYJ": {
-        "arr": "23:43",
-        "dep": "23:45",
-        "day": 1
-      },
-      "DDU": {
-        "arr": "01:52",
-        "dep": "02:02",
-        "day": 2
-      },
-      "GAYA": {
-        "arr": "04:31",
-        "dep": "04:34",
-        "day": 2
-      },
-      "DHN": {
-        "arr": "07:05",
-        "dep": "07:10",
-        "day": 2
-      },
-      "ASN": {
-        "arr": "08:08",
-        "dep": "08:10",
-        "day": 2
-      },
-      "HWH": {
-        "arr": "09:55",
-        "dep": "09:55",
-        "day": 2
-      }
+    {
+        "train_no": "12302",
+        "train_name": "Howrah Rajdhani Express",
+        "stops": [
+            "NDLS",
+            "CNB",
+            "PRYJ",
+            "DDU",
+            "GAYA",
+            "PNME",
+            "DHN",
+            "ASN",
+            "HWH"
+        ],
+        "times": {
+            "NDLS": {
+                "arr": "16:50",
+                "dep": "16:50",
+                "day": 1
+            },
+            "CNB": {
+                "arr": "21:32",
+                "dep": "21:37",
+                "day": 1
+            },
+            "PRYJ": {
+                "arr": "23:43",
+                "dep": "23:45",
+                "day": 1
+            },
+            "DDU": {
+                "arr": "01:52",
+                "dep": "02:02",
+                "day": 2
+            },
+            "GAYA": {
+                "arr": "04:31",
+                "dep": "04:34",
+                "day": 2
+            },
+            "DHN": {
+                "arr": "07:05",
+                "dep": "07:10",
+                "day": 2
+            },
+            "ASN": {
+                "arr": "08:08",
+                "dep": "08:10",
+                "day": 2
+            },
+            "HWH": {
+                "arr": "09:55",
+                "dep": "09:55",
+                "day": 2
+            }
+        },
+        "run_days": [
+            "Sun",
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri"
+        ],
+        "classes": [
+            "1A",
+            "2A",
+            "3A"
+        ]
     },
-    "run_days": [
-      "Sun",
-      "Mon",
-      "Tue",
-      "Wed",
-      "Thu",
-      "Fri"
-    ],
-    "classes": [
-      "1A",
-      "2A",
-      "3A"
-    ]
-  }
+    {
+        "train_no": "14012",
+        "train_name": "Radhikapur Express",
+        "classes": [
+            "1A",
+            "2A",
+            "3A",
+            "SL"
+        ],
+        "run_days": [
+            "Sun"
+        ],
+        "stops": [
+            "ANVT",
+            "RDP"
+        ],
+        "times": {
+            "ANVT": {
+                "dep": "23:45",
+                "arr": "23:45",
+                "day": 1
+            },
+            "RDP": {
+                "dep": "07:10",
+                "arr": "07:10",
+                "day": 3
+            }
+        }
+    }
 ]

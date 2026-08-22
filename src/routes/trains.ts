@@ -20,7 +20,7 @@ const formatTravelTime = (minutes: number) => {
 };
 
 const CACHE_TTL = 15 * 60; // 15 minutes in seconds
-const SEARCH_VERSION = 'v3.9-railradar-in-migration'; // Bumped to clear stale caches from .org to .in migration
+const SEARCH_VERSION = 'v3.10-anvt-rdp-offline'; // Bumped to clear stale caches
 
 import { CacheService } from '../utils/cache';
 
