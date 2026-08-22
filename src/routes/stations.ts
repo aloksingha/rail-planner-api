@@ -71,9 +71,11 @@ router.get('/search', async (req, res) => {
                 const response = await axios.get(`${RAILRADAR_BASE_URL}/search/stations?query=${encodeURIComponent(query)}`, {
                     headers: {
                         'Authorization': `Bearer ${key}`,
-                        'Accept': 'application/json'
+                        'Accept': 'application/json, text/plain, */*',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept-Language': 'en-US,en;q=0.9'
                     },
-                    timeout: 4000
+                    timeout: 6000
                 });
                 if (response.data?.success && response.data?.data?.stations?.length > 0) {
                     console.log(`[Stations] RailRadar HIT for "${query}"`);

@@ -20,7 +20,7 @@ const formatTravelTime = (minutes: number) => {
 };
 
 const CACHE_TTL = 15 * 60; // 15 minutes in seconds
-const SEARCH_VERSION = 'v3.10-anvt-rdp-offline'; // Bumped to clear stale caches
+const SEARCH_VERSION = 'v3.11-railradar-waf-bypass'; // Bumped to force WAF bypass attempt
 
 import { CacheService } from '../utils/cache';
 
@@ -96,8 +96,13 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                     // Convert DD-MM-YYYY to YYYY-MM-DD for the new RailRadar API
                     const apiDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
                     const response = await axios.get(`${RAILRADAR_BASE_URL}/trains/between/${src}/${dst}?date=${apiDate}`, {
-                        headers: { 'Authorization': `Bearer ${key}` },
-                        timeout: 5000
+                        headers: { 
+                            'Authorization': `Bearer ${key}`,
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                            'Accept': 'application/json, text/plain, */*',
+                            'Accept-Language': 'en-US,en;q=0.9'
+                        },
+                        timeout: 8000
                     });
                     const externalTrains = response.data?.data?.trains || [];
                     console.log(`[SearchEngine] RailRadar ${isFallback ? 'Proximity' : 'Direct'} HIT for ${src}->${dst} (${externalTrains.length} trains)`);
@@ -134,10 +139,10 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                     lastError = e;
                     const status = e.response?.status;
                     if (status === 401 || status === 403 || status === 429) {
-                        console.log(`[RailRadar] Key ${key.substring(0, 8)} throttled/invalid. Trying next...`);
+                        console.log(`[RailRadar] Key ${key.substring(0, 8)} throttled/invalid (Status: ${status}). Body: ${typeof e.response?.data === 'string' ? e.response?.data.substring(0, 200) : 'JSON'}. Trying next...`);
                         continue; 
                     }
-                    console.warn(`[RailRadar] Failed with status ${status}, breaking loop to try RapidAPI`);
+                    console.warn(`[RailRadar] Failed with status ${status}, breaking loop to try Offline. Error: ${e.message}`);
                     break;
                 }
             }
@@ -428,7 +433,13 @@ router.get('/schedule/:trainNo', async (req: Request, res: Response) => {
             const key = getRailRadarKey();
             try {
                 const response = await axios.get(`${RAILRADAR_BASE_URL}/trains/${trainNo}/schedule`, {
-                    headers: { 'X-Api-Key': key, 'Accept': 'application/json' }
+                    headers: { 
+                        'Authorization': `Bearer ${key}`, 
+                        'Accept': 'application/json, text/plain, */*',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept-Language': 'en-US,en;q=0.9'
+                    },
+                    timeout: 8000
                 });
                 scheduleData = response.data?.data?.route || [];
                 lastError = null;
