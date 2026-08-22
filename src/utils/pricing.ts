@@ -93,7 +93,8 @@ export const getTicketPrice = (
     const custom = customPrices.find(p => 
         extractCode(p.source) === src && 
         extractCode(p.destination) === dst && 
-        p.class === cls
+        p.class === cls &&
+        (tName ? String(p.trainName).toUpperCase() === String(tName).toUpperCase() : true)
     );
     if (custom && custom.suggestedPrice) {
         console.log(`${logPrefix} Match Success: Custom Price ₹${custom.suggestedPrice}`);

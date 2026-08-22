@@ -340,6 +340,13 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                     );
                 });
 
+                // FIX PRICING ERRORS: Enforce logical hierarchy
+                if (prices['SL'] && prices['3A'] && prices['SL'] >= prices['3A']) prices['3A'] = prices['SL'] + 800;
+                if (prices['3A'] && prices['2A'] && prices['3A'] >= prices['2A']) prices['2A'] = prices['3A'] + 1000;
+                if (prices['2A'] && prices['1A'] && prices['2A'] >= prices['1A']) prices['1A'] = prices['2A'] + 1500;
+                if (prices['CC'] && prices['EC'] && prices['CC'] >= prices['EC']) prices['EC'] = prices['CC'] + 1000;
+                if (prices['EC'] && prices['EV'] && prices['EC'] >= prices['EV']) prices['EV'] = prices['EC'] + 500;
+
                 return {
                     isAlternative: t.isAlternative,
                     train_base: {
