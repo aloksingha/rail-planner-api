@@ -100,7 +100,7 @@ router.get('/search', async (req, res) => {
         // --- ENGINE 3: LOCAL JSON FALLBACK ---
         try {
             console.warn(`[Stations] ALL APIs FAILED! Using local JSON fallback for "${query}"`);
-            const localPath = path.join(__dirname, '../data/stations.json');
+            const localPath = path.join(process.cwd(), 'src/data/stations.json');
             if (fs.existsSync(localPath)) {
                 const data = fs.readFileSync(localPath, 'utf8');
                 const allStations = JSON.parse(data);
