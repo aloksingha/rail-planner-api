@@ -153,7 +153,7 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             try {
                 const fs = require('fs');
                 const path = require('path');
-                const localPath = path.join(__dirname, '../data/offline_trains.json');
+                const localPath = path.join(process.cwd(), 'src/data/offline_trains.json');
                 if (fs.existsSync(localPath)) {
                     const offlineData = JSON.parse(fs.readFileSync(localPath, 'utf8'));
                     const matchedTrains = offlineData.filter((t: any) => 
