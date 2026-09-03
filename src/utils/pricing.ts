@@ -190,9 +190,9 @@ export const getTicketPrice = (
             const base3A = 300 + (80 * totalHours);
             const base2A = 450 + (125 * totalHours);
 
-            if (cls === 'SL') baseResult = baseSL + 1400;
-            else if (cls === '3A' || cls === '3E' || cls === 'CC') baseResult = base3A + 1400;
-            else if (cls === '2A' || cls === 'FC') baseResult = base2A + 1300;
+            if (cls === 'SL') baseResult = baseSL + 200 + 1200; // Tatkal: 200, Margin: 1200 (Total: 1400)
+            else if (cls === '3A' || cls === '3E' || cls === 'CC') baseResult = base3A + 400 + 1000; // Tatkal: 400, Margin: 1000 (Total: 1400)
+            else if (cls === '2A' || cls === 'FC') baseResult = base2A + 500 + 800; // Tatkal: 500, Margin: 800 (Total: 1300)
             else if (cls === '2S') baseResult = Math.round((baseSL + 1400) * 0.6);
             else if (cls === '1A') baseResult = Math.round((base2A + 1300) * 1.35);
             else if (cls === 'EC') baseResult = Math.round((base3A + 1400) * 2.4);
