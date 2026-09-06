@@ -129,9 +129,6 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                                 days: (Array.isArray(t.train.runDays) ? t.train.runDays : (typeof t.train.runDays === 'string' ? t.train.runDays.split(',') : [])).map((d: string) => dayMap[d.trim().toLowerCase()] || d),
                                 allDays: (t.train.runDays || []).length === 7 || (typeof t.train.runDays === 'string' && t.train.runDays.toLowerCase() === 'daily')
                             },
-                            train_class_details: [
-                                { classCode: 'SL' }, { classCode: '3A' }, { classCode: '2A' }, { classCode: '1A' }
-                            ],
                             isAlternative: isFallback
                         };
                     });
