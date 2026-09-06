@@ -409,7 +409,9 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         const uniqueTrains = Array.from(uniqueTrainsMap.values());
 
         console.log(`[TrainSearch] Returning ${uniqueTrains.length} unique trains`);
-        await CacheService.set(cacheKey, JSON.stringify(uniqueTrains), CACHE_TTL);
+        if (uniqueTrains.length > 0) {
+            await CacheService.set(cacheKey, JSON.stringify(uniqueTrains), CACHE_TTL);
+        }
         return res.json({ success: true, data: uniqueTrains });
 
     } catch (error: any) {
