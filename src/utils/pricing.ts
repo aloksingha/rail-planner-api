@@ -102,7 +102,6 @@ export const getTicketPrice = (
     // 3. Fallback Formula Logic
     if (baseResult === 0) {
         // First try DB Rules
-        const rule = rules.find(r => r.class === cls) || rules.find(r => r.class === 'SL');
         
         let totalHours = 8;
         if (tTravelTime) {
@@ -113,28 +112,22 @@ export const getTicketPrice = (
         }
         totalHours = Math.max(2, totalHours);
 
-        if (rule) {
-            baseResult = rule.basePrice + (rule.pricePerHour * totalHours) + rule.fixedMarkup;
-            console.log(`${logPrefix} Match Success: DB Fallback Rule (H:${totalHours.toFixed(1)}) Result: ₹${baseResult}`);
-            matchType = 'DB_RULE';
-        } else {
-            // Hardcoded Fallback Parity (Same as Frontend)
-            const baseSL = 150 + (35 * totalHours);
-            const base3A = 300 + (80 * totalHours);
-            const base2A = 450 + (125 * totalHours);
+        // Hardcoded Fallback Parity (Same as Frontend)
+        const baseSL = 150 + (35 * totalHours);
+        const base3A = 300 + (80 * totalHours);
+        const base2A = 450 + (125 * totalHours);
 
-            if (cls === 'SL') baseResult = baseSL + 200 + 1200; // Tatkal: 200, Margin: 1200 (Total: 1400)
-            else if (cls === '3A' || cls === '3E' || cls === 'CC') baseResult = base3A + 400 + 1000; // Tatkal: 400, Margin: 1000 (Total: 1400)
-            else if (cls === '2A' || cls === 'FC') baseResult = base2A + 500 + 800; // Tatkal: 500, Margin: 800 (Total: 1300)
-            else if (cls === '2S') baseResult = Math.round((baseSL + 1400) * 0.6);
-            else if (cls === '1A') baseResult = Math.round((base2A + 1300) * 1.6);
-            else if (cls === 'EC') baseResult = Math.round((base3A + 1400) * 2.4);
-            else if (cls === 'EV') baseResult = Math.round((base3A + 1400) * 2.65);
-            else baseResult = baseSL + 1400;
+        if (cls === 'SL') baseResult = baseSL + 200 + 1200; // Tatkal: 200, Margin: 1200 (Total: 1400)
+        else if (cls === '3A' || cls === '3E' || cls === 'CC') baseResult = base3A + 400 + 1000; // Tatkal: 400, Margin: 1000 (Total: 1400)
+        else if (cls === '2A' || cls === 'FC') baseResult = base2A + 500 + 800; // Tatkal: 500, Margin: 800 (Total: 1300)
+        else if (cls === '2S') baseResult = Math.round((baseSL + 1400) * 0.6);
+        else if (cls === '1A') baseResult = Math.round((base2A + 1300) * 1.6);
+        else if (cls === 'EC') baseResult = Math.round((base3A + 1400) * 2.4);
+        else if (cls === 'EV') baseResult = Math.round((base3A + 1400) * 2.65);
+        else baseResult = baseSL + 1400;
 
-            console.log(`${logPrefix} Match Success: Hardcoded Fallback (H:${totalHours.toFixed(1)}) Result: ₹${baseResult}`);
-            matchType = 'HARD_FALLBACK';
-        }
+        console.log(`${logPrefix} Match Success: Hardcoded Fallback (H:${totalHours.toFixed(1)}) Result: ₹${baseResult}`);
+        matchType = 'HARD_FALLBACK';
     }
 
     // 4. Special Charges (Superfast etc.)
