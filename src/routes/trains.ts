@@ -439,7 +439,8 @@ router.get('/schedule/:trainNo', async (req: Request, res: Response) => {
         for (let i = 0; i < maxRetries; i++) {
             const key = getRailRadarKey();
             try {
-                const response = await axios.get(`${RAILRADAR_BASE_URL}/trains/${trainNo}/schedule`, {
+                // The correct endpoint in RailRadar for a train's details and route is /trains/:trainNo
+                const response = await axios.get(`${RAILRADAR_BASE_URL}/trains/${trainNo}`, {
                     headers: { 
                         'Authorization': `Bearer ${key}`, 
                         'Accept': 'application/json, text/plain, */*',
@@ -448,65 +449,34 @@ router.get('/schedule/:trainNo', async (req: Request, res: Response) => {
                     },
                     timeout: 8000
                 });
+                
+                // The schedule is returned inside data.route
                 scheduleData = response.data?.data?.route || [];
                 lastError = null;
                 break; // Success!
             } catch (e: any) {
                 lastError = e;
-                if (e.response?.status === 429 || e.response?.status === 401 || e.response?.status === 403 || e.response?.status === 404) {
+                if (e.response?.status === 429 || e.response?.status === 401 || e.response?.status === 403) {
                     continue; // Try next key
                 }
                 break; // Stop and try fallback
             }
         }
 
-        let adaptedSchedule = [];
-
-        if (scheduleData.length === 0) {
-            console.log(`RailRadar empty/404 for ${trainNo}, falling back to RapidAPI`);
-            try {
-                const rapidUrl = `https://irctc1.p.rapidapi.com/api/v1/getTrainSchedule?trainNo=${trainNo}`;
-                const rapidRes = await axios.get(rapidUrl, {
-                    headers: {
-                        'X-RapidAPI-Key': NEW_API_KEY,
-                        'X-RapidAPI-Host': 'irctc1.p.rapidapi.com'
-                    },
-                    timeout: 8000
-                });
-                const rapidRoute = rapidRes.data?.data?.route || [];
-                
-                adaptedSchedule = rapidRoute.map((stop: any, index: number) => {
-                    const formatRapid = (val: any) => {
-                        if (val === undefined || val === null || val === 0 || val === '0') return '--:--';
-                        const str = String(val).padStart(4, '0');
-                        return `${str.substring(0, 2)}:${str.substring(2, 4)}`;
-                    };
-                    return {
-                        stationCode: stop.station_code,
-                        stationName: stop.station_name,
-                        arrivalTime: (index === 0) ? '--:--' : formatRapid(stop.sta_min || stop.sta),
-                        departureTime: (index === rapidRoute.length - 1) ? '--:--' : formatRapid(stop.std_min || stop.std),
-                        distance: stop.distance_from_source,
-                        day: stop.day,
-                        isHalt: stop.stop === false ? false : true
-                    };
-                });
-            } catch (fallbackError: any) {
-                console.error('RapidAPI fallback failed:', fallbackError.message);
-                if (lastError) throw lastError;
-                throw fallbackError;
-            }
-        } else {
-            adaptedSchedule = scheduleData.map((stop: any) => ({
-                stationCode: stop.stationCode,
-                stationName: stop.stationName,
-                arrivalTime: stop.arrivalMinutes ? formatTime(stop.arrivalMinutes) : '--:--',
-                departureTime: stop.departureMinutes ? formatTime(stop.departureMinutes) : '--:--',
-                distance: stop.distanceFromSourceKm,
-                day: stop.day,
-                isHalt: stop.isHalt
-            }));
+        if (lastError && scheduleData.length === 0) {
+            throw lastError;
         }
+
+        // RailRadar returns: station: { code, name }, arrival, departure, distance, arrivalDay, isHalt
+        const adaptedSchedule = scheduleData.map((stop: any, index: number) => ({
+            stationCode: stop.station?.code || stop.stationCode,
+            stationName: stop.station?.name || stop.stationName,
+            arrivalTime: stop.arrival || (stop.arrivalMinutes ? formatTime(stop.arrivalMinutes) : (index === 0 ? '--:--' : '--:--')),
+            departureTime: stop.departure || (stop.departureMinutes ? formatTime(stop.departureMinutes) : (index === scheduleData.length - 1 ? '--:--' : '--:--')),
+            distance: stop.distance !== undefined ? stop.distance : stop.distanceFromSourceKm,
+            day: stop.arrivalDay || stop.departureDay || stop.day,
+            isHalt: stop.isHalt
+        }));
 
         if (adaptedSchedule.length > 0) {
             await CacheService.set(`schedule:${trainNo}`, JSON.stringify(adaptedSchedule), 24 * 60 * 60); // 24 hours
