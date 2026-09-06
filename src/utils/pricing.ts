@@ -80,12 +80,20 @@ export const getTicketPrice = (
     const dst = resolveToCode(dstRaw, mappings);
     const logPrefix = `[Pricing:${src}->${dst}:${cls}]`;
     
+    // 0. Hardcoded Priority Corridor Overrides (Immediate Impact - Parity with Frontend)
+    const isHWHPUNE = (src === 'HWH' && dst === 'PUNE') || (src === 'PUNE' && dst === 'HWH');
+    if (isHWHPUNE) {
+        console.log(`${logPrefix} Matching Hardcoded HWH-PUNE Corridor`);
+        if (cls === 'SL') return 2600;
+        if (cls === '3A' || cls === '3E' || cls === 'CC') return 4200;
+        if (cls === '2A') return 5400;
+    }
+
     // 1. Check for Custom Price Overrides
     const custom = customPrices.find(p => 
         extractCode(p.source) === src && 
         extractCode(p.destination) === dst && 
-        p.class === cls &&
-        (tName ? String(p.trainName).toUpperCase() === String(tName).toUpperCase() : true)
+        p.class === cls
     );
     if (custom && custom.suggestedPrice) {
         console.log(`${logPrefix} Match Success: Custom Price ₹${custom.suggestedPrice}`);
@@ -98,6 +106,64 @@ export const getTicketPrice = (
 
     let baseResult = 0;
     let matchType = 'NONE';
+
+    // 2. Dynamic Corridor Logic
+    for (const corridor of corridors) {
+        try {
+            const origins = JSON.parse(corridor.originStations || '[]').map((s: any) => resolveToCode(String(s), mappings));
+            const destinations = JSON.parse(corridor.destinationStations || '[]').map((s: any) => resolveToCode(String(s), mappings));
+            
+            const matchForward = origins.includes(src) && destinations.includes(dst);
+            const matchReverse = origins.includes(dst) && destinations.includes(src);
+
+            if (matchForward || matchReverse) {
+                if (cls === 'SL' && corridor.markupSL > 0) {
+                    console.log(`${logPrefix} Match Success: Dynamic Corridor ${corridor.name} (SL: ₹${corridor.markupSL})`);
+                    baseResult = corridor.markupSL;
+                    matchType = 'CORRIDOR';
+                    break;
+                }
+                if (cls === '2S' && corridor.markupSL > 0) {
+                    baseResult = Math.round(corridor.markupSL * 0.6);
+                    console.log(`${logPrefix} Match Success: Dynamic Corridor ${corridor.name} (2S: ₹${baseResult})`);
+                    matchType = 'CORRIDOR';
+                    break;
+                }
+                if ((cls === '3A' || cls === '3E' || cls === 'CC') && corridor.markup3A > 0) {
+                    console.log(`${logPrefix} Match Success: Dynamic Corridor ${corridor.name} (3A/3E/CC: ₹${corridor.markup3A})`);
+                    baseResult = corridor.markup3A;
+                    matchType = 'CORRIDOR';
+                    break;
+                }
+                if ((cls === '2A' || cls === 'FC') && corridor.markup2A > 0) {
+                    console.log(`${logPrefix} Match Success: Dynamic Corridor ${corridor.name} (2A/FC: ₹${corridor.markup2A})`);
+                    baseResult = corridor.markup2A;
+                    matchType = 'CORRIDOR';
+                    break;
+                }
+                if (cls === '1A' && corridor.markup2A > 0) {
+                    baseResult = Math.round(corridor.markup2A * 1.6);
+                    console.log(`${logPrefix} Match Success: Dynamic Corridor ${corridor.name} (1A: ₹${baseResult})`);
+                    matchType = 'CORRIDOR';
+                    break;
+                }
+                if (cls === 'EC' && corridor.markup3A > 0) {
+                    baseResult = Math.round(corridor.markup3A * 2.4);
+                    console.log(`${logPrefix} Match Success: Dynamic Corridor ${corridor.name} (EC: ₹${baseResult})`);
+                    matchType = 'CORRIDOR';
+                    break;
+                }
+                if (cls === 'EV' && corridor.markup3A > 0) {
+                    baseResult = Math.round(corridor.markup3A * 2.65);
+                    console.log(`${logPrefix} Match Success: Dynamic Corridor ${corridor.name} (EV: ₹${baseResult})`);
+                    matchType = 'CORRIDOR';
+                    break;
+                }
+            }
+        } catch (e) {
+            console.error('[Pricing] Corridor error', e);
+        }
+    }
 
     // 3. Fallback Formula Logic
     if (baseResult === 0) {
