@@ -453,30 +453,69 @@ router.get('/schedule/:trainNo', async (req: Request, res: Response) => {
                 break; // Success!
             } catch (e: any) {
                 lastError = e;
-                if (e.response?.status === 429 || e.response?.status === 401 || e.response?.status === 403) {
+                if (e.response?.status === 429 || e.response?.status === 401 || e.response?.status === 403 || e.response?.status === 404) {
                     continue; // Try next key
                 }
-                throw e; // Critical error
+                break; // Stop and try fallback
             }
         }
 
-        if (lastError) throw lastError;
+        let adaptedSchedule = [];
 
-        const adaptedSchedule = scheduleData.map((stop: any) => ({
-            stationCode: stop.stationCode,
-            stationName: stop.stationName,
-            arrivalTime: stop.arrivalMinutes ? formatTime(stop.arrivalMinutes) : '--:--',
-            departureTime: stop.departureMinutes ? formatTime(stop.departureMinutes) : '--:--',
-            distance: stop.distanceFromSourceKm,
-            day: stop.day,
-            isHalt: stop.isHalt
-        }));
+        if (scheduleData.length === 0) {
+            console.log(`RailRadar empty/404 for ${trainNo}, falling back to RapidAPI`);
+            try {
+                const rapidUrl = `https://irctc1.p.rapidapi.com/api/v1/getTrainSchedule?trainNo=${trainNo}`;
+                const rapidRes = await axios.get(rapidUrl, {
+                    headers: {
+                        'X-RapidAPI-Key': NEW_API_KEY,
+                        'X-RapidAPI-Host': 'irctc1.p.rapidapi.com'
+                    },
+                    timeout: 8000
+                });
+                const rapidRoute = rapidRes.data?.data?.route || [];
+                
+                adaptedSchedule = rapidRoute.map((stop: any, index: number) => {
+                    const formatRapid = (val: any) => {
+                        if (val === undefined || val === null || val === 0 || val === '0') return '--:--';
+                        const str = String(val).padStart(4, '0');
+                        return `${str.substring(0, 2)}:${str.substring(2, 4)}`;
+                    };
+                    return {
+                        stationCode: stop.station_code,
+                        stationName: stop.station_name,
+                        arrivalTime: (index === 0) ? '--:--' : formatRapid(stop.sta_min || stop.sta),
+                        departureTime: (index === rapidRoute.length - 1) ? '--:--' : formatRapid(stop.std_min || stop.std),
+                        distance: stop.distance_from_source,
+                        day: stop.day,
+                        isHalt: stop.stop === false ? false : true
+                    };
+                });
+            } catch (fallbackError: any) {
+                console.error('RapidAPI fallback failed:', fallbackError.message);
+                if (lastError) throw lastError;
+                throw fallbackError;
+            }
+        } else {
+            adaptedSchedule = scheduleData.map((stop: any) => ({
+                stationCode: stop.stationCode,
+                stationName: stop.stationName,
+                arrivalTime: stop.arrivalMinutes ? formatTime(stop.arrivalMinutes) : '--:--',
+                departureTime: stop.departureMinutes ? formatTime(stop.departureMinutes) : '--:--',
+                distance: stop.distanceFromSourceKm,
+                day: stop.day,
+                isHalt: stop.isHalt
+            }));
+        }
 
-        await CacheService.set(`schedule:${trainNo}`, JSON.stringify(adaptedSchedule), 24 * 60 * 60); // 24 hours
+        if (adaptedSchedule.length > 0) {
+            await CacheService.set(`schedule:${trainNo}`, JSON.stringify(adaptedSchedule), 24 * 60 * 60); // 24 hours
+        }
+        
         return res.json({ success: true, data: adaptedSchedule });
 
     } catch (error: any) {
-        console.error('RailRadar Schedule Error:', error.response?.data || error.message);
+        console.error('Schedule Error:', error.response?.data || error.message);
         return res.json({
             success: false,
             data: error.response?.data?.error?.message || "Failed to fetch train schedule."
