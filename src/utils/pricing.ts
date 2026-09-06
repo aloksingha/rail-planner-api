@@ -143,7 +143,7 @@ export const getTicketPrice = (
                     break;
                 }
                 if (cls === '1A' && corridor.markup2A > 0) {
-                    baseResult = Math.round(corridor.markup2A * 1.35);
+                    baseResult = Math.round(corridor.markup2A * 1.6);
                     console.log(`${logPrefix} Match Success: Dynamic Corridor ${corridor.name} (1A: ₹${baseResult})`);
                     matchType = 'CORRIDOR';
                     break;
@@ -194,7 +194,7 @@ export const getTicketPrice = (
             else if (cls === '3A' || cls === '3E' || cls === 'CC') baseResult = base3A + 400 + 1000; // Tatkal: 400, Margin: 1000 (Total: 1400)
             else if (cls === '2A' || cls === 'FC') baseResult = base2A + 500 + 800; // Tatkal: 500, Margin: 800 (Total: 1300)
             else if (cls === '2S') baseResult = Math.round((baseSL + 1400) * 0.6);
-            else if (cls === '1A') baseResult = Math.round((base2A + 1300) * 1.35);
+            else if (cls === '1A') baseResult = Math.round((base2A + 1300) * 1.6);
             else if (cls === 'EC') baseResult = Math.round((base3A + 1400) * 2.4);
             else if (cls === 'EV') baseResult = Math.round((base3A + 1400) * 2.65);
             else baseResult = baseSL + 1400;
