@@ -24,8 +24,11 @@ import walletRoutes from './routes/wallet';
 import notificationRoutes from './routes/notifications';
 import promotionsRoutes from './routes/promotions';
 
+import compression from 'compression';
+
 const app = express();
 
+app.use(compression());
 app.use(cors());
 app.use(express.json());
 
