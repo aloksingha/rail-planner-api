@@ -79,7 +79,13 @@ export const getTicketPrice = (
     const src = resolveToCode(srcRaw, mappings);
     const dst = resolveToCode(dstRaw, mappings);
     const logPrefix = `[Pricing:${src}->${dst}:${cls}]`;
-    
+
+    // BLOCK BOOKING FOR 2S AND 1A globally
+    if (cls === '1A' || cls === '2S') {
+        console.log(`${logPrefix} Blocked booking for class ${cls}`);
+        return 0;
+    }
+
     // 0. Hardcoded Priority Corridor Overrides (Immediate Impact - Parity with Frontend)
     const isHWHPUNE = (src === 'HWH' && dst === 'PUNE') || (src === 'PUNE' && dst === 'HWH');
     if (isHWHPUNE) {
