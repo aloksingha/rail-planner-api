@@ -189,6 +189,7 @@ model GlobalSettings {
   telegram   String   @default("")
   updatedAt  DateTime @updatedAt
   otaVersion String   @default("")
+  gstNo      String   @default("")
 }
 
 model FailedBooking {
