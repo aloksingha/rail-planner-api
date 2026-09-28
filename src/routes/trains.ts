@@ -20,7 +20,7 @@ const formatTravelTime = (minutes: number) => {
 };
 
 const CACHE_TTL = 15 * 60; // 15 minutes in seconds
-const SEARCH_VERSION = 'v3.12-map-bug-fix'; // Bumped to fix string map bug
+const SEARCH_VERSION = 'v3.13-pricing-date-fix'; // Bumped to invalidate old caches
 
 import { CacheService } from '../utils/cache';
 
@@ -295,8 +295,8 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                 const depMinsBase = t.fromStationSchedule?.departureMinutes ?? t.from_std_mins ?? 0;
                 const arrMinsBase = t.toStationSchedule?.arrivalMinutes ?? t.to_sta_mins ?? 0;
                 
-                const depMinsTotal = ((depDay - 1) * 1440) + depMinsBase;
-                const arrMinsTotal = ((arrDay - 1) * 1440) + arrMinsBase;
+                const depMinsTotal = t.fromStationSchedule ? (((depDay - 1) * 1440) + depMinsBase) : (t.from_std_mins ?? 0);
+                const arrMinsTotal = t.toStationSchedule ? (((arrDay - 1) * 1440) + arrMinsBase) : (t.to_sta_mins ?? 0);
                 let segmentMins = arrMinsTotal - depMinsTotal;
                 if (segmentMins <= 0) segmentMins = t.travelTimeMinutes || 0;
 
@@ -305,7 +305,10 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                 // Calculate calendar departure and arrival dates
                 const depDateObj = new Date(journeyDate);
                 const arrDateObj = new Date(journeyDate);
-                arrDateObj.setDate(arrDateObj.getDate() + (arrDay - depDay));
+                
+                // Fix: Calculate exact day diff using total minutes from origin
+                const addedDays = Math.floor(arrMinsTotal / 1440) - Math.floor(depMinsTotal / 1440);
+                arrDateObj.setDate(arrDateObj.getDate() + addedDays);
 
                 const formatDate = (d: Date) => {
                     const day = d.getDate().toString().padStart(2, '0');
@@ -475,7 +478,14 @@ router.get('/schedule/:trainNo', async (req: Request, res: Response) => {
             distance: stop.distance !== undefined ? stop.distance : stop.distanceFromSourceKm,
             day: stop.arrivalDay || stop.departureDay || stop.day,
             isHalt: stop.isHalt
-        }));
+        })).filter((stop: any, idx: number, arr: any[]) => {
+            // Keep first and last stations always
+            if (idx === 0 || idx === arr.length - 1) return true;
+            // Remove stations where train doesn't halt (arrival == departure or isHalt is explicitly false)
+            if (stop.isHalt === false) return false;
+            if (stop.arrivalTime === stop.departureTime && stop.arrivalTime !== '--:--') return false;
+            return true;
+        });
 
         if (adaptedSchedule.length > 0) {
             await CacheService.set(`schedule:${trainNo}`, JSON.stringify(adaptedSchedule), 24 * 60 * 60); // 24 hours
