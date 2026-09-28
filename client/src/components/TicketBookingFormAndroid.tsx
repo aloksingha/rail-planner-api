@@ -983,41 +983,52 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                             <span className="text-slate-900 dark:text-white font-black text-sm tracking-tight">{source} &rarr; {destination}</span>
                         </div>
                         <div className="flex justify-between items-center">
-                            <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Total Amount ({trainClass})</span>
-                            <div className="text-right">
-                                <span className="text-brand-blue font-black text-xl tracking-tight flex items-center gap-1">
-                                    ₹{(() => {
-                                        const currentTrain = availableTrains?.find(t => t.train_base?.train_no === trainNo);
-                                        const unitPrice = getTicketPrice(
-                                            source, 
-                                            destination, 
-                                            trainClass, 
-                                            selectedTrainName, 
-                                            currentTrain?.train_base?.travel_time, 
-                                            currentTrain?.train_base?.prices,
-                                            customPrices,
-                                            dynamicCorridors
-                                        );
-                                        return ((unitPrice * passengers.length) - (appliedCoupon?.discount || 0)).toLocaleString();
-                                    })()}
-                                    {appliedCoupon && (
-                                        <span className="text-[10px] text-emerald-500 line-through ml-1 opacity-50">
-                                            ₹{(() => {
-                                                const currentTrain = availableTrains?.find(t => t.train_base?.train_no === trainNo);
-                                                const unitPrice = getTicketPrice(
-                                                    source, 
-                                                    destination, 
-                                                    trainClass, 
-                                                    selectedTrainName, 
-                                                    currentTrain?.train_base?.travel_time, 
-                                                    currentTrain?.train_base?.prices
-                                                );
-                                                return (unitPrice * passengers.length).toLocaleString();
-                                            })()}
-                                        </span>
-                                    )}
-                                </span>
-                                <span className="text-[9px] text-slate-500 dark:text-slate-400 font-black uppercase tracking-widest block">{passengers.length} Passengers</span>
+                            <div className="flex flex-col gap-1 w-full text-right ml-auto">
+                                <span className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest text-left mb-1">Total Amount ({trainClass})</span>
+                                {(() => {
+                                    const currentTrain = availableTrains?.find(t => t.train_base?.train_no === trainNo);
+                                    const shouldExcludeGst = paymentMethod === 'OFFLINE' || user?.specialPermissions?.includes('TEST_WALLET');
+                                    const unitPrice = getTicketPrice(source, destination, trainClass, selectedTrainName, currentTrain?.train_base?.travel_time, currentTrain?.train_base?.prices, customPrices, dynamicCorridors, shouldExcludeGst);
+                                    const totalPassengers = passengers.length;
+                                    const totalAmount = unitPrice * totalPassengers;
+                                    const finalAmount = totalAmount - (appliedCoupon?.discount || 0);
+                                    
+                                    const isAcClass = ['1A', '2A', '3A', '3E', 'CC', 'EC', 'EV', 'FC'].includes(trainClass.toUpperCase());
+                                    const hasGst = isAcClass && !shouldExcludeGst;
+                                    
+                                    const baseFareUnit = hasGst ? Math.round(unitPrice / 1.05) : unitPrice;
+                                    const gstUnit = unitPrice - baseFareUnit;
+                                    
+                                    const baseFareTotal = baseFareUnit * totalPassengers;
+                                    const gstTotal = gstUnit * totalPassengers;
+                                    
+                                    return (
+                                        <>
+                                            <div className="flex justify-between items-center text-[11px] text-slate-600 dark:text-slate-400 font-medium">
+                                                <span>Base Fare (x{totalPassengers})</span>
+                                                <span>₹{baseFareTotal.toLocaleString()}</span>
+                                            </div>
+                                            {hasGst && (
+                                                <div className="flex justify-between items-center text-[11px] text-slate-600 dark:text-slate-400 font-medium pb-1 border-b border-slate-200 dark:border-slate-700/50">
+                                                    <span>GST (5%)</span>
+                                                    <span>₹{gstTotal.toLocaleString()}</span>
+                                                </div>
+                                            )}
+                                            {appliedCoupon && (
+                                                <div className="flex justify-between items-center text-[11px] text-emerald-500 font-medium pb-1 border-b border-slate-200 dark:border-slate-700/50">
+                                                    <span>Discount ({appliedCoupon.code})</span>
+                                                    <span>-₹{appliedCoupon.discount.toLocaleString()}</span>
+                                                </div>
+                                            )}
+                                            <div className="flex justify-between items-center mt-1">
+                                                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Total</span>
+                                                <span className="text-brand-blue font-black text-xl tracking-tight">
+                                                    ₹{finalAmount.toLocaleString()}
+                                                </span>
+                                            </div>
+                                        </>
+                                    );
+                                })()}
                             </div>
                         </div>
                     </div>
