@@ -92,7 +92,7 @@ app.use('/api/promotions', promotionsRoutes);
 // --- PRODUCTION STATIC SERVING ---
 if (process.env.NODE_ENV === 'production') {
     // Correctly resolve client/dist from the compiled dist/ directory
-    const clientDistPath = path.join(__dirname, '..', '..', 'client', 'dist');
+    const clientDistPath = path.join(__dirname, '..', 'client', 'dist');
     app.use(express.static(clientDistPath));
     
     app.get('*', (req, res) => {
