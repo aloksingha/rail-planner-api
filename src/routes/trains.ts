@@ -20,7 +20,7 @@ const formatTravelTime = (minutes: number) => {
 };
 
 const CACHE_TTL = 15 * 60; // 15 minutes in seconds
-const SEARCH_VERSION = 'v3.13-pricing-date-fix'; // Bumped to invalidate old caches
+const SEARCH_VERSION = 'v3.14-dkae-nearby'; // Bumped to invalidate old caches for DKAE
 
 import { CacheService } from '../utils/cache';
 
