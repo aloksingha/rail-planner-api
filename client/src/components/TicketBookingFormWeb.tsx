@@ -4,12 +4,13 @@ import {
     CheckCircle2,
     AlertCircle, ArrowLeft, Loader2, ArrowLeftRight, Tags, IndianRupee, AlertTriangle, Wallet 
 } from 'lucide-react';
-import brandLogo from '../assets/brand_logo.png';
+import brandLogo from '../assets/brand_logo.webp';
 import axios from 'axios';
 // import Datepicker from "react-tailwindcss-datepicker"; // Removed due to production visibility issues
 import { isValidIndianMobile } from '../utils/validation';
 import { POPULAR_STATIONS, STATION_OVERRIDES, FRONTEND_NEARBY_STATIONS } from '../utils/constants';
 import { TRAIN_CLASS_LABELS, getClassesToShow, getTicketPrice, resolveToCode } from '../utils/trainUtils';
+import PaymentGatewaySelector from './booking/PaymentGatewaySelector';
 
 interface Passenger {
     name: string;
@@ -222,8 +223,9 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
     const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
     const [couponError, setCouponError] = useState('');
     const isSelecting = useRef(false);
-    const [paymentMethod, setPaymentMethod] = useState<'RAZORPAY' | 'WALLET' | 'OFFLINE'>('RAZORPAY');
+    const [paymentMethod, setPaymentMethod] = useState<'RAZORPAY' | 'OFFLINE' | 'SKYDO'>('RAZORPAY');
     const [walletBalance, setWalletBalance] = useState<number>(0);
+    const [useWalletBalance, setUseWalletBalance] = useState<boolean>(false);
     const [isFetchingWallet, setIsFetchingWallet] = useState(false);
 
     // Persistence Effect
@@ -650,17 +652,22 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
             return;
         }
 
+        const ct = availableTrains?.find(t => t.train_base.train_no === trainNo);
+        const shouldExcludeGst = paymentMethod === 'OFFLINE' || user.specialPermissions?.includes('TEST_WALLET');
+        const unitPrice = getTicketPrice(source, destination, trainClass, selectedTrainName, ct?.train_base.travel_time, ct?.train_base.prices, customPrices, dynamicCorridors, shouldExcludeGst);
+        let baseTotalAmount = passengers.length * unitPrice;
+        if (appliedCoupon) baseTotalAmount -= appliedCoupon.discount;
+
+        const walletAmountUsed = useWalletBalance ? Math.min(baseTotalAmount, walletBalance) : 0;
+        const amountToPayViaGateway = Math.max(0, baseTotalAmount - walletAmountUsed);
+
+        const effectivePaymentMethod = (amountToPayViaGateway === 0) ? 'WALLET' : paymentMethod;
 
         // --- WALLET PAYMENT BRANCH ---
-        if (paymentMethod === 'WALLET') {
+        if (effectivePaymentMethod === 'WALLET') {
             try {
-                const ct = availableTrains?.find(t => t.train_base.train_no === trainNo);
-                const unitPrice = getTicketPrice(source, destination, trainClass, selectedTrainName, ct?.train_base.travel_time, ct?.train_base.prices, customPrices, dynamicCorridors);
-                let totalAmount = passengers.length * unitPrice;
-                if (appliedCoupon) totalAmount -= appliedCoupon.discount;
-
                 const { data } = await axios.post('/api/payments/wallet-pay', {
-                    amount: totalAmount,
+                    amount: baseTotalAmount,
                     trainNo,
                     trainName: selectedTrainName,
                     fromStation: source,
@@ -691,15 +698,11 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
         }
 
         // --- OFFLINE PAYMENT BRANCH (ADMIN ONLY) ---
-        if (paymentMethod === 'OFFLINE') {
+        if (effectivePaymentMethod === 'OFFLINE') {
             try {
-                const ct = availableTrains?.find(t => t.train_base.train_no === trainNo);
-                const unitPrice = getTicketPrice(source, destination, trainClass, selectedTrainName, ct?.train_base.travel_time, ct?.train_base.prices, customPrices, dynamicCorridors);
-                let totalAmount = passengers.length * unitPrice;
-                if (appliedCoupon) totalAmount -= appliedCoupon.discount;
-
                 const { data } = await axios.post('/api/payments/offline-pay', {
-                    amount: totalAmount,
+                    amount: amountToPayViaGateway,
+                    walletAmountUsed,
                     trainNo,
                     trainName: selectedTrainName,
                     fromStation: source,
@@ -728,6 +731,39 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
             return;
         }
 
+        if (effectivePaymentMethod === 'SKYDO') {
+            try {
+                const { data } = await axios.post('/api/payments/skydo-pay', {
+                    amount: amountToPayViaGateway,
+                    walletAmountUsed,
+                    trainNo,
+                    trainName: selectedTrainName,
+                    fromStation: source,
+                    toStation: destination,
+                    journeyDate,
+                    passengers: passengers.length,
+                    mobile,
+                    email,
+                    trainClass,
+                    passengerList: passengers
+                }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                if (data.success) {
+                    setBookingState('success');
+                } else {
+                    setPaymentError(data.error || 'Skydo payment failed.');
+                }
+            } catch (err: any) {
+                console.error('Skydo payment error:', err);
+                setPaymentError(err.response?.data?.error || 'Failed to submit Skydo payment.');
+            } finally {
+                setIsProcessing(false);
+            }
+            return;
+        }
+
         // --- RAZORPAY BRANCH ---
         try {
             const res = await loadRazorpay();
@@ -737,20 +773,12 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                 return;
             }
 
-            const ct = availableTrains?.find(t => t.train_base.train_no === trainNo);
-            const unitPrice = getTicketPrice(source, destination, trainClass, selectedTrainName, ct?.train_base.travel_time, ct?.train_base.prices, customPrices, dynamicCorridors);
-            let totalAmount = passengers.length * unitPrice;
-            
-            if (appliedCoupon) {
-                totalAmount -= appliedCoupon.discount;
-            }
-
             const token = localStorage.getItem('token');
             const axiosConfig = {
                 headers: { Authorization: `Bearer ${token}` }
             };
 
-            const { data: orderData } = await axios.post('/api/payments/create-order', { amount: totalAmount }, axiosConfig);
+            const { data: orderData } = await axios.post('/api/payments/create-order', { amount: amountToPayViaGateway }, axiosConfig);
 
             const options = {
                 key: (import.meta.env.VITE_RAZORPAY_KEY_ID as string) || "rzp_test_dummykey12345",
@@ -781,7 +809,8 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                             passengers: passengers.length,
                             mobile,
                             email,
-                            amount: totalAmount,
+                            amount: amountToPayViaGateway,
+                            walletAmountUsed,
                             trainClass,
                             passengerList: passengers
                         }, axiosConfig);
@@ -903,8 +932,8 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                 mobile,
                 trainName: selectedTrainName,
                 trainNumber: trainNo,
-                source,
-                destination,
+                source: source || sourceSearch,
+                destination: destination || destinationSearch,
                 journeyDate,
                 trainClass,
                 reason
@@ -1069,118 +1098,19 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                                 <span className="text-emerald-400 text-xs font-bold flex items-center gap-1.5">
                                     <CheckCircle2 size={14} /> Coupon Applied!
                                 </span>
-                                <span className="text-emerald-400 text-sm font-black">- â‚¹{appliedCoupon.discount}</span>
+                                <span className="text-emerald-400 text-sm font-black">- ₹{appliedCoupon.discount}</span>
                             </div>
                         )}
                     </div>
 
-                    {/* Payment Method Selection */}
-                    <div className="bg-slate-50 dark:bg-black/40 p-6 rounded-3xl border border-slate-200 dark:border-slate-800">
-                        <p className="text-[10px] font-black text-slate-500 mb-5 flex items-center gap-2 uppercase tracking-[0.25em]">Gateway Selection</p>
-                        
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                            {/* Razorpay Option */}
-                            <button
-                                type="button"
-                                onClick={() => setPaymentMethod('RAZORPAY')}
-                                className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all group ${
-                                    paymentMethod === 'RAZORPAY'
-                                        ? 'border-brand-blue bg-brand-blue/10'
-                                        : 'border-slate-800 bg-slate-900/50 hover:border-slate-700'
-                                }`}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className={`p-2 rounded-xl ${paymentMethod === 'RAZORPAY' ? 'bg-brand-blue text-white' : 'bg-slate-800 text-slate-500'}`}>
-                                        <IndianRupee size={18} />
-                                    </div>
-                                    <div className="text-left">
-                                        <p className="text-slate-900 dark:text-white font-black text-base tracking-tight">Razorpay</p>
-                                        <p className="text-slate-500 dark:text-slate-400 text-[9px] font-black uppercase tracking-widest">UPI / Card / NetBanking</p>
-                                    </div>
-                                </div>
-                                {paymentMethod === 'RAZORPAY' && <CheckCircle2 size={16} className="text-brand-blue" />}
-                            </button>
-
-                            {/* Wallet Option */}
-                            {(user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' || user.role === 'CUSTOMER') && (
-                                <button
-                                    type="button"
-                                    onClick={() => setPaymentMethod('WALLET')}
-                                    className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all group ${
-                                        paymentMethod === 'WALLET'
-                                            ? 'border-emerald-500 bg-emerald-500/10'
-                                            : 'border-slate-800 bg-slate-900/50 hover:border-slate-700'
-                                    }`}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className={`p-2 rounded-xl ${paymentMethod === 'WALLET' ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-500'}`}>
-                                            {isFetchingWallet ? <Loader2 size={18} className="animate-spin" /> : <Wallet size={18} />}
-                                        </div>
-                                        <div className="text-left">
-                                            <p className="text-white font-bold text-sm tracking-tight">Wallet Balance</p>
-                                            <p className={`text-[9px] font-bold uppercase tracking-wider ${(() => {
-                                                const currentTrain = availableTrains?.find(t => t.train_base?.train_no === trainNo);
-                                                const unitPrice = selectedUnitPrice || getTicketPrice(
-                                                    source, 
-                                                    destination, 
-                                                    trainClass, 
-                                                    selectedTrainName, 
-                                                    currentTrain?.train_base?.travel_time, 
-                                                    currentTrain?.train_base?.prices
-                                                );
-                                                return walletBalance < ((unitPrice * passengers.length) - (appliedCoupon?.discount || 0));
-                                            })() ? 'text-rose-400' : 'text-emerald-500'}`}>
-                                                Bal: ₹{walletBalance.toLocaleString()}
-                                            </p>
-                                        </div>
-                                    </div>
-                                    {paymentMethod === 'WALLET' && <CheckCircle2 size={16} className="text-emerald-500" />}
-                                </button>
-                            )}
-
-                            {/* Offline Option (Admin Only) */}
-                            {(user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') && (
-                                <button
-                                    type="button"
-                                    onClick={() => setPaymentMethod('OFFLINE')}
-                                    className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all group ${
-                                        paymentMethod === 'OFFLINE'
-                                            ? 'border-rose-500 bg-rose-500/10'
-                                            : 'border-slate-800 bg-slate-900/50 hover:border-slate-700'
-                                    }`}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className={`p-2 rounded-xl ${paymentMethod === 'OFFLINE' ? 'bg-rose-500 text-white' : 'bg-slate-800 text-slate-500'}`}>
-                                            <AlertTriangle size={18} />
-                                        </div>
-                                        <div className="text-left">
-                                            <p className="text-white font-bold text-sm tracking-tight">Offline (Test)</p>
-                                            <p className="text-slate-400 text-[9px] font-black uppercase tracking-widest">Admin Testing Only</p>
-                                        </div>
-                                    </div>
-                                    {paymentMethod === 'OFFLINE' && <CheckCircle2 size={16} className="text-rose-500" />}
-                                </button>
-                            )}
-                        </div>
-
-                        {paymentMethod === 'WALLET' && (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' || user.role === 'CUSTOMER') && (() => {
-                            const currentTrain = availableTrains?.find(t => t.train_base?.train_no === trainNo);
-                            const unitPrice = selectedUnitPrice || getTicketPrice(
-                                source, 
-                                destination, 
-                                trainClass, 
-                                selectedTrainName, 
-                                currentTrain?.train_base.travel_time, 
-                                currentTrain?.train_base.prices
-                            );
-                            return walletBalance < ((unitPrice * passengers.length) - (appliedCoupon?.discount || 0));
-                        })() && (
-                            <div className="mt-4 p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl flex items-center gap-2">
-                                <AlertTriangle className="text-rose-500" size={14} />
-                                <p className="text-rose-400 text-[10px] font-bold uppercase">Insufficient Wallet Balance for this booking.</p>
-                            </div>
-                        )}
-                    </div>
+                    <PaymentGatewaySelector 
+                        userRole={user.role}
+                        paymentMethod={paymentMethod}
+                        setPaymentMethod={setPaymentMethod}
+                        walletBalance={walletBalance}
+                        useWalletBalance={useWalletBalance}
+                        setUseWalletBalance={setUseWalletBalance}
+                    />
 
 
                     {/* Payment Error / Retry Banner */}
@@ -1204,24 +1134,50 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                         >
                             <ArrowLeft size={18} /> Edit Details
                         </button>
-                        <button
-                            type="button"
-                            onClick={handleFinalConfirm}
-                            disabled={isProcessing}
-                            className={`${paymentError
-                                    ? 'bg-gradient-to-r from-brand-orange/80 to-brand-orange hover:from-brand-orange hover:to-brand-orange/80 shadow-brand-orange/25'
-                                    : 'bg-gradient-to-r from-brand-teal to-brand-blue hover:from-brand-blue hover:to-brand-teal shadow-brand-teal/25'
-                                } text-white font-semibold flex items-center gap-2 py-2.5 px-8 rounded-xl shadow-lg transition-all transform ${isProcessing ? 'opacity-70 cursor-not-allowed' : 'hover:-translate-y-0.5'}`}
-                        >
-                            {isProcessing
-                                ? <><Loader2 size={18} className="animate-spin" /> Connecting Gateway...</>
-                                : paymentError
-                                    ? <><ArrowLeftRight size={18} /> Retry Payment</>
-                                    : paymentMethod === 'WALLET'
-                                        ? 'Pay via Wallet & Book'
-                                        : 'Confirm & Pay'
-                            }
-                        </button>
+                        {paymentError ? (
+                            <button
+                                type="button"
+                                onClick={handleFinalConfirm}
+                                disabled={isProcessing}
+                                className="bg-gradient-to-r from-brand-orange/80 to-brand-orange hover:from-brand-orange hover:to-brand-orange/80 text-white font-semibold flex items-center gap-2 py-2.5 px-8 rounded-xl shadow-lg shadow-brand-orange/25 transition-all transform hover:-translate-y-0.5 disabled:opacity-70"
+                            >
+                                {isProcessing ? <><Loader2 size={18} className="animate-spin" /> Retrying...</> : <><ArrowLeftRight size={18} /> Retry Payment</>}
+                            </button>
+                        ) : (
+                            <>
+                                {paymentMethod === 'OFFLINE' && (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') && (() => {
+                                    const currentTrain = availableTrains?.find(t => t.train_base?.train_no === trainNo);
+                                    const unitPrice = selectedUnitPrice || getTicketPrice(source, destination, trainClass, selectedTrainName, currentTrain?.train_base?.travel_time, currentTrain?.train_base?.prices, customPrices, dynamicCorridors, paymentMethod === 'OFFLINE' || user?.specialPermissions?.includes('TEST_WALLET'));
+                                    const baseTotalAmount = (unitPrice * passengers.length) - (appliedCoupon?.discount || 0);
+                                    const walletAmountUsed = useWalletBalance ? Math.min(baseTotalAmount, walletBalance) : 0;
+                                    const amountToPayViaGateway = Math.max(0, baseTotalAmount - walletAmountUsed);
+                                    return (
+                                        <button onClick={handleFinalConfirm} disabled={isProcessing} className="bg-rose-500 text-white font-semibold py-2.5 px-8 rounded-xl shadow-lg shadow-rose-500/25 hover:bg-rose-600 transition-all disabled:opacity-50 flex items-center gap-2">
+                                            {isProcessing ? <Loader2 size={18} className="animate-spin" /> : (amountToPayViaGateway === 0 ? `Pay ₹${baseTotalAmount.toLocaleString()} via Wallet` : `Record ₹${amountToPayViaGateway.toLocaleString()} Offline Payment`)}
+                                        </button>
+                                    );
+                                })()}
+                                {paymentMethod === 'SKYDO' && (() => {
+                                    return (
+                                        <button onClick={handleFinalConfirm} disabled={isProcessing} className="bg-sky-500 text-white font-semibold py-2.5 px-8 rounded-xl shadow-lg shadow-sky-500/25 hover:bg-sky-600 transition-all disabled:opacity-50 flex items-center gap-2">
+                                            {isProcessing ? <Loader2 size={18} className="animate-spin" /> : `Confirm International Transfer`}
+                                        </button>
+                                    );
+                                })()}
+                                {paymentMethod === 'RAZORPAY' && (() => {
+                                    const currentTrain = availableTrains?.find(t => t.train_base?.train_no === trainNo);
+                                    const unitPrice = selectedUnitPrice || getTicketPrice(source, destination, trainClass, selectedTrainName, currentTrain?.train_base?.travel_time, currentTrain?.train_base?.prices, customPrices, dynamicCorridors, paymentMethod === 'OFFLINE' || user?.specialPermissions?.includes('TEST_WALLET'));
+                                    const baseTotalAmount = (unitPrice * passengers.length) - (appliedCoupon?.discount || 0);
+                                    const walletAmountUsed = useWalletBalance ? Math.min(baseTotalAmount, walletBalance) : 0;
+                                    const amountToPayViaGateway = Math.max(0, baseTotalAmount - walletAmountUsed);
+                                    return (
+                                        <button onClick={handleFinalConfirm} disabled={isProcessing} className="bg-brand-blue text-white font-semibold py-2.5 px-8 rounded-xl shadow-lg shadow-brand-blue/25 hover:bg-blue-600 transition-all disabled:opacity-50 flex items-center gap-2">
+                                            {isProcessing ? <Loader2 size={18} className="animate-spin" /> : (amountToPayViaGateway === 0 ? `Pay ₹${baseTotalAmount.toLocaleString()} via Wallet` : `Proceed to Pay ₹${amountToPayViaGateway.toLocaleString()}`)}
+                                        </button>
+                                    );
+                                })()}
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -1414,21 +1370,43 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
             <div className="mx-8 h-px bg-slate-800/50 mb-10" />
 
             {/* Train Results List */}
-            {availableTrains && availableTrains.length > 0 && (
+            {(isLoadingTrains || (availableTrains && availableTrains.length > 0)) && (
                 <div className="mt-12 space-y-6 px-6 md:px-10 max-w-5xl mx-auto w-full">
                     <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-                        <h4 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Available Trains ({availableTrains.length})</h4>
-                        <div className="flex gap-4 text-[10px] font-bold tracking-wider">
-                            <span className="text-primary bg-primary/10 px-2 py-0.5 rounded">FASTEST</span>
-                            <span className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">CHEAPEST</span>
-                        </div>
+                        <h4 className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">
+                            {isLoadingTrains ? 'Searching Trains...' : `Available Trains (${availableTrains.length})`}
+                        </h4>
+                        {!isLoadingTrains && (
+                            <div className="flex gap-4 text-[10px] font-bold tracking-wider">
+                                <span className="text-primary bg-primary/10 px-2 py-0.5 rounded">FASTEST</span>
+                                <span className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">CHEAPEST</span>
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-6">
-                        {availableTrains.map((train, idx) => {
-                            const t = train.train_base;
+                        {isLoadingTrains ? (
+                            [1, 2, 3].map((_, idx) => (
+                                <div key={`skeleton-${idx}`} className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm animate-pulse flex flex-col md:flex-row gap-6">
+                                    <div className="flex-1 space-y-4">
+                                        <div className="h-6 bg-slate-200 rounded-md w-1/3"></div>
+                                        <div className="flex justify-between items-center">
+                                            <div className="h-10 bg-slate-200 rounded-md w-1/4"></div>
+                                            <div className="h-4 bg-slate-200 rounded-md w-1/4"></div>
+                                            <div className="h-10 bg-slate-200 rounded-md w-1/4"></div>
+                                        </div>
+                                    </div>
+                                    <div className="w-full md:w-32 flex flex-col gap-2 justify-center">
+                                        <div className="h-8 bg-slate-200 rounded-lg w-full"></div>
+                                        <div className="h-8 bg-slate-200 rounded-lg w-full"></div>
+                                    </div>
+                                </div>
+                            ))
+                        ) : (
+                            availableTrains.map((train, idx) => {
+                                const t = train.train_base;
                             const isSelected = trainNo === t.train_no;
-                            const price = getTicketPrice(source, destination, trainClass, t.train_name, t.travel_time, t.prices, customPrices, dynamicCorridors);
+                            const price = getTicketPrice(source, destination, trainClass, t.train_name, t.travel_time, t.prices, customPrices, dynamicCorridors, user?.specialPermissions?.includes('TEST_WALLET'));
                             
                             return (
                                 <div 
@@ -1502,7 +1480,7 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                                              <div className={`grid ${(() => {
                                                  const classesToShow = getClassesToShow(t.available_classes, t.train_name, t.train_no, t.train_type).filter(clsCode => {
                                                      if (clsCode === '1A') {
-                                                         const p = getTicketPrice(source, destination, clsCode, t.train_name, t.travel_time, t.prices, customPrices, dynamicCorridors);
+                                                         const p = getTicketPrice(source, destination, clsCode, t.train_name, t.travel_time, t.prices, customPrices, dynamicCorridors, user?.specialPermissions?.includes('TEST_WALLET'));
                                                          return p > 0;
                                                      }
                                                      return true;
@@ -1512,7 +1490,7 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                                                  {(() => {
                                                      const classesToShow = getClassesToShow(t.available_classes, t.train_name, t.train_no, t.train_type).filter(clsCode => {
                                                          if (clsCode === '1A') {
-                                                             const p = getTicketPrice(source, destination, clsCode, t.train_name, t.travel_time, t.prices, customPrices, dynamicCorridors);
+                                                             const p = getTicketPrice(source, destination, clsCode, t.train_name, t.travel_time, t.prices, customPrices, dynamicCorridors, user?.specialPermissions?.includes('TEST_WALLET'));
                                                              return p > 0;
                                                          }
                                                          return true;
@@ -1529,14 +1507,14 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                                                                      setTrainClass(clsCode); 
                                                                      setTrainNo(t.train_no); 
                                                                      setSelectedTrainName(t.train_name);
-                                                                     const p = getTicketPrice(source, destination, clsCode, t.train_name, t.travel_time, t.prices, customPrices, dynamicCorridors);
+                                                                     const p = getTicketPrice(source, destination, clsCode, t.train_name, t.travel_time, t.prices, customPrices, dynamicCorridors, user?.specialPermissions?.includes('TEST_WALLET'));
                                                                      if (p > 0) setSelectedUnitPrice(p);
                                                                  }}
                                                                  className={`p-2 rounded-xl border shadow-sm cursor-pointer transition-all flex flex-col justify-between h-full min-h-[64px] ${isClsSelected ? 'bg-white border-primary/20 ring-1 ring-primary/30' : 'bg-slate-100/50 border-slate-100 opacity-70 hover:opacity-100'}`}
                                                              >
                                                                  <p className="text-[7.5px] text-slate-400 font-bold uppercase mb-0.5">{TRAIN_CLASS_LABELS[clsCode] || clsCode}</p>
                                                                  {(() => { 
-                                                                     const p = getTicketPrice(source, destination, clsCode, t.train_name, t.travel_time, t.prices, customPrices, dynamicCorridors); 
+                                                                     const p = getTicketPrice(source, destination, clsCode, t.train_name, t.travel_time, t.prices, customPrices, dynamicCorridors, user?.specialPermissions?.includes('TEST_WALLET')); 
                                                                      return p > 0 ? <p className={`text-sm font-black mt-auto ${isClsSelected ? 'text-primary' : 'text-slate-700'}`}>{'₹'}{p}</p> : <p className="text-[9px] font-bold text-amber-500 mt-auto">On Request</p>; 
                                                                  })()}
                                                              </div>
@@ -1555,7 +1533,8 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                                     </div>
                                 </div>
                             );
-                        })}
+                        })
+                    )}
                     </div>
                 </div>
             )}
@@ -1755,7 +1734,7 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                         <button
                             type="button"
                             onClick={handleTransitionToReview}
-                            disabled={!trainNo || !trainClass || passengers.some(p => !p.name || !p.age) || !isValidIndianMobile(mobile)}
+                            disabled={!trainNo || !trainClass || !source || !destination || passengers.some(p => !p.name || !p.age) || !isValidIndianMobile(mobile)}
                             className="bg-primary text-white font-bold py-5 px-16 rounded-2xl shadow-xl shadow-sky-100 hover:shadow-sky-200 transition-all w-full md:w-auto md:min-w-[320px] flex items-center justify-center gap-3 transform disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-1 uppercase tracking-[0.2em] text-sm active:scale-95"
                         >
                             <span className="material-symbols-outlined">rocket_launch</span> Review & Initialize Booking
@@ -1768,7 +1747,7 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                         <button
                             type="button"
                             onClick={handleRequestPrice}
-                            disabled={isProcessing || !trainNo || !trainClass}
+                            disabled={isProcessing || !trainNo || !trainClass || !source || !destination}
                             className="bg-amber-500 text-white font-bold py-5 px-16 rounded-2xl shadow-xl shadow-amber-100 hover:shadow-amber-200 transition-all w-full md:w-auto md:min-w-[320px] flex items-center justify-center gap-3 transform disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-1 uppercase tracking-[0.2em] text-sm active:scale-95"
                         >
                             {isProcessing ? <span className="material-symbols-outlined animate-spin">refresh</span> : <span className="material-symbols-outlined">request_quote</span>}

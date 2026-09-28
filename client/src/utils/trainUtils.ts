@@ -43,54 +43,43 @@ export const getClassesToShow = (
     const tName = trainName ? String(trainName).toUpperCase() : '';
     const tType = trainType ? String(trainType).toUpperCase() : '';
 
+    let result: string[] = [];
     const avCls = availableClasses || [];
+    
     if (avCls.length > 0) {
         // Return filtered list of supported classes that are available
-        return ['SL', '3A', '2A', 'CC', '3E', '1A', '2S', 'FC', 'EV', 'EC'].filter(c => avCls.includes(c));
+        result = ['SL', '3A', '2A', 'CC', '3E', '1A', '2S', 'FC', 'EV', 'EC'].filter(c => avCls.includes(c));
+    } else if (tType === 'PASSENGER' || tType.includes('PASS') || tName.includes('PASSENGER') || tName.includes('PASSGR')) {
+        result = ['2S'];
+    } else if (tName.includes('HUMSAFAR')) {
+        result = ['3A'];
+    } else if (tName.includes('GARIB RATH')) {
+        result = ['3A'];
+    } else if (tName.includes('VANDE BHARAT')) {
+        result = ['CC', 'EC'];
+    } else if (tName.includes('SHATABDI') && !tName.includes('JAN SHATABDI')) {
+        result = ['CC', 'EC'];
+    } else if (tName.includes('JAN SHATABDI')) {
+        result = ['2S', 'CC'];
+    } else if (tName.includes('TEJAS')) {
+        result = ['CC', 'EC'];
+    } else if (tName.includes('RAJDHANI')) {
+        result = ['3A', '2A', '1A'];
+    } else if (tName.includes('DURONTO')) {
+        result = ['SL', '3A', '2A', '1A'];
+    } else if (tNo === '13053' || tNo === '13054' || tName.includes('KULIK')) {
+        // Hardcoded override for Kulik Express (13053 / 13054)
+        result = ['CC', '2S', '3E', 'EV'];
+    } else if (tName.includes('INTERCITY') || tName.includes('CHAIR') || tType.includes('INTERCITY')) {
+        // Fallback heuristic for generic trains
+        result = ['2S', 'CC'];
+    } else {
+        const isAC = isACOnlyTrain(trainName);
+        result = isAC ? ['3A', '2A', '1A'] : ['SL', '3A', '2A'];
     }
 
-    // Specific train type heuristics
-    if (tType === 'PASSENGER' || tType.includes('PASS') || tName.includes('PASSENGER') || tName.includes('PASSGR')) {
-        return ['2S'];
-    }
-    if (tName.includes('HUMSAFAR')) {
-        return ['SL', '3A'];
-    }
-    if (tName.includes('GARIB RATH')) {
-        return ['3A'];
-    }
-    if (tName.includes('VANDE BHARAT')) {
-        return ['CC', 'EC'];
-    }
-    if (tName.includes('SHATABDI') && !tName.includes('JAN SHATABDI')) {
-        return ['CC', 'EC'];
-    }
-    if (tName.includes('JAN SHATABDI')) {
-        return ['2S', 'CC'];
-    }
-    if (tName.includes('TEJAS')) {
-        return ['CC', 'EC'];
-    }
-    if (tName.includes('RAJDHANI')) {
-        return ['3A', '2A', '1A'];
-    }
-    if (tName.includes('DURONTO')) {
-        return ['SL', '3A', '2A', '1A'];
-    }
-
-    // Hardcoded override for Kulik Express (13053 / 13054)
-    if (tNo === '13053' || tNo === '13054' || tName.includes('KULIK')) {
-        return ['CC', '2S', '3E', 'EV'];
-    }
-
-    // Fallback heuristic for generic trains
-    const isChairCarTrain = tName.includes('INTERCITY') || tName.includes('CHAIR') || tType.includes('INTERCITY');
-    if (isChairCarTrain) {
-        return ['2S', 'CC'];
-    }
-
-    const isAC = isACOnlyTrain(trainName);
-    return isAC ? ['3A', '2A', '1A'] : ['SL', '3A', '2A'];
+    // BLOCK BOOKING OPTION FOR 2S AND 1A CLASS
+    return result.filter(c => c !== '1A' && c !== '2S');
 };
 
 /**
@@ -154,20 +143,14 @@ export const getTicketPrice = (
     tTravelTime?: string, 
     trainPrices?: Record<string, number>,
     customPrices: any[] = [],
-    dynamicCorridors: any[] = []
+    dynamicCorridors: any[] = [],
+    excludeGst: boolean = false
 ): number => {
     // Normalize Class
     const cls = String(clsRaw || '').toUpperCase().trim();
     const src = resolveToCode(srcRaw);
     const dst = resolveToCode(dstRaw);
 
-    // 0. Hardcoded Priority Corridor Overrides (Immediate Impact)
-    const isHWHPUNE = (src === 'HWH' && dst === 'PUNE') || (src === 'PUNE' && dst === 'HWH');
-    if (isHWHPUNE) {
-        if (cls === 'SL') return 2600;
-        if (cls === '3A' || cls === '3E' || cls === 'CC') return 4200;
-        if (cls === '2A') return 5400;
-    }
 
     // 1. Check for Admin-defined custom prices FIRST (Critical Priority)
     const customPrice = customPrices.find(p => {
@@ -194,6 +177,21 @@ export const getTicketPrice = (
     const isPremiumTrain = tName ? /(satabdi|shatabdi|rajdhani|vande\s*bharat|duronto|amrit\s*bharat|tejas|gatiman)/i.test(tName) : false;
     if (isPremiumTrain) {
         return 0;
+    }
+
+    // 2.5 Hardcoded Priority Corridor Overrides
+    const isHWHPUNE = (src === 'HWH' && dst === 'PUNE') || (src === 'PUNE' && dst === 'HWH');
+    if (isHWHPUNE) {
+        if (cls === 'SL') return 2600;
+        if (cls === '3A' || cls === '3E' || cls === 'CC') return 4200;
+        if (cls === '2A') return 5400;
+    }
+
+    const isDELHIKOLKATA = (src === 'NDLS' || src === 'DLI' || src === 'NZM' || src === 'ANVT') && (dst === 'HWH' || dst === 'SDAH' || dst === 'KOAA' || dst === 'SHM') ||
+                           (dst === 'NDLS' || dst === 'DLI' || dst === 'NZM' || dst === 'ANVT') && (src === 'HWH' || src === 'SDAH' || src === 'KOAA' || src === 'SHM');
+    if (isDELHIKOLKATA) {
+        if (cls === '2A') return 4100;
+        if (cls === '1A') return Math.round(4100 * 1.35);
     }
 
     // 3. BACKEND per-train price (IRCTC API) - runs BEFORE corridor so each train shows its own price
@@ -256,7 +254,7 @@ export const getTicketPrice = (
                     break;
                 }
                 if (cls === '1A' && corridor.markup2A > 0) {
-                    baseResult = Math.round(corridor.markup2A * 1.35);
+                    baseResult = Math.round(corridor.markup2A * 1.6);
                     break;
                 }
                 if (cls === 'EC' && corridor.markup3A > 0) {
@@ -288,14 +286,14 @@ export const getTicketPrice = (
         const base3A = 300 + (80 * totalHours);
         const base2A = 450 + (125 * totalHours);
 
-        if (cls === 'SL') baseResult = baseSL + 200 + 1200; // Total Fixed: 1400
-        else if (cls === '3A' || cls === '3E' || cls === 'CC') baseResult = base3A + 400 + 1000; // Total Fixed: 1400
-        else if (cls === '2A' || cls === 'FC') baseResult = base2A + 500 + 800; // Total Fixed: 1300
+        if (cls === 'SL') baseResult = baseSL;
+        else if (cls === '3A' || cls === '3E' || cls === 'CC') baseResult = base3A;
+        else if (cls === '2A' || cls === 'FC') baseResult = base2A;
         else if (cls === '2S') baseResult = Math.round((baseSL + 1400) * 0.6);
-        else if (cls === '1A') baseResult = Math.round((base2A + 1300) * 1.35);
+        else if (cls === '1A') baseResult = Math.round((base2A + 1300) * 1.6);
         else if (cls === 'EC') baseResult = Math.round((base3A + 1400) * 2.4);
-        else if (cls === 'EV') baseResult = Math.round((base3A + 1400) * 2.65);
-        else baseResult = baseSL + 1400;
+        else if (cls === 'EV') baseResult = Math.round(base3A * 2.65);
+        else baseResult = baseSL;
     }
 
     // 6. APPLY DIFFERENTIATION
@@ -303,5 +301,13 @@ export const getTicketPrice = (
     const sfCharge = isSuperfast ? (cls === 'SL' ? 45 : (cls === '2S' ? 15 : 60)) : 0;
     const trainVariation = tName ? (tName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 10) * 5 : 0;
 
-    return Math.round(baseResult + sfCharge + trainVariation);
+    let finalPrice = Math.round(baseResult + sfCharge + trainVariation);
+
+    // 7. APPLY GST (5% on AC classes)
+    const acClasses = ['1A', '2A', '3A', '3E', 'CC', 'EC', 'EV', 'FC'];
+    if (acClasses.includes(cls) && !excludeGst) {
+        finalPrice = Math.round(finalPrice * 1.05);
+    }
+
+    return finalPrice;
 };
