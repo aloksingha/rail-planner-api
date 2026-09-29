@@ -20,7 +20,7 @@ const formatTravelTime = (minutes: number) => {
 };
 
 const CACHE_TTL = 15 * 60; // 15 minutes in seconds
-const SEARCH_VERSION = 'v3.15-gst-update'; // Bumped to invalidate old caches for GST
+const SEARCH_VERSION = 'v3.16-rapidapi'; // Bumped to invalidate old caches for GST
 
 import { CacheService } from '../utils/cache';
 
