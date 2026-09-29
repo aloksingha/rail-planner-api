@@ -87,154 +87,61 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         // Helper to fetch from API with dual-engine failover
         const fetchRemote = async (src: string, dst: string, isFallback = false) => {
             const maxRetries = 3;
-            let lastError: any = null;
 
             for (let i = 0; i < maxRetries; i++) {
-                const key = getRailRadarKey();
                 try {
-                    console.log(`[SearchEngine] Trying RailRadar with key ${key.substring(0, 8)}...`);
-                    // Convert DD-MM-YYYY to YYYY-MM-DD for the new RailRadar API
-                    const apiDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
-                    const response = await axios.get(`${RAILRADAR_BASE_URL}/trains/between/${src}/${dst}?date=${apiDate}`, {
+                    console.log(`[SearchEngine] Trying RapidAPI IRCTC v3...`);
+                    const apiDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`; // YYYY-MM-DD
+                    const response = await axios.get(`${NEW_API_BASE_URL}/trainBetweenStations?fromStationCode=${src}&toStationCode=${dst}&dateOfJourney=${apiDate}`, {
                         headers: { 
-                            'Authorization': `Bearer ${key}`,
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                            'Accept': 'application/json, text/plain, */*',
-                            'Accept-Language': 'en-US,en;q=0.9'
+                            'X-RapidAPI-Host': 'irctc1.p.rapidapi.com',
+                            'X-RapidAPI-Key': NEW_API_KEY
                         },
-                        timeout: 8000
+                        timeout: 10000
                     });
-                    const externalTrains = response.data?.data?.trains || [];
-                    console.log(`[SearchEngine] RailRadar ${isFallback ? 'Proximity' : 'Direct'} HIT for ${src}->${dst} (${externalTrains.length} trains)`);
+                    
+                    const externalTrains = response.data?.data || [];
+                    console.log(`[SearchEngine] RapidAPI ${isFallback ? 'Proximity' : 'Direct'} HIT for ${src}->${dst} (${externalTrains.length} trains)`);
+                    
                     return externalTrains.map((t: any) => {
-                        const durHrs = Math.floor(t.duration / 60);
-                        const durRem = t.duration % 60;
-                        const srcMins = parseInt(t.from.departure.split(':')[0]) * 60 + parseInt(t.from.departure.split(':')[1]) + (t.from.day - 1) * 1440;
-                        const dstMins = parseInt(t.to.arrival.split(':')[0]) * 60 + parseInt(t.to.arrival.split(':')[1]) + (t.to.day - 1) * 1440;
-                        const dayMap: {[key: string]: string} = {
-                            'mon': 'Mon', 'tue': 'Tue', 'wed': 'Wed', 'thu': 'Thu', 'fri': 'Fri', 'sat': 'Sat', 'sun': 'Sun'
-                        };
+                        const fromSplit = t.from_std.split(':');
+                        const toSplit = t.to_sta.split(':');
+                        const srcMins = parseInt(fromSplit[0]) * 60 + parseInt(fromSplit[1]) + (t.from_day * 1440);
+                        const dstMins = parseInt(toSplit[0]) * 60 + parseInt(toSplit[1]) + (t.to_day * 1440);
 
                         return {
-                            train_name: t.train.name,
-                            train_no: t.train.number,
-                            from_stn_name: t.from.code,
-                            to_stn_name: t.to.code,
-                            from_time: t.from.departure,
-                            to_time: t.to.arrival,
-                            travel_time: `${durHrs.toString().padStart(2, '0')}:${durRem.toString().padStart(2, '0')}`,
+                            train_name: t.train_name,
+                            train_no: t.train_number,
+                            from_stn_name: t.from,
+                            to_stn_name: t.to,
+                            from_time: t.from_std,
+                            to_time: t.to_sta,
+                            travel_time: t.duration,
                             from_std_mins: srcMins,
                             to_sta_mins: dstMins,
                             running_days: {
-                                days: (Array.isArray(t.train.runDays) ? t.train.runDays : (typeof t.train.runDays === 'string' ? t.train.runDays.split(',') : [])).map((d: string) => dayMap[d.trim().toLowerCase()] || d),
-                                allDays: (t.train.runDays || []).length === 7 || (typeof t.train.runDays === 'string' && t.train.runDays.toLowerCase() === 'daily')
+                                days: t.run_days || [],
+                                allDays: (t.run_days || []).length === 7
                             },
-                            isAlternative: isFallback
+                            fromStationSchedule: { day: t.from_day + 1 },
+                            toStationSchedule: { day: t.to_day + 1 },
+                            available_classes: t.class_type || ['2A', '3A', 'SL'],
+                            train_type: t.train_type || 'SUF'
                         };
                     });
-                } catch (e: any) {
-                    lastError = e;
-                    const status = e.response?.status;
-                    if (status === 401 || status === 403 || status === 429) {
-                        console.log(`[RailRadar] Key ${key.substring(0, 8)} throttled/invalid (Status: ${status}). Body: ${typeof e.response?.data === 'string' ? e.response?.data.substring(0, 200) : 'JSON'}. Trying next...`);
-                        continue; 
-                    }
-                    console.warn(`[RailRadar] Failed with status ${status}, breaking loop to try Offline. Error: ${e.message}`);
-                    break;
+                } catch (error: any) {
+                    console.error(`[SearchEngine] RapidAPI Error (${src}->${dst}):`, error.response?.data || error.message);
+                    if (i === maxRetries - 1) break;
+                    await new Promise(r => setTimeout(r, 1000));
                 }
             }
-            
-
-            console.warn(`[SearchEngine] ALL ENGINES FAILED! Using Offline Trains Fallback for ${src}->${dst}`);
-            // --- ENGINE 3: OFFLINE TRAINS FALLBACK ---
-            try {
-                const fs = require('fs');
-                const path = require('path');
-                const localPath = path.join(process.cwd(), 'src/data/offline_trains.json');
-                if (fs.existsSync(localPath)) {
-                    const offlineData = JSON.parse(fs.readFileSync(localPath, 'utf8'));
-                    const matchedTrains = offlineData.filter((t: any) => 
-                        t.stops.includes(src) && t.stops.includes(dst) && 
-                        t.stops.indexOf(src) < t.stops.indexOf(dst)
-                    );
-                    
-                    if (matchedTrains.length > 0) {
-                        return matchedTrains.map((t: any) => {
-                            const srcTime = t.times[src];
-                            const dstTime = t.times[dst];
-                            
-                            const parseToMins = (timeStr: string) => {
-                                const [h, m] = timeStr.split(':').map(Number);
-                                return h * 60 + m;
-                            };
-                            const srcMins = parseToMins(srcTime.dep) + (srcTime.day - 1) * 1440;
-                            const dstMins = parseToMins(dstTime.arr) + (dstTime.day - 1) * 1440;
-                            const durMins = dstMins - srcMins;
-                            const durHrs = Math.floor(durMins / 60);
-                            const durRem = durMins % 60;
-                            
-                            return {
-                                train_name: t.train_name,
-                                train_no: t.train_no,
-                                from_stn_name: src,
-                                to_stn_name: dst,
-                                from_time: srcTime.dep,
-                                to_time: dstTime.arr,
-                                travel_time: `${durHrs.toString().padStart(2, '0')}:${durRem.toString().padStart(2, '0')}`,
-                                from_std_mins: srcMins,
-                                to_sta_mins: dstMins,
-                                running_days: {
-                                    days: t.run_days,
-                                    allDays: t.run_days.length === 7
-                                },
-                                train_class_details: t.classes.map((c: string) => ({ classCode: c })),
-                                isAlternative: isFallback
-                            };
-                        });
-                    }
-                }
-            } catch (e: any) {
-                console.error(`[SearchEngine] Offline Fallback Error: ${e.message}`);
-            }
-
-            // If even offline fails or no trains found, return empty array instead of crashing
             return [];
         };
 
         // 1. Primary Direct Search
         let allRemoteTrains = await fetchRemote(from as string, to as string, false);
 
-        // 2. Proximity Search - Expanding reach to capture all city-area terminals (e.g. DEC, DEE, SBIB)
-        // 2. Proximity Search - Expanding reach to capture all city-area terminals
-        const sourceAlts = [from as string, ...nearbys.filter(n => n.stationCode === from).map(n => n.nearbyCode)].slice(0, 10);
-        const destAlts = [to as string, ...nearbys.filter(n => n.stationCode === to).map(n => n.nearbyCode)].slice(0, 10);
-
-        const pairs: {s: string, d: string}[] = [];
-        for (const s of sourceAlts) {
-            for (const d of destAlts) {
-                if (s === from && d === to) continue;
-                pairs.push({s, d});
-            }
-        }
-
-        console.log(`[TrainSearch] Proactively searching ${pairs.length} proximity pairs...`);
-        
-        // Execute fallback searches in parallel for better performance
-        const fallbackResults: any[] = [];
-        const proximityResults = await Promise.allSettled(
-            pairs.map(pair => fetchRemote(pair.s, pair.d, true))
-        );
-
-        proximityResults.forEach((res, idx) => {
-            if (res.status === 'fulfilled') {
-                fallbackResults.push(...res.value);
-            } else {
-                console.warn(`[TrainSearch] Proximity pair ${pairs[idx].s}->${pairs[idx].d} failed: ${res.reason?.message}`);
-            }
-        });
-
-        // Combine nearby and direct results (Priority: Direct > Closest Nearby > Furthest Nearby)
-        allRemoteTrains = [...allRemoteTrains, ...fallbackResults];
+        // Fallback logic removed because RapidAPI automatically includes nearby stations!
 
         const shiftDay = (dayName: string, shift: number): string => {
             const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
