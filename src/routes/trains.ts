@@ -191,7 +191,7 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                 });
 
                 let available_classes: string[] = [];
-                const classesSource = t.classes || t.availableClasses || t.train_class_details || [];
+                const classesSource = t.available_classes || t.classes || t.availableClasses || t.train_class_details || [];
                 if (Array.isArray(classesSource)) {
                     available_classes = classesSource.map((c: any) =>
                         (typeof c === 'string' ? c : (c.code || c.classCode || c.class_cd || '')).toUpperCase()
