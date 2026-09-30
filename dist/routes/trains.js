@@ -7,7 +7,7 @@ const express_1 = __importDefault(require("express"));
 const axios_1 = __importDefault(require("axios"));
 const router = express_1.default.Router();
 const keys_1 = require("../utils/keys");
-const RAILRADAR_BASE_URL = 'https://api.railradar.org/api/v1';
+const RAILRADAR_BASE_URL = 'https://api.railradar.in/v1';
 const formatTime = (minutes) => {
     const min = minutes % 60;
     let h = Math.floor(minutes / 60);
@@ -21,7 +21,7 @@ const formatTravelTime = (minutes) => {
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:00`;
 };
 const CACHE_TTL = 15 * 60; // 15 minutes in seconds
-const SEARCH_VERSION = 'v3.8-kne-tvc-corridor-update'; // Bump for enroute Northeast-South corridor pricing
+const SEARCH_VERSION = 'v3.17-rapidapi-fix'; // Bumped to invalidate old caches for GST
 const cache_1 = require("../utils/cache");
 const pricing_1 = require("../utils/pricing");
 const prisma_1 = require("../prisma");
@@ -72,60 +72,59 @@ router.get('/getTrainOn', async (req, res) => {
         const dayFullName = dayFullNames[journeyDate.getDay()];
         console.log(`[TrainSearch] ${from} to ${to} on ${date} [Day: ${dayFullName}]`);
         // Helper to fetch from API with dual-engine failover
-        // Helper to fetch from API using RailRadar (Primary)
         const fetchRemote = async (src, dst, isFallback = false) => {
             const maxRetries = 3;
-            let lastError = null;
             for (let i = 0; i < maxRetries; i++) {
-                const key = (0, keys_1.getRailRadarKey)();
                 try {
-                    const response = await axios_1.default.get(`${RAILRADAR_BASE_URL}/trains/between?from=${src}&to=${dst}&date=${date}`, {
-                        headers: { 'X-Api-Key': key, 'Accept': 'application/json' }
+                    console.log(`[SearchEngine] Trying RapidAPI IRCTC v3...`);
+                    const apiDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`; // YYYY-MM-DD
+                    const response = await axios_1.default.get(`${keys_1.NEW_API_BASE_URL}/trainBetweenStations?fromStationCode=${src}&toStationCode=${dst}&dateOfJourney=${apiDate}`, {
+                        headers: {
+                            'X-RapidAPI-Host': 'irctc1.p.rapidapi.com',
+                            'X-RapidAPI-Key': keys_1.NEW_API_KEY
+                        },
+                        timeout: 10000
                     });
-                    const externalTrains = response.data?.data?.trains || [];
-                    console.log(`[SearchEngine] RailRadar ${isFallback ? 'Proximity' : 'Direct'} HIT for ${src}->${dst} (${externalTrains.length} trains)`);
-                    return externalTrains.map((t) => ({ ...t, isAlternative: isFallback }));
+                    const externalTrains = response.data?.data || [];
+                    console.log(`[SearchEngine] RapidAPI ${isFallback ? 'Proximity' : 'Direct'} HIT for ${src}->${dst} (${externalTrains.length} trains)`);
+                    return externalTrains.map((t) => {
+                        const fromSplit = t.from_std.split(':');
+                        const toSplit = t.to_sta.split(':');
+                        const srcMins = parseInt(fromSplit[0]) * 60 + parseInt(fromSplit[1]) + (t.from_day * 1440);
+                        const dstMins = parseInt(toSplit[0]) * 60 + parseInt(toSplit[1]) + (t.to_day * 1440);
+                        return {
+                            train_name: t.train_name,
+                            train_no: t.train_number,
+                            from_stn_name: t.from,
+                            to_stn_name: t.to,
+                            from_time: t.from_std,
+                            to_time: t.to_sta,
+                            travel_time: t.duration,
+                            from_std_mins: srcMins,
+                            to_sta_mins: dstMins,
+                            running_days: {
+                                days: t.run_days || [],
+                                allDays: (t.run_days || []).length === 7
+                            },
+                            fromStationSchedule: { day: t.from_day + 1 },
+                            toStationSchedule: { day: t.to_day + 1 },
+                            available_classes: t.class_type || ['2A', '3A', 'SL'],
+                            train_type: t.train_type || 'SUF'
+                        };
+                    });
                 }
-                catch (e) {
-                    lastError = e;
-                    const status = e.response?.status;
-                    if (status === 401 || status === 403 || status === 429) {
-                        console.log(`[RailRadar] Key ${key.substring(0, 8)} throttled/invalid. Trying next...`);
-                        continue;
-                    }
-                    throw e;
+                catch (error) {
+                    console.error(`[SearchEngine] RapidAPI Error (${src}->${dst}):`, error.response?.data || error.message);
+                    if (i === maxRetries - 1)
+                        break;
+                    await new Promise(r => setTimeout(r, 1000));
                 }
             }
-            throw lastError || new Error('All search engines failed');
+            return [];
         };
         // 1. Primary Direct Search
         let allRemoteTrains = await fetchRemote(from, to, false);
-        // 2. Proximity Search - Expanding reach to capture all city-area terminals (e.g. DEC, DEE, SBIB)
-        // 2. Proximity Search - Expanding reach to capture all city-area terminals
-        const sourceAlts = [from, ...nearbys.filter(n => n.stationCode === from).map(n => n.nearbyCode)].slice(0, 10);
-        const destAlts = [to, ...nearbys.filter(n => n.stationCode === to).map(n => n.nearbyCode)].slice(0, 10);
-        const pairs = [];
-        for (const s of sourceAlts) {
-            for (const d of destAlts) {
-                if (s === from && d === to)
-                    continue;
-                pairs.push({ s, d });
-            }
-        }
-        console.log(`[TrainSearch] Proactively searching ${pairs.length} proximity pairs...`);
-        // Execute fallback searches in parallel for better performance
-        const fallbackResults = [];
-        const proximityResults = await Promise.allSettled(pairs.map(pair => fetchRemote(pair.s, pair.d, true)));
-        proximityResults.forEach((res, idx) => {
-            if (res.status === 'fulfilled') {
-                fallbackResults.push(...res.value);
-            }
-            else {
-                console.warn(`[TrainSearch] Proximity pair ${pairs[idx].s}->${pairs[idx].d} failed: ${res.reason?.message}`);
-            }
-        });
-        // Combine nearby and direct results (Priority: Direct > Closest Nearby > Furthest Nearby)
-        allRemoteTrains = [...allRemoteTrains, ...fallbackResults];
+        // Fallback logic removed because RapidAPI automatically includes nearby stations!
         const shiftDay = (dayName, shift) => {
             const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             const idx = days.indexOf(dayName);
@@ -166,15 +165,16 @@ router.get('/getTrainOn', async (req, res) => {
                 running_days[key] = isRunning;
             });
             let available_classes = [];
-            const classesSource = t.classes || t.availableClasses || t.train_class_details || [];
+            const classesSource = t.available_classes || t.classes || t.availableClasses || t.train_class_details || [];
+            console.log('classesSource:', classesSource);
             if (Array.isArray(classesSource)) {
                 available_classes = classesSource.map((c) => (typeof c === 'string' ? c : (c.code || c.classCode || c.class_cd || '')).toUpperCase()).filter(Boolean);
             }
             // RapidAPI mapping vs RailRadar mapping
             const depMinsBase = t.fromStationSchedule?.departureMinutes ?? t.from_std_mins ?? 0;
             const arrMinsBase = t.toStationSchedule?.arrivalMinutes ?? t.to_sta_mins ?? 0;
-            const depMinsTotal = ((depDay - 1) * 1440) + depMinsBase;
-            const arrMinsTotal = ((arrDay - 1) * 1440) + arrMinsBase;
+            const depMinsTotal = t.fromStationSchedule ? (((depDay - 1) * 1440) + depMinsBase) : (t.from_std_mins ?? 0);
+            const arrMinsTotal = t.toStationSchedule ? (((arrDay - 1) * 1440) + arrMinsBase) : (t.to_sta_mins ?? 0);
             let segmentMins = arrMinsTotal - depMinsTotal;
             if (segmentMins <= 0)
                 segmentMins = t.travelTimeMinutes || 0;
@@ -182,7 +182,9 @@ router.get('/getTrainOn', async (req, res) => {
             // Calculate calendar departure and arrival dates
             const depDateObj = new Date(journeyDate);
             const arrDateObj = new Date(journeyDate);
-            arrDateObj.setDate(arrDateObj.getDate() + (arrDay - depDay));
+            // Fix: Calculate exact day diff using total minutes from origin
+            const addedDays = Math.floor(arrMinsTotal / 1440) - Math.floor(depMinsTotal / 1440);
+            arrDateObj.setDate(arrDateObj.getDate() + addedDays);
             const formatDate = (d) => {
                 const day = d.getDate().toString().padStart(2, '0');
                 const month = (d.getMonth() + 1).toString().padStart(2, '0');
@@ -202,6 +204,17 @@ router.get('/getTrainOn', async (req, res) => {
             ['SL', '3A', '2A', 'CC', '3E', '1A', '2S', 'FC', 'EV', 'EC'].forEach(cls => {
                 prices[cls] = (0, pricing_1.getTicketPrice)(from, to, cls, t.trainName || t.train_name, travelTimeStr, pricingContext);
             });
+            // FIX PRICING ERRORS: Enforce logical hierarchy
+            if (prices['SL'] && prices['3A'] && prices['SL'] >= prices['3A'])
+                prices['3A'] = prices['SL'] + 800;
+            if (prices['3A'] && prices['2A'] && prices['3A'] >= prices['2A'])
+                prices['2A'] = prices['3A'] + 1000;
+            if (prices['2A'] && prices['1A'] && prices['2A'] >= prices['1A'])
+                prices['1A'] = prices['2A'] + 1500;
+            if (prices['CC'] && prices['EC'] && prices['CC'] >= prices['EC'])
+                prices['EC'] = prices['CC'] + 1000;
+            if (prices['EC'] && prices['EV'] && prices['EC'] >= prices['EV'])
+                prices['EV'] = prices['EC'] + 500;
             return {
                 isAlternative: t.isAlternative,
                 train_base: {
@@ -257,7 +270,9 @@ router.get('/getTrainOn', async (req, res) => {
         }
         const uniqueTrains = Array.from(uniqueTrainsMap.values());
         console.log(`[TrainSearch] Returning ${uniqueTrains.length} unique trains`);
-        await cache_1.CacheService.set(cacheKey, JSON.stringify(uniqueTrains), CACHE_TTL);
+        if (uniqueTrains.length > 0) {
+            await cache_1.CacheService.set(cacheKey, JSON.stringify(uniqueTrains), CACHE_TTL);
+        }
         return res.json({ success: true, data: uniqueTrains });
     }
     catch (error) {
@@ -280,9 +295,17 @@ router.get('/schedule/:trainNo', async (req, res) => {
         for (let i = 0; i < maxRetries; i++) {
             const key = (0, keys_1.getRailRadarKey)();
             try {
-                const response = await axios_1.default.get(`${RAILRADAR_BASE_URL}/trains/${trainNo}/schedule`, {
-                    headers: { 'X-Api-Key': key, 'Accept': 'application/json' }
+                // The correct endpoint in RailRadar for a train's details and route is /trains/:trainNo
+                const response = await axios_1.default.get(`${RAILRADAR_BASE_URL}/trains/${trainNo}`, {
+                    headers: {
+                        'Authorization': `Bearer ${key}`,
+                        'Accept': 'application/json, text/plain, */*',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept-Language': 'en-US,en;q=0.9'
+                    },
+                    timeout: 8000
                 });
+                // The schedule is returned inside data.route
                 scheduleData = response.data?.data?.route || [];
                 lastError = null;
                 break; // Success!
@@ -292,25 +315,39 @@ router.get('/schedule/:trainNo', async (req, res) => {
                 if (e.response?.status === 429 || e.response?.status === 401 || e.response?.status === 403) {
                     continue; // Try next key
                 }
-                throw e; // Critical error
+                break; // Stop and try fallback
             }
         }
-        if (lastError)
+        if (lastError && scheduleData.length === 0) {
             throw lastError;
-        const adaptedSchedule = scheduleData.map((stop) => ({
-            stationCode: stop.stationCode,
-            stationName: stop.stationName,
-            arrivalTime: stop.arrivalMinutes ? formatTime(stop.arrivalMinutes) : '--:--',
-            departureTime: stop.departureMinutes ? formatTime(stop.departureMinutes) : '--:--',
-            distance: stop.distanceFromSourceKm,
-            day: stop.day,
+        }
+        // RailRadar returns: station: { code, name }, arrival, departure, distance, arrivalDay, isHalt
+        const adaptedSchedule = scheduleData.map((stop, index) => ({
+            stationCode: stop.station?.code || stop.stationCode,
+            stationName: stop.station?.name || stop.stationName,
+            arrivalTime: stop.arrival || (stop.arrivalMinutes ? formatTime(stop.arrivalMinutes) : (index === 0 ? '--:--' : '--:--')),
+            departureTime: stop.departure || (stop.departureMinutes ? formatTime(stop.departureMinutes) : (index === scheduleData.length - 1 ? '--:--' : '--:--')),
+            distance: stop.distance !== undefined ? stop.distance : stop.distanceFromSourceKm,
+            day: stop.arrivalDay || stop.departureDay || stop.day,
             isHalt: stop.isHalt
-        }));
-        await cache_1.CacheService.set(`schedule:${trainNo}`, JSON.stringify(adaptedSchedule), 24 * 60 * 60); // 24 hours
+        })).filter((stop, idx, arr) => {
+            // Keep first and last stations always
+            if (idx === 0 || idx === arr.length - 1)
+                return true;
+            // Remove stations where train doesn't halt (arrival == departure or isHalt is explicitly false)
+            if (stop.isHalt === false)
+                return false;
+            if (stop.arrivalTime === stop.departureTime && stop.arrivalTime !== '--:--')
+                return false;
+            return true;
+        });
+        if (adaptedSchedule.length > 0) {
+            await cache_1.CacheService.set(`schedule:${trainNo}`, JSON.stringify(adaptedSchedule), 24 * 60 * 60); // 24 hours
+        }
         return res.json({ success: true, data: adaptedSchedule });
     }
     catch (error) {
-        console.error('RailRadar Schedule Error:', error.response?.data || error.message);
+        console.error('Schedule Error:', error.response?.data || error.message);
         return res.json({
             success: false,
             data: error.response?.data?.error?.message || "Failed to fetch train schedule."
