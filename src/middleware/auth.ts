@@ -26,7 +26,7 @@ declare global {
 }
 
 export const generateToken = (userId: string, email: string, role: string, name?: string | null, isSuperAdmin?: boolean) => {
-    return jwt.sign({ userId, email, role, name, isSuperAdmin }, JWT_SECRET, { expiresIn: '3d' });
+    return jwt.sign({ userId, email, role, name, isSuperAdmin }, JWT_SECRET, { expiresIn: '1d' });
 };
 
 export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
