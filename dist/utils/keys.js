@@ -2,9 +2,9 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getRailRadarKey = exports.NEW_API_KEY = exports.NEW_API_BASE_URL = void 0;
 const KEYS = [
-    'rr_b8bkpypd0wv94nokax545bbubtjf7tru',
-    'rr_3qvr30o4au0u7mbkpx1ybuycxa5fiupc', // Corrected from trains.ts
-    'rr_l5kw3cdiu6tmfmg2mnq6zlbuoo9ff4pw' // Fallback
+    'rg_fb6bd463f9434bfdb4a1c4cf6ac2752d',
+    'rg_2ec019e50b00458c9519d7bed9537dd6',
+    'rg_5970d005f2cd4ada97c9690f33e72453'
 ];
 exports.NEW_API_BASE_URL = 'https://irctc1.p.rapidapi.com/api/v3';
 exports.NEW_API_KEY = 'bf2a3e5aebmsh47dd2454d86a94ep16d33ejsnbc06de274f3b';

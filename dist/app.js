@@ -26,7 +26,9 @@ const adminBookings_1 = __importDefault(require("./routes/adminBookings"));
 const wallet_1 = __importDefault(require("./routes/wallet"));
 const notifications_1 = __importDefault(require("./routes/notifications"));
 const promotions_1 = __importDefault(require("./routes/promotions"));
+const compression_1 = __importDefault(require("compression"));
 const app = (0, express_1.default)();
+app.use((0, compression_1.default)());
 app.use((0, cors_1.default)());
 app.use(express_1.default.json());
 // Serve uploaded PDF tickets statically
@@ -34,6 +36,34 @@ app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '..'
 app.use('/downloads', express_1.default.static(path_1.default.join(__dirname, '..', 'downloads')));
 app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
+});
+app.get('/test-api', async (req, res) => {
+    try {
+        const axios = require('axios');
+        const { NEW_API_KEY, getRailRadarKey } = require('./utils/keys');
+        const key = getRailRadarKey();
+        const start = Date.now();
+        const response = await axios.get('https://api.railradar.in/v1/trains/between/ANVT/RDP?date=2026-08-30', {
+            headers: { 'Authorization': `Bearer ${key}` },
+            timeout: 10000
+        });
+        const duration = Date.now() - start;
+        res.json({
+            status: 'success',
+            duration,
+            statusText: response.statusText,
+            data: response.data
+        });
+    }
+    catch (e) {
+        res.json({
+            status: 'error',
+            message: e.message,
+            code: e.code,
+            responseStatus: e.response?.status,
+            responseData: e.response?.data
+        });
+    }
 });
 app.use('/api/trains', trains_1.default);
 app.use('/api/flights', flights_1.default);
@@ -57,7 +87,7 @@ app.use('/api/promotions', promotions_1.default);
 // --- PRODUCTION STATIC SERVING ---
 if (process.env.NODE_ENV === 'production') {
     // Correctly resolve client/dist from the compiled dist/ directory
-    const clientDistPath = path_1.default.join(__dirname, '..', '..', 'client', 'dist');
+    const clientDistPath = path_1.default.join(__dirname, '..', 'client', 'dist');
     app.use(express_1.default.static(clientDistPath));
     app.get('*', (req, res) => {
         res.sendFile(path_1.default.join(clientDistPath, 'index.html'));

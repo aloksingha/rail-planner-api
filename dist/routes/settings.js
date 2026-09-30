@@ -22,7 +22,8 @@ router.get('/', async (req, res) => {
                     whatsapp: '',
                     facebook: '',
                     telegram: '',
-                    otaVersion: ''
+                    otaVersion: '',
+                    gstNo: '19BOOPA3821C1Z9'
                 }
             });
         }
@@ -36,7 +37,7 @@ router.get('/', async (req, res) => {
 // Update settings (Super Admin Only)
 router.patch('/', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_ADMIN']), async (req, res) => {
     try {
-        const { email, phone, address, whatsapp, facebook, telegram } = req.body;
+        const { email, phone, address, whatsapp, facebook, telegram, gstNo } = req.body;
         const settings = await prisma_1.prisma.globalSettings.upsert({
             where: { id: 'singleton' },
             update: {
@@ -45,7 +46,8 @@ router.patch('/', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_ADMIN']), 
                 address,
                 whatsapp,
                 facebook,
-                telegram
+                telegram,
+                gstNo
             },
             create: {
                 id: 'singleton',
@@ -54,7 +56,8 @@ router.patch('/', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_ADMIN']), 
                 address,
                 whatsapp: whatsapp || '',
                 facebook: facebook || '',
-                telegram: telegram || ''
+                telegram: telegram || '',
+                gstNo: gstNo || ''
             }
         });
         await (0, auditService_1.createAuditLog)({

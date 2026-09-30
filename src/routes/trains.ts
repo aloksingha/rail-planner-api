@@ -206,8 +206,8 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
 
         // 2. Proximity Search - Expanding reach to capture all city-area terminals (e.g. DEC, DEE, SBIB)
         // 2. Proximity Search - Expanding reach to capture all city-area terminals
-        const sourceAlts = [from as string, ...nearbys.filter(n => n.stationCode === from).map(n => n.nearbyCode)].slice(0, 10);
-        const destAlts = [to as string, ...nearbys.filter(n => n.stationCode === to).map(n => n.nearbyCode)].slice(0, 10);
+        const sourceAlts = [from as string, ...nearbys.filter(n => n.stationCode === from).map(n => n.nearbyCode)].slice(0, 3);
+        const destAlts = [to as string, ...nearbys.filter(n => n.stationCode === to).map(n => n.nearbyCode)].slice(0, 3);
 
         const pairs: {s: string, d: string}[] = [];
         for (const s of sourceAlts) {

@@ -5,9 +5,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const axios_1 = __importDefault(require("axios"));
+const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
 const router = express_1.default.Router();
 const keys_1 = require("../utils/keys");
-const RAILRADAR_BASE_URL = 'https://api.railradar.org/api/v1';
+const RAILRADAR_BASE_URL = 'https://api.railradar.in/v1';
 // Helper to sort stations by placing those with matching codes first
 const sortStationsByCode = (stations, queryStr) => {
     const q = queryStr.toUpperCase().trim();
@@ -64,10 +66,12 @@ router.get('/search', async (req, res) => {
             try {
                 const response = await axios_1.default.get(`${RAILRADAR_BASE_URL}/search/stations?query=${encodeURIComponent(query)}`, {
                     headers: {
-                        'X-Api-Key': key,
-                        'Accept': 'application/json'
+                        'Authorization': `Bearer ${key}`,
+                        'Accept': 'application/json, text/plain, */*',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Accept-Language': 'en-US,en;q=0.9'
                     },
-                    timeout: 4000
+                    timeout: 6000
                 });
                 if (response.data?.success && response.data?.data?.stations?.length > 0) {
                     console.log(`[Stations] RailRadar HIT for "${query}"`);
@@ -89,33 +93,28 @@ router.get('/search', async (req, res) => {
                 }
             }
         }
-        // --- ENGINE 2: RAPIDAPI (Fallback) ---
+        // --- ENGINE 3: LOCAL JSON FALLBACK ---
         try {
-            const response = await axios_1.default.get(`https://irctc1.p.rapidapi.com/api/v2/searchStation?query=${encodeURIComponent(query)}`, {
-                headers: {
-                    'x-rapidapi-key': keys_1.NEW_API_KEY,
-                    'x-rapidapi-host': 'irctc1.p.rapidapi.com',
-                    'Accept': 'application/json'
-                },
-                timeout: 4000
-            });
-            if (response.data?.status && response.data?.data?.length > 0) {
-                console.log(`[Stations] RapidAPI HIT for "${query}"`);
-                const mappedStations = response.data.data.map((s) => ({
-                    code: s.code,
-                    name: s.name
-                }));
-                const sorted = sortStationsByCode(mappedStations, query);
-                return res.json({
-                    success: true,
-                    data: {
-                        stations: sorted
-                    }
-                });
+            console.warn(`[Stations] ALL APIs FAILED! Using local JSON fallback for "${query}"`);
+            const localPath = path_1.default.join(process.cwd(), 'src/data/stations.json');
+            if (fs_1.default.existsSync(localPath)) {
+                const data = fs_1.default.readFileSync(localPath, 'utf8');
+                const allStations = JSON.parse(data);
+                const q = query.toLowerCase();
+                const matched = allStations.filter((s) => s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q)).slice(0, 10);
+                if (matched.length > 0) {
+                    const sorted = sortStationsByCode(matched, query);
+                    return res.json({
+                        success: true,
+                        data: {
+                            stations: sorted
+                        }
+                    });
+                }
             }
         }
         catch (e) {
-            console.warn(`[Stations] RapidAPI failed for "${query}": ${e.message}`);
+            console.error(`[Stations] Local JSON fallback failed: ${e.message}`);
         }
         throw lastError || new Error('All station APIs failed');
     }
