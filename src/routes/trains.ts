@@ -206,8 +206,8 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
 
         // 2. Proximity Search - Expanding reach to capture all city-area terminals (e.g. DEC, DEE, SBIB)
         // 2. Proximity Search - Expanding reach to capture all city-area terminals
-        const sourceAlts = [from as string, ...nearbys.filter(n => n.stationCode === from).map(n => n.nearbyCode)].slice(0, 3);
-        const destAlts = [to as string, ...nearbys.filter(n => n.stationCode === to).map(n => n.nearbyCode)].slice(0, 3);
+        const sourceAlts = [from as string, ...nearbys.filter(n => n.stationCode === from).map(n => n.nearbyCode)].slice(0, 10);
+        const destAlts = [to as string, ...nearbys.filter(n => n.stationCode === to).map(n => n.nearbyCode)].slice(0, 10);
 
         const pairs: {s: string, d: string}[] = [];
         for (const s of sourceAlts) {
@@ -221,7 +221,7 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         
         // Execute fallback searches in parallel for better performance
         const fallbackResults: any[] = [];
-        const chunkSize = 4; for (let i = 0; i < pairs.length; i += chunkSize) { const chunk = pairs.slice(i, i + chunkSize); const proximityResults = await Promise.allSettled(chunk.map(pair => fetchRemote(pair.s, pair.d, true))); proximityResults.forEach((res, idx) => { if (res.status === 'fulfilled') { fallbackResults.push(...res.value); } else { console.warn(`[TrainSearch] Proximity pair ${chunk[idx].s}->${chunk[idx].d} failed: ${res.reason?.message}`); } }); if (i + chunkSize < pairs.length) { await new Promise(resolve => setTimeout(resolve, 350)); } }
+        const chunkSize = 10; for (let i = 0; i < pairs.length; i += chunkSize) { const chunk = pairs.slice(i, i + chunkSize); const proximityResults = await Promise.allSettled(chunk.map(pair => fetchRemote(pair.s, pair.d, true))); proximityResults.forEach((res, idx) => { if (res.status === 'fulfilled') { fallbackResults.push(...res.value); } else { console.warn(`[TrainSearch] Proximity pair ${chunk[idx].s}->${chunk[idx].d} failed: ${res.reason?.message}`); } }); if (i + chunkSize < pairs.length) { await new Promise(resolve => setTimeout(resolve, 350)); } }
 
         // Combine nearby and direct results (Priority: Direct > Closest Nearby > Furthest Nearby)
         allRemoteTrains = [...allRemoteTrains, ...fallbackResults];
