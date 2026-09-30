@@ -21,7 +21,7 @@ const formatTravelTime = (minutes) => {
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:00`;
 };
 const CACHE_TTL = 15 * 60; // 15 minutes in seconds
-const SEARCH_VERSION = 'v3.15-gst-update'; // Bumped to invalidate old caches for GST
+const SEARCH_VERSION = 'v3.16-concurrency-fix'; // Bumped to invalidate old caches for GST
 const cache_1 = require("../utils/cache");
 const pricing_1 = require("../utils/pricing");
 const prisma_1 = require("../prisma");
@@ -196,15 +196,20 @@ router.get('/getTrainOn', async (req, res) => {
         console.log(`[TrainSearch] Proactively searching ${pairs.length} proximity pairs...`);
         // Execute fallback searches in parallel for better performance
         const fallbackResults = [];
-        const proximityResults = await Promise.allSettled(pairs.map(pair => fetchRemote(pair.s, pair.d, true)));
-        proximityResults.forEach((res, idx) => {
-            if (res.status === 'fulfilled') {
+        const chunkSize = 4;
+        for (let i = 0; i < pairs.length; i += chunkSize) {
+            const chunk = pairs.slice(i, i + chunkSize);
+            const proximityResults = await Promise.allSettled(chunk.map(pair => fetchRemote(pair.s, pair.d, true)));
+            proximityResults.forEach((res, idx) => { if (res.status === 'fulfilled') {
                 fallbackResults.push(...res.value);
             }
             else {
-                console.warn(`[TrainSearch] Proximity pair ${pairs[idx].s}->${pairs[idx].d} failed: ${res.reason?.message}`);
+                console.warn(`[TrainSearch] Proximity pair ${chunk[idx].s}->${chunk[idx].d} failed: ${res.reason?.message}`);
+            } });
+            if (i + chunkSize < pairs.length) {
+                await new Promise(resolve => setTimeout(resolve, 350));
             }
-        });
+        }
         // Combine nearby and direct results (Priority: Direct > Closest Nearby > Furthest Nearby)
         allRemoteTrains = [...allRemoteTrains, ...fallbackResults];
         const shiftDay = (dayName, shift) => {
