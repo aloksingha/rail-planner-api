@@ -90,19 +90,33 @@
         }
       }, 3000);
 
-      // Safe error handling without auto-reload loop
+      // Comprehensive auto-recovery for stale chunks or dynamic import errors
+      function performHardRecovery() {
+        console.warn('Stale asset or chunk error detected. Performing hard recovery...');
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(regs) {
+            for (let reg of regs) { reg.unregister(); }
+          });
+        }
+        if ('caches' in window) {
+          caches.keys().then(function(names) {
+            for (let name of names) caches.delete(name);
+          });
+        }
+        window.location.reload();
+      }
+
+      window.addEventListener('error', function(e) {
+        var msg = (e && e.message) || '';
+        if (/Failed to fetch dynamically imported module|Failed to load module script|ChunkLoadError/i.test(msg)) {
+          performHardRecovery();
+        }
+      }, true);
+
       window.addEventListener('unhandledrejection', function(e) {
-        if (e.reason && (e.reason.name === 'ChunkLoadError' || /Loading chunk/.test(e.reason.message))) {
-          console.warn('Chunk load error detected. Forcing cache clear and reload...');
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(regs) {
-              for(let reg of regs) { reg.unregister(); }
-              caches.keys().then(function(names) { for (let name of names) caches.delete(name); });
-              window.location.reload();
-            });
-          } else {
-            window.location.reload();
-          }
+        var reason = (e && e.reason) ? (e.reason.message || e.reason.name || '') : '';
+        if (/Failed to fetch dynamically imported module|ChunkLoadError|Loading chunk|Failed to load/i.test(reason)) {
+          performHardRecovery();
         }
       });
     </script>
@@ -118,6 +132,6 @@
         <img src="/assets/brand_logo-YKjiARpF.webp" style="width:80px; height:80px;" alt="Logo" />
         <div class="spinner"></div>
     </div>
-    <div id="root"></div>
+    <div id="root"></div>
   </body>
 </html>
