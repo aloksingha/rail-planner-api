@@ -6,6 +6,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Tickets Pro</title>
     
+        <script>
+      // Force purge stale Service Worker cache for v8
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          for (var name of names) {
+            if (name !== 'tickets-pro-cache-v8-live-99') {
+              caches.delete(name);
+              console.log('[Cache] Purged stale cache:', name);
+            }
+          }
+        });
+      }
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(regs) {
+          for (var r of regs) { r.update(); }
+        });
+      }
+    </script>
     <!-- Optimize Third-Party Asset Loading -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -97,7 +115,7 @@
         }
       });
     </script>
-    <script type="module" crossorigin src="/assets/index-CNWXRn-_.js"></script>
+    <script type="module" crossorigin src="/assets/index-CNWXRn-_.js?v=8.2"></script>
     <link rel="modulepreload" crossorigin href="/assets/icons-DciIWsPJ.js">
     <link rel="modulepreload" crossorigin href="/assets/charts-CJ7LU1mB.js">
     <link rel="modulepreload" crossorigin href="/assets/pdf-export-BO05fxPA.js">

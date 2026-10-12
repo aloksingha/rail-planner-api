@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tickets-pro-hot-cache';
+const CACHE_NAME = 'tickets-pro-cache-v8-live-99';
 
 self.addEventListener('install', (event) => {
   console.log('[SW] Service Worker installing...');
@@ -7,7 +7,11 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   console.log('[SW] Service Worker activating...');
-  event.waitUntil(self.clients.claim());
+      event.waitUntil(
+      caches.keys().then((keys) => {
+        return Promise.all(keys.map((k) => (k !== CACHE_NAME ? caches.delete(k) : Promise.resolve())));
+      }).then(() => self.clients.claim())
+    );
 });
 
 self.addEventListener('fetch', (event) => {
