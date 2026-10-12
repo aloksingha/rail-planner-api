@@ -7,3 +7,5 @@ src/generated-client/
 *.log
 .DS_Store
 tsconfig.tsbuildinfo
+.firebase/
+deploy_firebase.bat

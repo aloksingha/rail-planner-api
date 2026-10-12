@@ -1,4 +1,4 @@
-const CACHE_NAME = 'tickets-pro-cache-v8-live-99';
+const CACHE_NAME = 'tickets-pro-hot-cache';
 
 self.addEventListener('install', (event) => {
   console.log('[SW] Service Worker installing...');
@@ -7,11 +7,7 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   console.log('[SW] Service Worker activating...');
-      event.waitUntil(
-      caches.keys().then((keys) => {
-        return Promise.all(keys.map((k) => (k !== CACHE_NAME ? caches.delete(k) : Promise.resolve())));
-      }).then(() => self.clients.claim())
-    );
+  event.waitUntil(self.clients.claim());
 });
 
 self.addEventListener('fetch', (event) => {
@@ -31,12 +27,12 @@ self.addEventListener('fetch', (event) => {
         // 1. If it's a navigation request, serve index.html
         if (event.request.mode === 'navigate' || 
             (event.request.method === 'GET' && event.request.headers.get('accept')?.includes('text/html'))) {
-          return cache.match('/index.html').then((indexResponse) => {
-            if (indexResponse) {
-              console.log('[SW] Serving index.html for navigation:', path);
-              return indexResponse;
-            }
-            return fetch(event.request);
+          // Network-first for index.html to ensure we get the latest APK/Web version
+          return fetch(event.request).then((networkResponse) => {
+            cache.put('/index.html', networkResponse.clone());
+            return networkResponse;
+          }).catch(() => {
+            return cache.match('/index.html');
           });
         }
 
