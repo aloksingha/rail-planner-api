@@ -276,6 +276,7 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
     const [availableTrains, setAvailableTrains] = useState<IRCTCTrain[] | null>(null);
     const [isLoadingTrains, setIsLoadingTrains] = useState(false);
     const [trainSearchError, setTrainSearchError] = useState('');
+    const [trainDataSource, setTrainDataSource] = useState<string>('RailRadar API (Live IRCTC)');
 
     // Robust Price State Synchronization
     useEffect(() => {
@@ -568,6 +569,9 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
             console.log("[TrainSearch] API Response Received:", res.data);
             
             if (res.data.success && Array.isArray(res.data.data)) {
+                if (res.data.provider || res.data.source) {
+                    setTrainDataSource(res.data.provider || res.data.source);
+                }
                 const results = res.data.data;
                 console.log(`[TrainSearch] Found ${results.length} trains.`);
                 
@@ -1295,6 +1299,12 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                         <span className="font-label-sm text-slate-500 dark:text-slate-400 uppercase tracking-tighter">
                             {isLoadingTrains ? 'Searching Trains...' : `Available Trains (${availableTrains.length})`}
                         </span>
+                        {!isLoadingTrains && (
+                            <div className="flex items-center gap-1.5 text-[9px] font-semibold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                <span className="uppercase tracking-wider">Source: {trainDataSource}</span>
+                            </div>
+                        )}
                     </div>
 
                     {isLoadingTrains ? (

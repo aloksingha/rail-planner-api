@@ -23,6 +23,7 @@ import adminBookingRoutes from './routes/adminBookings';
 import walletRoutes from './routes/wallet';
 import notificationRoutes from './routes/notifications';
 import promotionsRoutes from './routes/promotions';
+import testDiagnosticsRoutes from './routes/testDiagnostics';
 
 import compression from 'compression';
 
@@ -88,6 +89,7 @@ app.use('/api/admin/bookings/manual', adminBookingRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/promotions', promotionsRoutes);
+app.use('/api/test', testDiagnosticsRoutes);
 
 // --- PRODUCTION STATIC SERVING ---
 if (process.env.NODE_ENV === 'production') {

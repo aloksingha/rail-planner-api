@@ -407,7 +407,11 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         if (uniqueTrains.length > 0) {
             await CacheService.set(cacheKey, JSON.stringify(uniqueTrains), CACHE_TTL);
         }
-        return res.json({ success: true, data: uniqueTrains });
+        return res.json({ 
+            success: true, 
+            data: uniqueTrains, 
+            provider: 'RailRadar API (Live IRCTC)' 
+        });
 
     } catch (error: any) {
         console.error('Train Search Error:', error.response?.data || error.message);
