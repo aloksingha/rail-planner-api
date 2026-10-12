@@ -33,7 +33,8 @@ export default function WalletCard() {
         );
     }
 
-    const { balance, transactions } = data || { balance: 0, transactions: [] };
+    const balance = data?.balance || 0;
+    const transactions = Array.isArray(data?.transactions) ? data.transactions : [];
 
     return (
         <div className="card-glow h-full flex flex-col p-6 overflow-hidden relative group bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 rounded-3xl shadow-sm dark:shadow-none transition-all duration-500">
