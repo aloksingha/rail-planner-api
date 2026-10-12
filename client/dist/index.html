@@ -10,21 +10,29 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     
-    <!-- Early Backend Wakeup & Service Worker Registration -->
+    <!-- Immediate Unregister & Cache Purge to prevent stale chunks on Web -->
     <script>
       (function() {
+        try {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(regs) {
+              for (var i = 0; i < regs.length; i++) {
+                regs[i].unregister();
+              }
+            });
+          }
+          if ('caches' in window) {
+            caches.keys().then(function(names) {
+              for (var i = 0; i < names.length; i++) {
+                caches.delete(names[i]);
+              }
+            });
+          }
+        } catch (e) {}
+
         var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         var apiBase = isLocal ? 'http://localhost:5000' : 'https://rail-planner-api.onrender.com';
         fetch(apiBase + '/health').catch(function() {});
-        
-        // Register Service Worker for Hot updates
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.register('/sw.js').then(function(reg) {
-            console.log('[SW] Registration successful with scope:', reg.scope);
-          }).catch(function(err) {
-            console.error('[SW] Registration failed:', err);
-          });
-        }
       })();
     </script>
 
@@ -95,12 +103,12 @@
         console.warn('Stale asset or chunk error detected. Performing hard recovery...');
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker.getRegistrations().then(function(regs) {
-            for (let reg of regs) { reg.unregister(); }
+            for (var i = 0; i < regs.length; i++) { regs[i].unregister(); }
           });
         }
         if ('caches' in window) {
           caches.keys().then(function(names) {
-            for (let name of names) caches.delete(name);
+            for (var i = 0; i < names.length; i++) caches.delete(names[i]);
           });
         }
         window.location.reload();
