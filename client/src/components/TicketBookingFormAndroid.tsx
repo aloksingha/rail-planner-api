@@ -329,6 +329,14 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
     // Refs for scrolling
     const passengerSectionRef = useRef<HTMLDivElement>(null);
 
+    const scrollToPassengerDetails = () => {
+        setTimeout(() => {
+            if (passengerSectionRef.current) {
+                passengerSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 120);
+    };
+
     // Recent Stations tracking
     const [recentStations, setRecentStations] = useState<{ code: string, name: string }[]>([]);
 
@@ -1337,7 +1345,7 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                         return (
                             <div 
                                 key={idx}
-                                onClick={() => { setTrainNo(t.train_no); setSelectedTrainName(t.train_name); }}
+                                onClick={() => { setTrainNo(t.train_no); setSelectedTrainName(t.train_name); scrollToPassengerDetails(); }}
                                 className={`glass-panel rounded-2xl p-5 relative group transition-all cursor-pointer border ${isSelected ? 'bg-brand-blue/5 border-brand-blue/50 dark:border-brand-blue/30' : 'bg-white dark:bg-slate-950 border-slate-200 dark:border-white/10 hover:border-brand-blue/30'}`}
                             >
                                 <div className="flex justify-between items-start mb-4">
@@ -1431,6 +1439,7 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                                                         setSelectedTrainName(t.train_name);
                                                         const pPrice = getTicketPrice(source, destination, clsCode, t.train_name, t.travel_time, t.prices, customPrices, dynamicCorridors, user?.specialPermissions?.includes('TEST_WALLET'));
                                                         if (pPrice > 0) setSelectedUnitPrice(pPrice);
+                                                        scrollToPassengerDetails();
                                                     }}
                                                     className={`py-2 px-1 rounded-xl border text-center transition-all flex flex-col justify-between h-full min-h-[60px] ${
                                                         isClsSelected 
@@ -1464,7 +1473,7 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                 </div>
             )}
             {/* Passenger Form */}
-            <div className={`transition-all duration-500 ${!trainNo ? 'opacity-40 pointer-events-none select-none' : ''}`} ref={passengerSectionRef}>
+            <div className={`transition-all duration-500 ${!trainNo ? 'opacity-40 pointer-events-none select-none' : ''}`} style={{ scrollMarginTop: '80px' }} ref={passengerSectionRef}>
                 {!trainNo && (
                     <div className="mb-3 flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/30 rounded-xl px-4 py-3">
                         <span className="material-symbols-outlined text-amber-500 text-sm">lock</span>

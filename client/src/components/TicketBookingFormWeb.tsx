@@ -336,6 +336,14 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
     // Refs for scrolling
     const passengerSectionRef = useRef<HTMLDivElement>(null);
 
+    const scrollToPassengerDetails = () => {
+        setTimeout(() => {
+            if (passengerSectionRef.current) {
+                passengerSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 120);
+    };
+
     // Recent Stations tracking
     const [recentStations, setRecentStations] = useState<{ code: string, name: string }[]>([]);
 
@@ -1427,6 +1435,7 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                                         setTrainNo(t.train_no);
                                         setSelectedTrainName(t.train_name);
                                         setSelectedUnitPrice(price);
+                                        scrollToPassengerDetails();
                                     }}
                                     className={`train-card bg-white border rounded-2xl overflow-hidden group transition-all shadow-sm hover:shadow-md cursor-pointer ${isSelected ? 'border-primary ring-2 ring-primary/20' : 'border-slate-200 hover:border-primary/30'}`}
                                 >
@@ -1521,6 +1530,7 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                                                                      setSelectedTrainName(t.train_name);
                                                                      const p = getTicketPrice(source, destination, clsCode, t.train_name, t.travel_time, t.prices, customPrices, dynamicCorridors, user?.specialPermissions?.includes('TEST_WALLET'));
                                                                      if (p > 0) setSelectedUnitPrice(p);
+                                                                      scrollToPassengerDetails();
                                                                  }}
                                                                  className={`p-2 rounded-xl border shadow-sm cursor-pointer transition-all flex flex-col justify-between h-full min-h-[64px] ${isClsSelected ? 'bg-white border-primary/20 ring-1 ring-primary/30' : 'bg-slate-100/50 border-slate-100 opacity-70 hover:opacity-100'}`}
                                                              >
@@ -1536,7 +1546,7 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                                              </div>
                                              <button 
                                                  type="button"
-                                                 onClick={(e) => { e.stopPropagation(); setTrainNo(t.train_no); setSelectedTrainName(t.train_name); }}
+                                                 onClick={(e) => { e.stopPropagation(); setTrainNo(t.train_no); setSelectedTrainName(t.train_name); scrollToPassengerDetails(); }}
                                                  className={`w-full py-3 rounded-xl text-xs font-bold tracking-widest uppercase transition-all active:scale-95 ${isSelected ? 'bg-primary text-white shadow-lg shadow-sky-100 hover:bg-sky-600' : 'border border-primary/30 text-primary hover:bg-primary/5'}`}
                                              >
                                                  {isSelected ? 'Train Selected' : 'Select Train'}
@@ -1552,7 +1562,7 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
             )}
 
             {/* Passengers Section */}
-            <div className={`relative z-[70] transition-all duration-500 mt-12 px-6 md:px-10 max-w-5xl mx-auto w-full ${!trainNo ? 'opacity-40 pointer-events-none select-none' : ''}`} ref={passengerSectionRef}>
+            <div className={`relative z-[70] transition-all duration-500 mt-12 px-6 md:px-10 max-w-5xl mx-auto w-full ${!trainNo ? 'opacity-40 pointer-events-none select-none' : ''}`} style={{ scrollMarginTop: '80px' }} ref={passengerSectionRef}>
                 {!trainNo && (
                     <div className="mb-4 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3">
                         <span className="material-symbols-outlined text-amber-500">lock</span>
