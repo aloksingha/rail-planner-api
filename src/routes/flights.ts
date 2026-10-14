@@ -149,8 +149,7 @@ const formatTime = (isoDateTime: string): string => {
 
 /**
  * GET /api/flights/search
- * Primary: FlightAPI.io (requested by user)
- * Secondary: sky-scrapper via RapidAPI (held temporarily)
+ * Provider: sky-scrapper via RapidAPI
  * Fallback: Route-accurate estimated prices
  */
 router.get('/search', async (req: Request, res: Response) => {

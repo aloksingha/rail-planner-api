@@ -172,7 +172,7 @@ router.get('/getTrainOn', async (req, res) => {
             if (Array.isArray(classesSource)) {
                 available_classes = classesSource.map((c) => (typeof c === 'string' ? c : (c.code || c.classCode || c.class_cd || '')).toUpperCase()).filter(Boolean);
             }
-            // RapidAPI mapping vs RailRadar mapping
+            // Train schedule & departure calculation
             const depMinsBase = t.fromStationSchedule?.departureMinutes ?? t.from_std_mins ?? 0;
             const arrMinsBase = t.toStationSchedule?.arrivalMinutes ?? t.to_sta_mins ?? 0;
             const depMinsTotal = ((depDay - 1) * 1440) + depMinsBase;

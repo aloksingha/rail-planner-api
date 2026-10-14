@@ -281,7 +281,7 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                     ).filter(Boolean);
                 }
 
-                // RapidAPI mapping vs RailRadar mapping
+                // Train schedule & departure calculation
                 const depMinsBase = t.fromStationSchedule?.departureMinutes ?? t.from_std_mins ?? 0;
                 const arrMinsBase = t.toStationSchedule?.arrivalMinutes ?? t.to_sta_mins ?? 0;
                 

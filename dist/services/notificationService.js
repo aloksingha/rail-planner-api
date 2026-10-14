@@ -28,7 +28,7 @@ const FROM = `"Tickets Pro" <noreply@ticketspro.in>`;
  * Generic SMS sender using Infozy SMS API
  */
 const sendSMS = async (mobile, templateId, params, dltTemplateId) => {
-    const apiKey = process.env.INFOZY_API_KEY || process.env.MSG91_AUTH_KEY;
+    const apiKey = process.env.INFOZY_API_KEY;
     if (!apiKey) {
         console.warn('⚠️ Infozy API Key not found. SMS skipped.');
         return;
@@ -61,49 +61,6 @@ const sendSMS = async (mobile, templateId, params, dltTemplateId) => {
     }
 };
 exports.sendSMS = sendSMS;
-// ─── Msg91 WhatsApp Utility ──────────────────────────────────────────────────
-/**
- * Generic WhatsApp sender using Msg91 Flow API
- */
-const sendWhatsApp = async (mobile, templateId, params) => {
-    const authKey = process.env.MSG91_AUTH_KEY;
-    if (!authKey) {
-        console.warn('⚠️ Msg91 Auth Key not found. WhatsApp skipped.');
-        return;
-    }
-    try {
-        // Msg91 expects mobile with country code without +
-        let cleanMobile = mobile.replace(/\D/g, '');
-        if (cleanMobile.length === 10) {
-            cleanMobile = '91' + cleanMobile;
-        }
-        const response = await axios_1.default.post('https://api.msg91.com/api/v5/flow/', {
-            template_id: templateId,
-            short_url: '1',
-            recipients: [
-                {
-                    mobiles: cleanMobile,
-                    ...params
-                }
-            ]
-        }, {
-            headers: {
-                'authkey': authKey,
-                'content-type': 'application/json'
-            }
-        });
-        if (response.data?.type === 'success') {
-            console.log(`✅ WhatsApp successfully triggered for ${cleanMobile} via template ${templateId}`);
-        }
-        else {
-            console.warn(`⚠️ WhatsApp trigger failed for ${cleanMobile}:`, response.data);
-        }
-    }
-    catch (error) {
-        console.error('❌ Msg91 WhatsApp API Error:', error?.response?.data || error.message);
-    }
-};
-exports.sendWhatsApp = sendWhatsApp;
 // ─── Booking Confirmed ────────────────────────────────────────────────────────
 const notifyBookingConfirmed = async (email, eventName, mobile, details) => {
     if (isEmailConfigured) {
@@ -201,7 +158,7 @@ const notifyBookingConfirmed = async (email, eventName, mobile, details) => {
     }
     // 2. Send SMS via Infozy
     try {
-        const template = process.env.INFOZY_TEMPLATE_ID_CONFIRMED || process.env.MSG91_TEMPLATE_ID_CONFIRMED;
+        const template = process.env.INFOZY_TEMPLATE_ID_CONFIRMED;
         if (mobile && template) {
             await (0, exports.sendSMS)(mobile, template, {
                 event_name: eventName,
@@ -278,7 +235,7 @@ const notifyBookingCancelled = async (email, reason, mobile) => {
     }
     // 2. Send SMS via Infozy
     try {
-        const template = process.env.INFOZY_TEMPLATE_ID_CANCELLED || process.env.MSG91_TEMPLATE_ID_CANCELLED;
+        const template = process.env.INFOZY_TEMPLATE_ID_CANCELLED;
         if (mobile && template) {
             await (0, exports.sendSMS)(mobile, template, {
                 reason: reason || 'Cancelled per request'
@@ -294,7 +251,7 @@ exports.notifyBookingCancelled = notifyBookingCancelled;
 const notifyPaymentReceived = async (mobile, amount, orderId) => {
     // 1. Send SMS via Infozy
     try {
-        const template = process.env.INFOZY_TEMPLATE_ID_PAYMENT || process.env.MSG91_TEMPLATE_ID_PAYMENT;
+        const template = process.env.INFOZY_TEMPLATE_ID_PAYMENT;
         if (mobile && template) {
             await (0, exports.sendSMS)(mobile, template, {
                 amount: amount.toString(),
@@ -305,14 +262,5 @@ const notifyPaymentReceived = async (mobile, amount, orderId) => {
     catch (e) {
         console.error('❌ SMS send failed (non-fatal):', e?.message || e);
     }
-    /*
-    // 2. WhatsApp - Removed per request for API-less operation
-    if (mobile && process.env.MSG91_WHATSAPP_TEMPLATE_ID_PAYMENT) {
-        await sendWhatsApp(mobile, process.env.MSG91_WHATSAPP_TEMPLATE_ID_PAYMENT, {
-            amount: amount.toString(),
-            order_id: orderId
-        });
-    }
-    */
 };
 exports.notifyPaymentReceived = notifyPaymentReceived;

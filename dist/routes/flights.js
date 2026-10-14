@@ -6,10 +6,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const axios_1 = __importDefault(require("axios"));
 const router = express_1.default.Router();
-// ── FlightAPI.io (New Primary API) ──────────────────────────────────────────
-// Primary: https://api.flightapi.io/onewaytrip/{API_KEY}/{ORIGIN}/{DESTINATION}/{DATE}/{ADULTS}/{CHILDREN}/{INFANTS}/{CABIN}/{CURRENCY}
-const FLIGHTAPI_KEY = '69ed152c276f54b7f4206a2f';
-const FLIGHTAPI_BASE = 'https://api.flightapi.io';
 // ── RapidAPI sky-scrapper (Held temporarily) ────────────────────────────────
 const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || 'bf2a3e5aebmsh47dd2454d86a94ep16d33ejsnbc06de274f3b';
 const SKYSCRAPPER_HEADERS = {
@@ -141,7 +137,6 @@ const formatTime = (isoDateTime) => {
 };
 /**
  * GET /api/flights/search
- * Primary: FlightAPI.io (requested by user)
  * Secondary: sky-scrapper via RapidAPI (held temporarily)
  * Fallback: Route-accurate estimated prices
  */
@@ -160,60 +155,6 @@ router.get('/search', async (req, res) => {
         }
         let results = [];
         let isMock = false;
-        // ── 1. TRY FlightAPI.io (New Primary) ──────────────────────────────────
-        try {
-            // URL: https://api.flightapi.io/onewaytrip/{API_KEY}/{ORIGIN}/{DESTINATION}/{DATE}/{ADULTS}/{CHILDREN}/{INFANTS}/{CABIN}/{CURRENCY}
-            const cabin = cabinClass.charAt(0).toUpperCase() + cabinClass.slice(1).toLowerCase();
-            const url = `${FLIGHTAPI_BASE}/onewaytrip/${FLIGHTAPI_KEY}/${srcUpper}/${dstUpper}/${flightDate}/${adults}/0/0/${cabin}/${currency.toUpperCase()}`;
-            console.log(`[FlightSearch] Calling FlightAPI.io: ${url}`);
-            const response = await axios_1.default.get(url, { timeout: 25000 });
-            const data = response.data;
-            if (data && data.itineraries && Array.isArray(data.itineraries)) {
-                const itineraries = data.itineraries;
-                const legsMap = new Map(data.legs?.map((l) => [l.id, l]) || []);
-                const carriersMap = new Map(data.carriers?.map((c) => [c.id, c]) || []);
-                results = itineraries.map((it) => {
-                    const legId = it.leg_ids?.[0];
-                    const leg = legsMap.get(legId);
-                    if (!leg)
-                        return null;
-                    const carrierId = leg.marketing_carrier_ids?.[0];
-                    const carrier = carriersMap.get(carrierId);
-                    const alCode = carrier?.display_code || '';
-                    const alName = carrier?.name || alCode;
-                    const price = Math.round(it.cheapest_price?.amount || it.pricing_options?.[0]?.price?.amount || 0);
-                    return {
-                        id: it.id,
-                        airline: alName,
-                        airlineCode: alCode,
-                        flightNo: `${alCode}${leg.segment_ids?.length ? '—' : '—'}`, // Flight Number not easily exposed in top-level leg
-                        sourceCity: srcUpper, // Simplified
-                        sourceCode: srcUpper,
-                        destCity: dstUpper, // Simplified
-                        destCode: dstUpper,
-                        departure: formatTime(leg.departure),
-                        arrival: formatTime(leg.arrival),
-                        duration: `${Math.floor((leg.duration || 0) / 60)}h ${(leg.duration || 0) % 60}m`,
-                        durationMinutes: leg.duration || 0,
-                        stops: leg.stop_count ?? 0,
-                        price,
-                        currency: currency.toUpperCase(),
-                        priceFormatted: `${currency.toUpperCase()} ${price.toLocaleString('en-IN')}`,
-                        isRefundable: false,
-                        seatsLeft: '—',
-                        score: it.score || 0.8,
-                        tags: [],
-                        isMock: false,
-                    };
-                }).filter(Boolean);
-                if (results.length > 0) {
-                    console.log(`[FlightSearch] FlightAPI.io SUCCESS: ${results.length} flights`);
-                }
-            }
-        }
-        catch (apiErr) {
-            console.error('[FlightSearch] FlightAPI.io error:', apiErr.message);
-        }
         // ── 2. FALLBACK to sky-scrapper (Held temporarily) ─────────────────────
         if (results.length === 0) {
             const srcInfo = AIRPORT_META[srcUpper];
