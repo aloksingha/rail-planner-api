@@ -85,35 +85,34 @@ router.get('/search', async (req, res) => {
                 }
             }
         }
-        // --- ENGINE 2: RAPIDAPI (Fallback) ---
+        // --- LOCAL JSON FALLBACK ---
         try {
-            const response = await axios_1.default.get(`https://irctc1.p.rapidapi.com/api/v2/searchStation?query=${encodeURIComponent(query)}`, {
-                headers: {
-                    'x-rapidapi-key': keys_1.NEW_API_KEY,
-                    'x-rapidapi-host': 'irctc1.p.rapidapi.com',
-                    'Accept': 'application/json'
-                },
-                timeout: 4000
-            });
-            if (response.data?.status && response.data?.data?.length > 0) {
-                console.log(`[Stations] RapidAPI HIT for "${query}"`);
-                const mappedStations = response.data.data.map((s) => ({
-                    code: s.code,
-                    name: s.name
-                }));
-                const sorted = sortStationsByCode(mappedStations, query);
-                return res.json({
-                    success: true,
-                    data: {
-                        stations: sorted
-                    }
-                });
+            console.warn(`[Stations] RailRadar API exhausted/failed. Using local JSON fallback for "${query}"`);
+            const fs = require('fs');
+            const path = require('path');
+            const localPath = path.join(process.cwd(), 'src/data/stations.json');
+            if (fs.existsSync(localPath)) {
+                const data = fs.readFileSync(localPath, 'utf8');
+                const allStations = JSON.parse(data);
+                const q = query.toLowerCase();
+                const matched = allStations.filter((s) => 
+                    s.name.toLowerCase().includes(q) || s.code.toLowerCase().includes(q)
+                ).slice(0, 10);
+                
+                if (matched.length > 0) {
+                    const sorted = sortStationsByCode(matched, query);
+                    return res.json({
+                        success: true,
+                        data: {
+                            stations: sorted
+                        }
+                    });
+                }
             }
+        } catch (e) {
+            console.error(`[Stations] Local JSON fallback failed: ${e.message}`);
         }
-        catch (e) {
-            console.warn(`[Stations] RapidAPI failed for "${query}": ${e.message}`);
-        }
-        throw lastError || new Error('All station APIs failed');
+        throw lastError || new Error('All station lookups failed');
     }
     catch (error) {
         console.error('Station Search Error:', error.response?.data || error.message);

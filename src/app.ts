@@ -44,7 +44,7 @@ app.get('/health', (req, res) => {
 app.get('/test-api', async (req, res) => {
     try {
         const axios = require('axios');
-        const { NEW_API_KEY, getRailRadarKey } = require('./utils/keys');
+        const { getRailRadarKey } = require('./utils/keys');
         const key = getRailRadarKey();
         const start = Date.now();
         const response = await axios.get('https://api.railradar.in/v1/trains/between/ANVT/RDP?date=2026-08-30', {

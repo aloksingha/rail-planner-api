@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const router = express.Router();
 
-import { getRailRadarKey, NEW_API_BASE_URL, NEW_API_KEY } from '../utils/keys';
+import { getRailRadarKey } from '../utils/keys';
 const RAILRADAR_BASE_URL = 'https://api.railradar.in/v1';
 
 const formatTime = (minutes: number) => {
