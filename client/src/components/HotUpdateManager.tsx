@@ -75,7 +75,14 @@ export default function HotUpdateManager() {
                 setStatus('available');
             } else {
                 if (isManual) {
-                    alert(`Your app is fully up to date!\nLocal Version: ${activeVersion}\nRemote Version: ${remoteManifest.version}\nAuthorized OTA: ${otaVersion || 'None'}`);
+                    const forceDownload = window.confirm(
+                        `Your app is at version ${activeVersion}.\nRemote version: ${remoteManifest.version}\nAuthorized OTA: ${otaVersion || 'None'}\n\nDo you want to re-download and apply the latest OTA package anyway?`
+                    );
+                    if (forceDownload) {
+                        setRemoteVersion(remoteManifest.version);
+                        setManifest(remoteManifest);
+                        setStatus('available');
+                    }
                 }
             }
         } catch (e) {

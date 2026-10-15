@@ -439,13 +439,20 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
   });
 
   const handleOtaRelease = async () => {
-    if (otaStatus.loading || !otaStatus.updateAvailable) return;
+    if (otaStatus.loading) return;
 
-    const confirmRelease = window.confirm(
-      `Are you sure you want to release the latest update (${otaStatus.remoteVersion}) to all app users?\n` +
-      `Current Active Version: ${otaStatus.authorizedVersion || 'None'}`
-    );
-    if (!confirmRelease) return;
+    if (!otaStatus.updateAvailable) {
+      const forceReRelease = window.confirm(
+        `App is currently showing as up-to-date (Version: ${otaStatus.authorizedVersion || otaStatus.remoteVersion || 'None'}).\n\nDo you want to force re-push / synchronize the OTA release to all devices now?`
+      );
+      if (!forceReRelease) return;
+    } else {
+      const confirmRelease = window.confirm(
+        `Are you sure you want to release the latest update (${otaStatus.remoteVersion}) to all app users?\n` +
+        `Current Active Version: ${otaStatus.authorizedVersion || 'None'}`
+      );
+      if (!confirmRelease) return;
+    }
 
     setOtaStatus(prev => ({ ...prev, loading: true }));
     try {
@@ -454,7 +461,7 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
         alert(`🚀 OTA Update released successfully! Active version is now ${data.otaVersion}`);
         setOtaStatus({
           updateAvailable: false,
-          remoteVersion: otaStatus.remoteVersion,
+          remoteVersion: otaStatus.remoteVersion || data.otaVersion,
           authorizedVersion: data.otaVersion,
           loading: false
         });
@@ -922,16 +929,16 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
               {auth.role === 'SUPER_ADMIN' && (
                 <button
                   onClick={handleOtaRelease}
-                  disabled={!otaStatus.updateAvailable || otaStatus.loading}
+                  disabled={otaStatus.loading}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-brand uppercase tracking-wider transition-all border shadow-sm shrink-0 ${
                     otaStatus.updateAvailable
                       ? 'bg-gradient-to-r from-brand-blue to-teal-500 hover:shadow-[0_0_15px_rgba(14,165,233,0.3)] text-white border-brand-blue/30 cursor-pointer animate-pulse'
-                      : 'bg-slate-100 dark:bg-slate-900 text-slate-400 dark:text-slate-600 border-slate-200 dark:border-white/5 cursor-not-allowed'
+                      : 'bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-300 hover:text-brand-blue hover:border-brand-blue/40 border-slate-200 dark:border-white/10 cursor-pointer active:scale-95'
                   }`}
                   title={
                     otaStatus.updateAvailable
                       ? `New Update Available: ${otaStatus.remoteVersion} (Current: ${otaStatus.authorizedVersion})`
-                      : `App is up to date (Active Version: ${otaStatus.authorizedVersion || 'None'})`
+                      : `App is up to date (Active: ${otaStatus.authorizedVersion || 'None'}) - Click to re-sync or force push OTA`
                   }
                 >
                   {otaStatus.loading ? (

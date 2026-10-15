@@ -10,23 +10,28 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     
-    <!-- Immediate Unregister & Cache Purge to prevent stale chunks on Web -->
+    <!-- Service Worker for Native App & Health Wakeup -->
     <script>
       (function() {
         try {
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.getRegistrations().then(function(regs) {
-              for (var i = 0; i < regs.length; i++) {
-                regs[i].unregister();
-              }
-            });
-          }
-          if ('caches' in window) {
-            caches.keys().then(function(names) {
-              for (var i = 0; i < names.length; i++) {
-                caches.delete(names[i]);
-              }
-            });
+          var isNative = typeof window.Capacitor !== 'undefined' && 
+                         (typeof window.Capacitor.isNativePlatform === 'function' ? window.Capacitor.isNativePlatform() : window.Capacitor.isNative);
+          if (isNative) {
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.register('/sw.js').then(function(reg) {
+                console.log('[SW] Registered for Native OTA:', reg.scope);
+              }).catch(function(err) {
+                console.warn('[SW] Registration failed:', err);
+              });
+            }
+          } else {
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function(regs) {
+                for (var i = 0; i < regs.length; i++) {
+                  regs[i].unregister();
+                }
+              });
+            }
           }
         } catch (e) {}
 
