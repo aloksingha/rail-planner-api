@@ -105,4 +105,42 @@ router.post('/ota-update', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_A
         return res.status(500).json({ error: error.message || 'Internal Server Error' });
     }
 });
+const syncOtaFromManifest = async (req, res) => {
+    try {
+        const REMOTE_HOST = 'https://rail-planner-pro.web.app';
+        console.log('[OTA Sync] Fetching remote manifest from Firebase...');
+        const response = await fetch(`${REMOTE_HOST}/manifest.json?t=${Date.now()}`);
+        if (!response.ok) {
+            return res.status(400).json({ success: false, error: 'Failed to fetch latest manifest from Firebase Hosting.' });
+        }
+        const manifest = await response.json();
+        if (!manifest || !manifest.version) {
+            return res.status(400).json({ success: false, error: 'Invalid manifest format on Firebase Hosting.' });
+        }
+        const settings = await prisma_1.prisma.globalSettings.upsert({
+            where: { id: 'singleton' },
+            update: { otaVersion: manifest.version },
+            create: {
+                id: 'singleton',
+                email: 'support@ticketspro.in',
+                phone: '1800-123-4567',
+                address: '123 Express Hub, Tech Park Phase 2, Bengaluru, Karnataka 560100',
+                otaVersion: manifest.version
+            }
+        });
+        console.log(`[OTA Sync] Successfully updated GlobalSettings.otaVersion to ${manifest.version}`);
+        return res.json({
+            success: true,
+            message: 'OTA update successfully synchronized across database!',
+            otaVersion: manifest.version,
+            assetCount: manifest.assets?.length || 0
+        });
+    }
+    catch (error) {
+        console.error('OTA Sync error:', error);
+        return res.status(500).json({ success: false, error: error.message || 'Internal Server Error' });
+    }
+};
+router.get('/ota-sync', syncOtaFromManifest);
+router.post('/ota-sync', syncOtaFromManifest);
 exports.default = router;
