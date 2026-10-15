@@ -139,13 +139,112 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                         console.log(`[RailRadar] Key ${key.substring(0, 8)} throttled/invalid (Status: ${status}). Body: ${typeof e.response?.data === 'string' ? e.response?.data.substring(0, 200) : 'JSON'}. Trying next...`);
                         continue; 
                     }
-                    console.warn(`[RailRadar] Failed with status ${status}, breaking loop to try Offline. Error: ${e.message}`);
+                    console.warn(`[RailRadar] Failed with status ${status}, breaking loop to try RailKit. Error: ${e.message}`);
                     break;
                 }
             }
             
 
-            console.warn(`[SearchEngine] ALL ENGINES FAILED! Using Offline Trains Fallback for ${src}->${dst}`);
+            // --- ENGINE 2: RAILKIT LIVE FALLBACK ---
+            try {
+                const railkitKey = process.env.RAILKIT_API_KEY || 'railkit_cb0204e7cffc3b5cfaf811f6ca709344cae8f86899fd845a';
+                if (railkitKey) {
+                    console.log(`[SearchEngine] RailRadar exhausted/unavailable. Trying Engine 2 (RailKit) for ${src}->${dst} on ${date}...`);
+                    const railkit = require('railkit');
+                    if (typeof railkit.configure === 'function') {
+                        railkit.configure(railkitKey);
+                    }
+                    const searchMethod = railkit.searchTrainBetweenStations || railkit.findTrainsBetweenStations;
+                    if (typeof searchMethod === 'function') {
+                        const rkResponse = await searchMethod(src, dst, date as string);
+                        const rkTrains = rkResponse?.data || (Array.isArray(rkResponse) ? rkResponse : []);
+                        if (rkResponse?.success !== false && Array.isArray(rkTrains) && rkTrains.length > 0) {
+                            console.log(`[SearchEngine] RailKit ${isFallback ? 'Proximity' : 'Direct'} HIT for ${src}->${dst} (${rkTrains.length} trains)`);
+                            const dayMapIndices = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+                            return rkTrains.map((t: any) => {
+                                const depTimeStr = (t.from_time || t.departureTime || '00:00').substring(0, 5);
+                                const arrTimeStr = (t.to_time || t.arrivalTime || '00:00').substring(0, 5);
+                                const [depH, depM] = depTimeStr.split(':').map(Number);
+                                const [arrH, arrM] = arrTimeStr.split(':').map(Number);
+                                const srcMins = (depH || 0) * 60 + (depM || 0);
+
+                                let durMins = 0;
+                                if (t.travel_time) {
+                                    const match = String(t.travel_time).match(/(\d+):(\d+)/);
+                                    if (match) {
+                                        durMins = parseInt(match[1]) * 60 + parseInt(match[2]);
+                                    }
+                                }
+                                if (durMins <= 0) {
+                                    let calcArrMins = (arrH || 0) * 60 + (arrM || 0);
+                                    if (calcArrMins < srcMins) calcArrMins += 1440;
+                                    durMins = calcArrMins - srcMins;
+                                }
+                                const durHrs = Math.floor(durMins / 60);
+                                const durRem = durMins % 60;
+                                const formattedTravelTime = `${durHrs.toString().padStart(2, '0')}:${durRem.toString().padStart(2, '0')}`;
+                                const dstMins = srcMins + durMins;
+
+                                let activeDays: string[] = [];
+                                let allDays = false;
+                                if (typeof t.running_days === 'string' && /^[01]{7}$/.test(t.running_days)) {
+                                    allDays = t.running_days === '1111111';
+                                    for (let d = 0; d < 7; d++) {
+                                        if (t.running_days[d] === '1') {
+                                            activeDays.push(dayMapIndices[d]);
+                                        }
+                                    }
+                                } else if (Array.isArray(t.running_days)) {
+                                    activeDays = t.running_days;
+                                    allDays = activeDays.length === 7;
+                                } else if (typeof t.running_days === 'string' && t.running_days.toLowerCase() === 'daily') {
+                                    allDays = true;
+                                    activeDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                                } else if (Array.isArray(t.runDays)) {
+                                    activeDays = t.runDays;
+                                    allDays = activeDays.length === 7;
+                                } else {
+                                    allDays = true;
+                                    activeDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                                }
+
+                                const trainClasses = t.classes || t.availableClasses || t.train_class_details || ['SL', '3A', '2A', '1A'];
+                                const classList = Array.isArray(trainClasses) ? trainClasses : ['SL', '3A', '2A', '1A'];
+
+                                return {
+                                    train_name: t.train_name || t.trainName || ('Train ' + (t.train_no || t.trainNumber)),
+                                    train_no: String(t.train_no || t.trainNumber),
+                                    from_stn_name: t.from_stn_code || t.from_stn_name || src,
+                                    to_stn_name: t.to_stn_code || t.to_stn_name || dst,
+                                    from_time: depTimeStr,
+                                    to_time: arrTimeStr,
+                                    travel_time: formattedTravelTime,
+                                    from_std_mins: srcMins,
+                                    to_sta_mins: dstMins,
+                                    running_days: {
+                                        days: activeDays,
+                                        allDays
+                                    },
+                                    runningDays: {
+                                        days: activeDays,
+                                        allDays
+                                    },
+                                    train_class_details: classList.map((c: any) => typeof c === 'string' ? { classCode: c } : c),
+                                    classes: classList,
+                                    isAlternative: isFallback
+                                };
+                            });
+                        } else {
+                            console.log(`[SearchEngine] RailKit returned 0 trains for ${src}->${dst}`);
+                        }
+                    }
+                }
+            } catch (rkErr: any) {
+                console.warn(`[SearchEngine] RailKit search failed: ${rkErr.message}. Falling back to Engine 3 (Offline)...`);
+            }
+
+            console.warn(`[SearchEngine] RailRadar and RailKit live engines unavailable. Using Offline Trains Fallback for ${src}->${dst}`);
             // --- ENGINE 3: OFFLINE TRAINS FALLBACK ---
             try {
                 const fs = require('fs');
@@ -458,6 +557,42 @@ router.get('/schedule/:trainNo', async (req: Request, res: Response) => {
                     continue; // Try next key
                 }
                 break; // Stop and try fallback
+            }
+        }
+
+        // RailKit Live Fallback for Schedule
+        if (scheduleData.length === 0) {
+            try {
+                const railkitKey = process.env.RAILKIT_API_KEY || 'railkit_cb0204e7cffc3b5cfaf811f6ca709344cae8f86899fd845a';
+                if (railkitKey) {
+                    console.log(`[ScheduleEngine] RailRadar failed for ${trainNo}. Trying RailKit getTrainInfo...`);
+                    const railkit = require('railkit');
+                    if (typeof railkit.configure === 'function') {
+                        railkit.configure(railkitKey);
+                    }
+                    if (typeof railkit.getTrainInfo === 'function') {
+                        const rkRes = await railkit.getTrainInfo(trainNo);
+                        const rkData = rkRes?.data || rkRes;
+                        const route = rkData?.route || rkData?.stations || [];
+                        if (Array.isArray(route) && route.length > 0) {
+                            console.log(`[ScheduleEngine] RailKit HIT for ${trainNo} schedule (${route.length} stops)`);
+                            scheduleData = route.map((st: any) => ({
+                                station: {
+                                    code: st.station_code || st.code || st.stationCode,
+                                    name: st.station_name || st.name || st.stationName
+                                },
+                                arrival: st.arrival_time === 'Source' ? '--:--' : (st.arrival_time || st.arrival || '--:--'),
+                                departure: st.departure_time === 'Destination' ? '--:--' : (st.departure_time || st.departure || '--:--'),
+                                distance: st.distance !== undefined ? st.distance : (st.distanceFromSourceKm || 0),
+                                arrivalDay: st.day || 1,
+                                isHalt: st.isHalt !== undefined ? st.isHalt : (st.halt_minutes !== undefined ? st.halt_minutes > 0 : true)
+                            }));
+                            lastError = null;
+                        }
+                    }
+                }
+            } catch (rkErr: any) {
+                console.warn(`[ScheduleEngine] RailKit schedule fallback failed: ${rkErr.message}`);
             }
         }
 
