@@ -10,34 +10,21 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     
-    <!-- Service Worker for Native App & Health Wakeup -->
+    <!-- Early Backend Wakeup & Service Worker Registration -->
     <script>
       (function() {
-        try {
-          var isNative = typeof window.Capacitor !== 'undefined' && 
-                         (typeof window.Capacitor.isNativePlatform === 'function' ? window.Capacitor.isNativePlatform() : window.Capacitor.isNative);
-          if (isNative) {
-            if ('serviceWorker' in navigator) {
-              navigator.serviceWorker.register('/sw.js').then(function(reg) {
-                console.log('[SW] Registered for Native OTA:', reg.scope);
-              }).catch(function(err) {
-                console.warn('[SW] Registration failed:', err);
-              });
-            }
-          } else {
-            if ('serviceWorker' in navigator) {
-              navigator.serviceWorker.getRegistrations().then(function(regs) {
-                for (var i = 0; i < regs.length; i++) {
-                  regs[i].unregister();
-                }
-              });
-            }
-          }
-        } catch (e) {}
-
         var isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         var apiBase = isLocal ? 'http://localhost:5000' : 'https://rail-planner-api.onrender.com';
         fetch(apiBase + '/health').catch(function() {});
+        
+        // Register Service Worker for Hot updates
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.register('/sw.js').then(function(reg) {
+            console.log('[SW] Registration successful with scope:', reg.scope);
+          }).catch(function(err) {
+            console.warn('[SW] Registration failed:', err);
+          });
+        }
       })();
     </script>
 
@@ -103,33 +90,10 @@
         }
       }, 3000);
 
-      // Comprehensive auto-recovery for stale chunks or dynamic import errors
-      function performHardRecovery() {
-        console.warn('Stale asset or chunk error detected. Performing hard recovery...');
-        if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.getRegistrations().then(function(regs) {
-            for (var i = 0; i < regs.length; i++) { regs[i].unregister(); }
-          });
-        }
-        if ('caches' in window) {
-          caches.keys().then(function(names) {
-            for (var i = 0; i < names.length; i++) caches.delete(names[i]);
-          });
-        }
-        window.location.reload();
-      }
-
-      window.addEventListener('error', function(e) {
-        var msg = (e && e.message) || '';
-        if (/Failed to fetch dynamically imported module|Failed to load module script|ChunkLoadError/i.test(msg)) {
-          performHardRecovery();
-        }
-      }, true);
-
+      // Safe error handling without auto-reload loop
       window.addEventListener('unhandledrejection', function(e) {
-        var reason = (e && e.reason) ? (e.reason.message || e.reason.name || '') : '';
-        if (/Failed to fetch dynamically imported module|ChunkLoadError|Loading chunk|Failed to load/i.test(reason)) {
-          performHardRecovery();
+        if (e.reason && (e.reason.name === 'ChunkLoadError' || /Loading chunk/.test(e.reason.message))) {
+          console.warn('Chunk load error detected. Manual refresh may be required.');
         }
       });
     </script>

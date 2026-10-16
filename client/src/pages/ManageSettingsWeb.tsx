@@ -106,6 +106,53 @@ export default function ManageSettings() {
                 </div>
             </header>
 
+            {/* OTA Deployment & Mobile Push Control Panel */}
+            <div className="relative overflow-hidden rounded-3xl bg-slate-900/90 border border-indigo-500/30 p-6 md:p-8 shadow-2xl backdrop-blur-md">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="flex items-start gap-4">
+                        <div className="p-3 bg-cyan-500/10 rounded-2xl border border-cyan-500/20 text-cyan-400 shrink-0">
+                            <Sparkles size={28} className="animate-pulse" />
+                        </div>
+                        <div className="space-y-1">
+                            <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                                Mobile App Hot Updates (OTA)
+                                <span className="text-[10px] uppercase font-bold tracking-widest px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                    LIVE ENGINE
+                                </span>
+                            </h2>
+                            <p className="text-sm text-slate-400 font-medium">
+                                Manually push the latest production build to all installed customer and sales Android apps.
+                            </p>
+                            <div className="flex flex-wrap items-center gap-3 pt-2 text-xs">
+                                <span className="text-slate-400">
+                                    Active Fleet Version: <strong className="text-cyan-400 font-mono">{otaVersion || 'None'}</strong>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={handleOtaUpdate}
+                        disabled={otaLoading}
+                        className="flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 text-white font-bold rounded-2xl shadow-lg shadow-cyan-500/20 transition-all hover:scale-[1.02] active:scale-95 group shrink-0 cursor-pointer"
+                    >
+                        {otaLoading ? (
+                            <>
+                                <Loader2 className="animate-spin" size={18} />
+                                <span>Pushing to Fleet...</span>
+                            </>
+                        ) : (
+                            <>
+                                <Sparkles size={18} className="group-hover:rotate-12 transition-transform" />
+                                <span>PUSH OTA UPDATE</span>
+                            </>
+                        )}
+                    </button>
+                </div>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-6">
                 {message.text && (
                     <div className={`p-4 rounded-2xl border flex items-center gap-3 animate-in zoom-in duration-300 ${

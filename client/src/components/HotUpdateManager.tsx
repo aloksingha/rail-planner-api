@@ -11,23 +11,23 @@ export default function HotUpdateManager() {
     const [remoteVersion, setRemoteVersion] = useState('');
     const [manifest, setManifest] = useState<any>(null);
 
+    const isNative = Capacitor.isNativePlatform() || 
+                     (typeof window !== 'undefined' && (
+                         window.location.protocol === 'capacitor:' || 
+                         Boolean((window as any).Capacitor?.isNative)
+                     ));
+
     const checkForUpdates = useCallback(async (isManual = false) => {
+        if (!isNative) {
+            return;
+        }
+
         if (!('serviceWorker' in navigator)) {
             if (isManual) alert('Service Workers are not supported on this platform.');
             return;
         }
 
         try {
-            // Self-healing: if cache is empty, clear current_app_version to trigger clean update
-            if ('caches' in window) {
-                const cache = await caches.open('tickets-pro-hot-cache');
-                const keys = await cache.keys();
-                if (keys.length === 0) {
-                    localStorage.removeItem('current_app_version');
-                }
-            }
-
-            // 1. Fetch remote manifest
             const remoteRes = await fetch(`${REMOTE_HOST}/manifest.json?t=${Date.now()}`);
             if (!remoteRes.ok) {
                 if (isManual) alert('Failed to fetch remote update manifest.');
@@ -89,7 +89,7 @@ export default function HotUpdateManager() {
             console.warn('[HotUpdate] Failed to run update check:', e);
             if (isManual) alert('Failed to check for updates: ' + (e instanceof Error ? e.message : String(e)));
         }
-    }, []);
+    }, [isNative]);
 
     useEffect(() => {
         // Check for updates on mount (with a small 2-second delay to prioritize main page load)
@@ -201,7 +201,7 @@ export default function HotUpdateManager() {
         }
     };
 
-    if (status === 'idle') return null;
+    if (!isNative || status === 'idle') return null;
 
     return (
         <AnimatePresence>

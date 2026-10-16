@@ -16,7 +16,7 @@ function getFiles(dir, filesList = []) {
     } else {
       const relativePath = path.relative(distDir, name).replace(/\\/g, '/');
       // Only cache index.html, CSS, JS, fonts, SVG and PNG assets (exclude source maps or config leftovers)
-      if (!relativePath.endsWith('.map') && relativePath !== 'manifest.json' && !relativePath.endsWith('.apk')) {
+      if (!relativePath.endsWith('.map') && relativePath !== 'manifest.json' && !relativePath.endsWith('.apk') && relativePath !== 'sw.js') {
         filesList.push('/' + relativePath);
       }
     }

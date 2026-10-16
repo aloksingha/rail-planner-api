@@ -274,7 +274,7 @@ export default function LoginPageAndroid({ setToken, roleType }: LoginPageAndroi
                         >
                             <div className="absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r from-transparent via-brand-blue/50 to-transparent"></div>
                             <span className="block font-label-sm text-[8px] text-slate-500 dark:text-slate-600 uppercase font-black tracking-widest mb-1">Version</span>
-                            <span className="block font-label-lg text-[10px] text-slate-900 dark:text-white font-black uppercase">v3.5.7</span>
+                            <span className="block font-label-lg text-[10px] text-slate-900 dark:text-white font-black uppercase">v3.5.12</span>
                         </div>
                     </div>
                 </motion.div>

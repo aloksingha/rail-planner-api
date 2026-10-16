@@ -1,5 +1,5 @@
 {
-  "version": "v1792042563739",
+  "version": "v1792161741435",
   "assets": [
     "/assets/AboutUs-CW63ysUf.js",
     "/assets/AdminTeam-C_fbjSKF.js",
@@ -103,7 +103,6 @@
     "/iata-cert-v2.png",
     "/iata-certificate.png",
     "/index.html",
-    "/sw.js",
     "/train-mission.png",
     "/vite.svg"
   ]

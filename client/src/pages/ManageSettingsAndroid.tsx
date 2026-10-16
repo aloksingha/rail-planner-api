@@ -111,6 +111,29 @@ export default function ManageSettings() {
                 <div className="absolute bottom-0 left-0 w-full h-px bg-gradient-to-r from-brand-blue/50 via-teal-500/50 to-transparent" />
             </div>
 
+            {/* ANDROID OTA CONTROL PANEL */}
+            <div className="glass-panel p-5 mb-6 bg-slate-900/90 border border-brand-blue/30 rounded-2xl relative overflow-hidden">
+                <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-brand-blue/10 border border-brand-blue/30 flex items-center justify-center text-brand-blue shrink-0">
+                            <Sparkles size={20} className="animate-pulse" />
+                        </div>
+                        <div>
+                            <h3 className="text-sm font-black text-white uppercase italic tracking-wide">Push OTA Update</h3>
+                            <p className="text-[10px] text-slate-400 font-mono">Active Version: <strong className="text-brand-blue">{otaVersion || 'None'}</strong></p>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={handleOtaUpdate}
+                        disabled={otaLoading}
+                        className="px-4 py-2.5 bg-gradient-to-r from-brand-blue to-teal-500 hover:opacity-90 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-lg transition-transform active:scale-95 shrink-0"
+                    >
+                        {otaLoading ? 'Pushing...' : 'PUSH OTA'}
+                    </button>
+                </div>
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-6">
                 {message.text && (
                     <div className={`p-4 rounded-xl border flex items-center gap-3 animate-in zoom-in duration-300 ${

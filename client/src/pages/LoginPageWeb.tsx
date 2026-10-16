@@ -459,15 +459,15 @@ export default function LoginPage({ setToken, roleType, isAuthenticated }: Login
                             <div className="mt-12 opacity-30 group-hover:opacity-60 transition-opacity duration-700">
                                 <div className="flex items-center justify-center gap-4">
                                     <div className="h-px w-10 bg-slate-800" />
-                                    <p className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-500 whitespace-nowrap">Tickets Pro v3.5.7 · IR-INTELLIGENCE</p>
+                                    <p className="text-[9px] font-black uppercase tracking-[0.4em] text-slate-500 whitespace-nowrap">Tickets Pro v3.5.12 · IR-INTELLIGENCE</p>
                                     <div className="h-px w-10 bg-slate-800" />
                                 </div>
                             </div>
 
                             <div className="mt-8 flex flex-col items-center gap-4">
-                                <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em]">Build v3.5.7 (STABLE)</p>
+                                <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.3em]">Build v3.5.12 (STABLE)</p>
                                 <a 
-                                    href="https://rail-planner-api.onrender.com/downloads/tickets-pro-v3.5.7.apk" 
+                                    href="https://rail-planner-api.onrender.com/downloads/tickets-pro-v3.5.12.apk" 
                                     download 
                                     className="group/btn relative inline-flex items-center justify-center transition-all duration-500 hover:scale-[1.03] active:scale-[0.98]"
                                 >
@@ -479,7 +479,7 @@ export default function LoginPage({ setToken, roleType, isAuthenticated }: Login
                                         </svg>
                                         <div className="text-left">
                                             <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1">Download Android App</p>
-                                            <p className="text-lg font-black text-white leading-none tracking-tight">LATEST v3.5.7</p>
+                                            <p className="text-lg font-black text-white leading-none tracking-tight">LATEST v3.5.12</p>
                                         </div>
                                     </div>
                                 </a>
