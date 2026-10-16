@@ -148,13 +148,18 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             // --- ENGINE 2: RAILKIT LIVE FALLBACK ---
             try {
                 const railkitKey = process.env.RAILKIT_API_KEY || 'railkit_cb0204e7cffc3b5cfaf811f6ca709344cae8f86899fd845a';
-                if (railkitKey) {
-                    console.log(`[SearchEngine] RailRadar exhausted/unavailable. Trying Engine 2 (RailKit) for ${src}->${dst} on ${date}...`);
-                    const railkit = require('railkit');
-                    if (typeof railkit.configure === 'function') {
+                    let railkit: any;
+                    try {
+                        const importDynamic = new Function('m', 'return import(m)');
+                        const mod = await importDynamic('railkit');
+                        railkit = mod.default || mod;
+                    } catch {
+                        railkit = require('railkit');
+                    }
+                    if (typeof railkit?.configure === 'function') {
                         railkit.configure(railkitKey);
                     }
-                    const searchMethod = railkit.searchTrainBetweenStations || railkit.findTrainsBetweenStations;
+                    const searchMethod = railkit?.searchTrainBetweenStations || railkit?.findTrainsBetweenStations;
                     if (typeof searchMethod === 'function') {
                         const rkResponse = await searchMethod(src, dst, date as string);
                         const rkTrains = rkResponse?.data || (Array.isArray(rkResponse) ? rkResponse : []);
@@ -564,13 +569,18 @@ router.get('/schedule/:trainNo', async (req: Request, res: Response) => {
         if (scheduleData.length === 0) {
             try {
                 const railkitKey = process.env.RAILKIT_API_KEY || 'railkit_cb0204e7cffc3b5cfaf811f6ca709344cae8f86899fd845a';
-                if (railkitKey) {
-                    console.log(`[ScheduleEngine] RailRadar failed for ${trainNo}. Trying RailKit getTrainInfo...`);
-                    const railkit = require('railkit');
-                    if (typeof railkit.configure === 'function') {
+                    let railkit: any;
+                    try {
+                        const importDynamic = new Function('m', 'return import(m)');
+                        const mod = await importDynamic('railkit');
+                        railkit = mod.default || mod;
+                    } catch {
+                        railkit = require('railkit');
+                    }
+                    if (typeof railkit?.configure === 'function') {
                         railkit.configure(railkitKey);
                     }
-                    if (typeof railkit.getTrainInfo === 'function') {
+                    if (typeof railkit?.getTrainInfo === 'function') {
                         const rkRes = await railkit.getTrainInfo(trainNo);
                         const rkData = rkRes?.data || rkRes;
                         const route = rkData?.route || rkData?.stations || [];

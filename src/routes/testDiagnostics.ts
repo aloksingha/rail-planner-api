@@ -232,8 +232,17 @@ router.get('/railkit/fare', async (req: Request, res: Response) => {
     const apiKey = process.env.RAILKIT_API_KEY || 'railkit_cb0204e7cffc3b5cfaf811f6ca709344cae8f86899fd845a';
 
     try {
-        const railkit = require('railkit');
-        railkit.configure(apiKey);
+        let railkit: any;
+        try {
+            const importDynamic = new Function('m', 'return import(m)');
+            const mod = await importDynamic('railkit');
+            railkit = mod.default || mod;
+        } catch {
+            railkit = require('railkit');
+        }
+        if (typeof railkit?.configure === 'function') {
+            railkit.configure(apiKey);
+        }
         const result = await railkit.fareLookup(trainNo, from, to, date, travelClass, quota);
         return res.json({
             success: true,
