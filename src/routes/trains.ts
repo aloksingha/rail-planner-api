@@ -19,8 +19,8 @@ const formatTravelTime = (minutes: number) => {
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:00`;
 };
 
-const CACHE_TTL = 15 * 60; // 15 minutes in seconds
-const SEARCH_VERSION = 'v3.16-concurrency-fix'; // Bumped to invalidate old caches for GST
+const CACHE_TTL = 2 * 60 * 60; // 2 hours in seconds (instant repeat searches, quota defense)
+const SEARCH_VERSION = 'v3.17-quota-optimizer'; // Invalidate old caches and enforce 1-search=1-credit policy
 
 import { CacheService } from '../utils/cache';
 
@@ -146,111 +146,139 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             
 
             // --- ENGINE 2: RAILKIT LIVE FALLBACK ---
-            try {
-                const railkitKey = process.env.RAILKIT_API_KEY || 'railkit_cb0204e7cffc3b5cfaf811f6ca709344cae8f86899fd845a';
-                if (railkitKey) {
-                    let railkit: any;
-                    try {
-                        const importDynamic = new Function('m', 'return import(m)');
-                        const mod = await importDynamic('railkit');
-                        railkit = mod.default || mod;
-                    } catch {
-                        railkit = require('railkit');
+            // STRICT QUOTA DEFENSE:
+            // 1. RailKit is a paid metered enterprise API (10,000 monthly quota).
+            // 2. NEVER call RailKit for proximity/alternative station pairs (isFallback = true).
+            //    Alternative station pairs must use RailRadar or the local offline timetable database.
+            // 3. For Direct searches (!isFallback), ALWAYS check Redis cache first before calling RailKit.
+            if (!isFallback) {
+                const rkCacheKey = `rk_search:${src}-${dst}-${date}`;
+                try {
+                    const rkCached = await CacheService.get(rkCacheKey);
+                    if (rkCached) {
+                        console.log(`[SearchEngine] RailKit Cache HIT for ${src}->${dst} (0 API requests consumed)`);
+                        return JSON.parse(rkCached);
                     }
-                    if (typeof railkit?.configure === 'function') {
-                        railkit.configure(railkitKey);
-                    }
-                    const searchMethod = railkit?.searchTrainBetweenStations || railkit?.findTrainsBetweenStations;
-                    if (typeof searchMethod === 'function') {
-                        const rkResponse = await searchMethod(src, dst, date as string);
-                        const rkTrains = rkResponse?.data || (Array.isArray(rkResponse) ? rkResponse : []);
-                        if (rkResponse?.success !== false && Array.isArray(rkTrains) && rkTrains.length > 0) {
-                            console.log(`[SearchEngine] RailKit ${isFallback ? 'Proximity' : 'Direct'} HIT for ${src}->${dst} (${rkTrains.length} trains)`);
-                            const dayMapIndices = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                } catch (cErr: any) {
+                    console.warn(`[SearchEngine] RailKit cache read failed: ${cErr.message}`);
+                }
 
-                            return rkTrains.map((t: any) => {
-                                const depTimeStr = (t.from_time || t.departureTime || '00:00').substring(0, 5);
-                                const arrTimeStr = (t.to_time || t.arrivalTime || '00:00').substring(0, 5);
-                                const [depH, depM] = depTimeStr.split(':').map(Number);
-                                const [arrH, arrM] = arrTimeStr.split(':').map(Number);
-                                const srcMins = (depH || 0) * 60 + (depM || 0);
+                try {
+                    const railkitKey = process.env.RAILKIT_API_KEY || 'railkit_cb0204e7cffc3b5cfaf811f6ca709344cae8f86899fd845a';
+                    if (railkitKey) {
+                        let railkit: any;
+                        try {
+                            const importDynamic = new Function('m', 'return import(m)');
+                            const mod = await importDynamic('railkit');
+                            railkit = mod.default || mod;
+                        } catch {
+                            railkit = require('railkit');
+                        }
+                        if (typeof railkit?.configure === 'function') {
+                            railkit.configure(railkitKey);
+                        }
+                        const searchMethod = railkit?.searchTrainBetweenStations || railkit?.findTrainsBetweenStations;
+                        if (typeof searchMethod === 'function') {
+                            console.log(`[SearchEngine] RailKit Direct API Call: ${src}->${dst} on ${date}`);
+                            const rkResponse = await searchMethod(src, dst, date as string);
+                            const rkTrains = rkResponse?.data || (Array.isArray(rkResponse) ? rkResponse : []);
+                            if (rkResponse?.success !== false && Array.isArray(rkTrains) && rkTrains.length > 0) {
+                                console.log(`[SearchEngine] RailKit Direct HIT for ${src}->${dst} (${rkTrains.length} trains)`);
+                                const dayMapIndices = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-                                let durMins = 0;
-                                if (t.travel_time) {
-                                    const match = String(t.travel_time).match(/(\d+):(\d+)/);
-                                    if (match) {
-                                        durMins = parseInt(match[1]) * 60 + parseInt(match[2]);
-                                    }
-                                }
-                                if (durMins <= 0) {
-                                    let calcArrMins = (arrH || 0) * 60 + (arrM || 0);
-                                    if (calcArrMins < srcMins) calcArrMins += 1440;
-                                    durMins = calcArrMins - srcMins;
-                                }
-                                const durHrs = Math.floor(durMins / 60);
-                                const durRem = durMins % 60;
-                                const formattedTravelTime = `${durHrs.toString().padStart(2, '0')}:${durRem.toString().padStart(2, '0')}`;
-                                const dstMins = srcMins + durMins;
+                                const mappedTrains = rkTrains.map((t: any) => {
+                                    const depTimeStr = (t.from_time || t.departureTime || '00:00').substring(0, 5);
+                                    const arrTimeStr = (t.to_time || t.arrivalTime || '00:00').substring(0, 5);
+                                    const [depH, depM] = depTimeStr.split(':').map(Number);
+                                    const [arrH, arrM] = arrTimeStr.split(':').map(Number);
+                                    const srcMins = (depH || 0) * 60 + (depM || 0);
 
-                                let activeDays: string[] = [];
-                                let allDays = false;
-                                if (typeof t.running_days === 'string' && /^[01]{7}$/.test(t.running_days)) {
-                                    allDays = t.running_days === '1111111';
-                                    for (let d = 0; d < 7; d++) {
-                                        if (t.running_days[d] === '1') {
-                                            activeDays.push(dayMapIndices[d]);
+                                    let durMins = 0;
+                                    if (t.travel_time) {
+                                        const match = String(t.travel_time).match(/(\d+):(\d+)/);
+                                        if (match) {
+                                            durMins = parseInt(match[1]) * 60 + parseInt(match[2]);
                                         }
                                     }
-                                } else if (Array.isArray(t.running_days)) {
-                                    activeDays = t.running_days;
-                                    allDays = activeDays.length === 7;
-                                } else if (typeof t.running_days === 'string' && t.running_days.toLowerCase() === 'daily') {
-                                    allDays = true;
-                                    activeDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-                                } else if (Array.isArray(t.runDays)) {
-                                    activeDays = t.runDays;
-                                    allDays = activeDays.length === 7;
-                                } else {
-                                    allDays = true;
-                                    activeDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                                    if (durMins <= 0) {
+                                        let calcArrMins = (arrH || 0) * 60 + (arrM || 0);
+                                        if (calcArrMins < srcMins) calcArrMins += 1440;
+                                        durMins = calcArrMins - srcMins;
+                                    }
+                                    const durHrs = Math.floor(durMins / 60);
+                                    const durRem = durMins % 60;
+                                    const formattedTravelTime = `${durHrs.toString().padStart(2, '0')}:${durRem.toString().padStart(2, '0')}`;
+                                    const dstMins = srcMins + durMins;
+
+                                    let activeDays: string[] = [];
+                                    let allDays = false;
+                                    if (typeof t.running_days === 'string' && /^[01]{7}$/.test(t.running_days)) {
+                                        allDays = t.running_days === '1111111';
+                                        for (let d = 0; d < 7; d++) {
+                                            if (t.running_days[d] === '1') {
+                                                activeDays.push(dayMapIndices[d]);
+                                            }
+                                        }
+                                    } else if (Array.isArray(t.running_days)) {
+                                        activeDays = t.running_days;
+                                        allDays = activeDays.length === 7;
+                                    } else if (typeof t.running_days === 'string' && t.running_days.toLowerCase() === 'daily') {
+                                        allDays = true;
+                                        activeDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                                    } else if (Array.isArray(t.runDays)) {
+                                        activeDays = t.runDays;
+                                        allDays = activeDays.length === 7;
+                                    } else {
+                                        allDays = true;
+                                        activeDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                                    }
+
+                                    const trainClasses = t.classes || t.availableClasses || t.train_class_details || ['SL', '3A', '2A', '1A'];
+                                    const classList = Array.isArray(trainClasses) ? trainClasses : ['SL', '3A', '2A', '1A'];
+
+                                    return {
+                                        train_name: t.train_name || t.trainName || ('Train ' + (t.train_no || t.trainNumber)),
+                                        train_no: String(t.train_no || t.trainNumber),
+                                        from_stn_name: t.from_stn_code || t.from_stn_name || src,
+                                        to_stn_name: t.to_stn_code || t.to_stn_name || dst,
+                                        from_time: depTimeStr,
+                                        to_time: arrTimeStr,
+                                        travel_time: formattedTravelTime,
+                                        from_std_mins: srcMins,
+                                        to_sta_mins: dstMins,
+                                        running_days: {
+                                            days: activeDays,
+                                            allDays
+                                        },
+                                        runningDays: {
+                                            days: activeDays,
+                                            allDays
+                                        },
+                                        train_class_details: classList.map((c: any) => typeof c === 'string' ? { classCode: c } : c),
+                                        classes: classList,
+                                        isAlternative: isFallback
+                                    };
+                                });
+
+                                // Cache RailKit results in Redis for 6 hours (21600 seconds)
+                                try {
+                                    await CacheService.set(rkCacheKey, JSON.stringify(mappedTrains), 6 * 3600);
+                                } catch (scErr: any) {
+                                    console.warn(`[SearchEngine] RailKit cache write error: ${scErr.message}`);
                                 }
 
-                                const trainClasses = t.classes || t.availableClasses || t.train_class_details || ['SL', '3A', '2A', '1A'];
-                                const classList = Array.isArray(trainClasses) ? trainClasses : ['SL', '3A', '2A', '1A'];
-
-                                return {
-                                    train_name: t.train_name || t.trainName || ('Train ' + (t.train_no || t.trainNumber)),
-                                    train_no: String(t.train_no || t.trainNumber),
-                                    from_stn_name: t.from_stn_code || t.from_stn_name || src,
-                                    to_stn_name: t.to_stn_code || t.to_stn_name || dst,
-                                    from_time: depTimeStr,
-                                    to_time: arrTimeStr,
-                                    travel_time: formattedTravelTime,
-                                    from_std_mins: srcMins,
-                                    to_sta_mins: dstMins,
-                                    running_days: {
-                                        days: activeDays,
-                                        allDays
-                                    },
-                                    runningDays: {
-                                        days: activeDays,
-                                        allDays
-                                    },
-                                    train_class_details: classList.map((c: any) => typeof c === 'string' ? { classCode: c } : c),
-                                    classes: classList,
-                                    isAlternative: isFallback
-                                };
-                            });
-                        } else {
-                            console.log(`[SearchEngine] RailKit returned 0 trains for ${src}->${dst}`);
+                                return mappedTrains;
+                            } else {
+                                console.log(`[SearchEngine] RailKit returned 0 trains for ${src}->${dst}`);
+                            }
                         }
                     }
+                } catch (rkErr: any) {
+                    console.warn(`[SearchEngine] RailKit search failed: ${rkErr.message}. Falling back to Engine 3 (Offline)...`);
                 }
-            } catch (rkErr: any) {
-                console.warn(`[SearchEngine] RailKit search failed: ${rkErr.message}. Falling back to Engine 3 (Offline)...`);
+            } else {
+                console.log(`[SearchEngine] Proximity pair ${src}->${dst} skipped for RailKit (Quota Protected). Proceeding to offline fallback.`);
             }
-
-            console.warn(`[SearchEngine] RailRadar and RailKit live engines unavailable. Using Offline Trains Fallback for ${src}->${dst}`);
             // --- ENGINE 3: OFFLINE TRAINS FALLBACK ---
             try {
                 const fs = require('fs');
@@ -309,10 +337,16 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         // 1. Primary Direct Search
         let allRemoteTrains = await fetchRemote(from as string, to as string, false);
 
-        // 2. Proximity Search - Expanding reach to capture all city-area terminals (e.g. DEC, DEE, SBIB)
-        // 2. Proximity Search - Expanding reach to capture all city-area terminals
-        const sourceAlts = [from as string, ...nearbys.filter(n => n.stationCode === from).map(n => n.nearbyCode)].slice(0, 10);
-        const destAlts = [to as string, ...nearbys.filter(n => n.stationCode === to).map(n => n.nearbyCode)].slice(0, 10);
+        // 2. Proximity Search - Expanding reach for nearby city terminals (e.g. DEC, DEE, BDTS)
+        // STRICT QUOTA DEFENSE:
+        // A) If Direct Search already found trains:
+        //    Direct trains exist! We do NOT make external API network calls across dozens of pairs.
+        //    We only check the local offline database for nearby alternatives (0 API cost, 0 network latency).
+        // B) If Direct Search returned 0 trains:
+        //    We check at most 3 top proximity pairs using fetchRemote(pair.s, pair.d, true).
+        //    Because isFallback=true, RailKit is NEVER called for proximity pairs, protecting paid quota!
+        const sourceAlts = [from as string, ...nearbys.filter(n => n.stationCode === from).map(n => n.nearbyCode)].slice(0, 3);
+        const destAlts = [to as string, ...nearbys.filter(n => n.stationCode === to).map(n => n.nearbyCode)].slice(0, 3);
 
         const pairs: {s: string, d: string}[] = [];
         for (const s of sourceAlts) {
@@ -322,12 +356,71 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             }
         }
 
-        console.log(`[TrainSearch] Proactively searching ${pairs.length} proximity pairs...`);
-        
-        // Execute fallback searches in parallel for better performance
         const fallbackResults: any[] = [];
-        const chunkSize = 10; for (let i = 0; i < pairs.length; i += chunkSize) { const chunk = pairs.slice(i, i + chunkSize); const proximityResults = await Promise.allSettled(chunk.map(pair => fetchRemote(pair.s, pair.d, true))); proximityResults.forEach((res, idx) => { if (res.status === 'fulfilled') { fallbackResults.push(...res.value); } else { console.warn(`[TrainSearch] Proximity pair ${chunk[idx].s}->${chunk[idx].d} failed: ${res.reason?.message}`); } }); if (i + chunkSize < pairs.length) { await new Promise(resolve => setTimeout(resolve, 350)); } }
-
+        if (pairs.length > 0) {
+            if (allRemoteTrains.length > 0) {
+                // Direct search succeeded. Supplement from local offline trains only (0 API calls)
+                console.log(`[TrainSearch] Direct search found ${allRemoteTrains.length} trains. Checking ${pairs.length} proximity pairs in local database only.`);
+                try {
+                    const fs = require('fs');
+                    const path = require('path');
+                    const localPath = path.join(process.cwd(), 'src/data/offline_trains.json');
+                    if (fs.existsSync(localPath)) {
+                        const offlineData = JSON.parse(fs.readFileSync(localPath, 'utf8'));
+                        for (const pair of pairs) {
+                            const matched = offlineData.filter((t: any) =>
+                                t.stops.includes(pair.s) && t.stops.includes(pair.d) &&
+                                t.stops.indexOf(pair.s) < t.stops.indexOf(pair.d)
+                            );
+                            if (matched.length > 0) {
+                                matched.forEach((t: any) => {
+                                    const srcTime = t.times[pair.s];
+                                    const dstTime = t.times[pair.d];
+                                    const parseToMins = (timeStr: string) => {
+                                        const [h, m] = timeStr.split(':').map(Number);
+                                        return h * 60 + m;
+                                    };
+                                    const srcMins = parseToMins(srcTime.dep) + (srcTime.day - 1) * 1440;
+                                    const dstMins = parseToMins(dstTime.arr) + (dstTime.day - 1) * 1440;
+                                    const durMins = dstMins - srcMins;
+                                    const durHrs = Math.floor(durMins / 60);
+                                    const durRem = durMins % 60;
+                                    fallbackResults.push({
+                                        train_name: t.train_name,
+                                        train_no: t.train_no,
+                                        from_stn_name: pair.s,
+                                        to_stn_name: pair.d,
+                                        from_time: srcTime.dep,
+                                        to_time: dstTime.arr,
+                                        travel_time: `${durHrs.toString().padStart(2, '0')}:${durRem.toString().padStart(2, '0')}`,
+                                        from_std_mins: srcMins,
+                                        to_sta_mins: dstMins,
+                                        running_days: {
+                                            days: t.run_days,
+                                            allDays: t.run_days.length === 7
+                                        },
+                                        train_class_details: t.classes.map((c: string) => ({ classCode: c })),
+                                        isAlternative: true
+                                    });
+                                });
+                            }
+                        }
+                    }
+                } catch (offErr: any) {
+                    console.warn(`[TrainSearch] Offline proximity search failed: ${offErr.message}`);
+                }
+            } else {
+                // Direct search returned 0 trains. Search top proximity pairs (isFallback=true strictly uses RailRadar or offline DB, never RailKit)
+                console.log(`[TrainSearch] Direct search returned 0 trains. Checking ${Math.min(pairs.length, 3)} top proximity pairs...`);
+                const topPairs = pairs.slice(0, 3);
+                const proximityResults = await Promise.allSettled(topPairs.map(pair => fetchRemote(pair.s, pair.d, true)));
+                proximityResults.forEach((res, idx) => {
+                    if (res.status === 'fulfilled') {
+                        fallbackResults.push(...res.value);
+                    }
+                });
+            }
+        }
         // Combine nearby and direct results (Priority: Direct > Closest Nearby > Furthest Nearby)
         allRemoteTrains = [...allRemoteTrains, ...fallbackResults];
 
@@ -511,6 +604,9 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         console.log(`[TrainSearch] Returning ${uniqueTrains.length} unique trains`);
         if (uniqueTrains.length > 0) {
             await CacheService.set(cacheKey, JSON.stringify(uniqueTrains), CACHE_TTL);
+        } else {
+            // Cache empty result for 5 minutes to prevent rapid click spamming
+            await CacheService.set(cacheKey, JSON.stringify([]), 300);
         }
         return res.json({ 
             success: true, 
