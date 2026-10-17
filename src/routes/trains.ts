@@ -148,6 +148,7 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             // --- ENGINE 2: RAILKIT LIVE FALLBACK ---
             try {
                 const railkitKey = process.env.RAILKIT_API_KEY || 'railkit_cb0204e7cffc3b5cfaf811f6ca709344cae8f86899fd845a';
+                if (railkitKey) {
                     let railkit: any;
                     try {
                         const importDynamic = new Function('m', 'return import(m)');
@@ -569,6 +570,7 @@ router.get('/schedule/:trainNo', async (req: Request, res: Response) => {
         if (scheduleData.length === 0) {
             try {
                 const railkitKey = process.env.RAILKIT_API_KEY || 'railkit_cb0204e7cffc3b5cfaf811f6ca709344cae8f86899fd845a';
+                if (railkitKey) {
                     let railkit: any;
                     try {
                         const importDynamic = new Function('m', 'return import(m)');

@@ -134,8 +134,15 @@ router.get('/getTrainOn', async (req, res) => {
                 const railkitKey = process.env.RAILKIT_API_KEY || 'railkit_cb0204e7cffc3b5cfaf811f6ca709344cae8f86899fd845a';
                 if (railkitKey) {
                     console.log(`[SearchEngine] RailRadar exhausted/unavailable. Trying Engine 2 (RailKit) for ${src}->${dst} on ${date}...`);
-                    const railkit = require('railkit');
-                    if (typeof railkit.configure === 'function') {
+                    let railkit;
+                    try {
+                        const importDynamic = new Function('m', 'return import(m)');
+                        const mod = await importDynamic('railkit');
+                        railkit = mod.default || mod;
+                    } catch {
+                        railkit = require('railkit');
+                    }
+                    if (typeof railkit?.configure === 'function') {
                         railkit.configure(railkitKey);
                     }
                     const searchMethod = railkit.searchTrainBetweenStations || railkit.findTrainsBetweenStations;
@@ -509,9 +516,15 @@ router.get('/schedule/:trainNo', async (req, res) => {
             try {
                 const railkitKey = process.env.RAILKIT_API_KEY || 'railkit_cb0204e7cffc3b5cfaf811f6ca709344cae8f86899fd845a';
                 if (railkitKey) {
-                    console.log(`[ScheduleEngine] RailRadar failed for ${trainNo}. Trying RailKit getTrainInfo...`);
-                    const railkit = require('railkit');
-                    if (typeof railkit.configure === 'function') {
+                    let railkit;
+                    try {
+                        const importDynamic = new Function('m', 'return import(m)');
+                        const mod = await importDynamic('railkit');
+                        railkit = mod.default || mod;
+                    } catch {
+                        railkit = require('railkit');
+                    }
+                    if (typeof railkit?.configure === 'function') {
                         railkit.configure(railkitKey);
                     }
                     if (typeof railkit.getTrainInfo === 'function') {
