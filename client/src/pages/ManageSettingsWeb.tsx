@@ -9,7 +9,8 @@ export default function ManageSettings() {
         address: '',
         whatsapp: '',
         facebook: '',
-        telegram: ''
+        telegram: '',
+        gstNo: ''
     });
     const [otaVersion, setOtaVersion] = useState('');
     const [loading, setLoading] = useState(true);
@@ -28,7 +29,8 @@ export default function ManageSettings() {
                         address: data.settings.address || '',
                         whatsapp: data.settings.whatsapp || '',
                         facebook: data.settings.facebook || '',
-                        telegram: data.settings.telegram || ''
+                        telegram: data.settings.telegram || '',
+                        gstNo: data.settings.gstNo || ''
                     });
                     setOtaVersion(data.settings.otaVersion || 'None');
                 }
@@ -106,50 +108,42 @@ export default function ManageSettings() {
                 </div>
             </header>
 
-            {/* OTA Deployment & Mobile Push Control Panel */}
-            <div className="relative overflow-hidden rounded-3xl bg-slate-900/90 border border-indigo-500/30 p-6 md:p-8 shadow-2xl backdrop-blur-md">
-                <div className="absolute top-0 right-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
-                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                    <div className="flex items-start gap-4">
-                        <div className="p-3 bg-cyan-500/10 rounded-2xl border border-cyan-500/20 text-cyan-400 shrink-0">
-                            <Sparkles size={28} className="animate-pulse" />
+            {/* OVER-THE-AIR (OTA) LIVE DEPLOYMENT HUB */}
+            <div className="bg-gradient-to-br from-slate-900/90 to-slate-950 border border-brand-blue/30 p-6 rounded-3xl space-y-4 shadow-xl shadow-brand-blue/5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                        <div className="p-3 bg-brand-blue/10 border border-brand-blue/20 rounded-2xl">
+                            <Sparkles className="text-brand-blue animate-pulse" size={24} />
                         </div>
-                        <div className="space-y-1">
-                            <h2 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
-                                Mobile App Hot Updates (OTA)
-                                <span className="text-[10px] uppercase font-bold tracking-widest px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                    LIVE ENGINE
-                                </span>
-                            </h2>
-                            <p className="text-sm text-slate-400 font-medium">
-                                Manually push the latest production build to all installed customer and sales Android apps.
-                            </p>
-                            <div className="flex flex-wrap items-center gap-3 pt-2 text-xs">
-                                <span className="text-slate-400">
-                                    Active Fleet Version: <strong className="text-cyan-400 font-mono">{otaVersion || 'None'}</strong>
-                                </span>
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <h2 className="text-lg font-black text-white uppercase tracking-wider">Over-The-Air (OTA) Updates</h2>
+                                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Live Sync</span>
                             </div>
+                            <p className="text-xs text-slate-400 mt-0.5">Broadcast new app versions to all mobile and web users instantly without re-installing.</p>
                         </div>
                     </div>
-
-                    <button
-                        type="button"
-                        onClick={handleOtaUpdate}
-                        disabled={otaLoading}
-                        className="flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 disabled:opacity-50 text-white font-bold rounded-2xl shadow-lg shadow-cyan-500/20 transition-all hover:scale-[1.02] active:scale-95 group shrink-0 cursor-pointer"
-                    >
-                        {otaLoading ? (
-                            <>
-                                <Loader2 className="animate-spin" size={18} />
-                                <span>Pushing to Fleet...</span>
-                            </>
-                        ) : (
-                            <>
-                                <Sparkles size={18} className="group-hover:rotate-12 transition-transform" />
-                                <span>PUSH OTA UPDATE</span>
-                            </>
-                        )}
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={handleOtaUpdate}
+                            disabled={otaLoading}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-brand-blue to-teal-500 hover:from-sky-400 hover:to-teal-400 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-brand-blue/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-50 cursor-pointer"
+                        >
+                            {otaLoading ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                            {otaLoading ? 'Pushing OTA...' : '🚀 Push OTA Update to All Users'}
+                        </button>
+                    </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-6 pt-2 border-t border-white/5 text-xs text-slate-400">
+                    <div>
+                        <span className="text-slate-500 uppercase tracking-widest text-[10px] block font-bold">Authorized OTA Version</span>
+                        <span className="font-mono text-emerald-400 font-bold">{otaVersion || 'None'}</span>
+                    </div>
+                    <div>
+                        <span className="text-slate-500 uppercase tracking-widest text-[10px] block font-bold">Deployment Host</span>
+                        <span className="font-mono text-slate-300">Firebase Hosting (rail-planner-pro.web.app)</span>
+                    </div>
                 </div>
             </div>
 
@@ -280,6 +274,25 @@ export default function ManageSettings() {
                         onChange={handleChange}
                         className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-rose-500/50 outline-none transition-all font-medium resize-none"
                         placeholder="Enter full office address..."
+                    />
+                </div>
+
+                {/* GST Number */}
+                <div className="bg-slate-900/40 backdrop-blur-md border border-white/5 p-6 rounded-3xl space-y-4 hover:border-amber-500/30 transition-colors group">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-amber-500/10 rounded-xl group-hover:scale-110 transition-transform">
+                            <span className="text-amber-400 font-bold">GST</span>
+                        </div>
+                        <label className="text-sm font-bold text-white uppercase tracking-wider">GST Number</label>
+                    </div>
+                    <p className="text-xs text-slate-500">The Goods and Services Tax Identification Number for the company.</p>
+                    <input
+                        type="text"
+                        name="gstNo"
+                        value={form.gstNo}
+                        onChange={handleChange}
+                        className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-amber-500/50 outline-none transition-all font-medium"
+                        placeholder="e.g. 19BOOPA3821C1Z9"
                     />
                 </div>
 

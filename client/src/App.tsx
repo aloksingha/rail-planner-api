@@ -24,14 +24,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { InteractiveBackground } from './components/InteractiveBackground';
 import { App as CapApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
-import brandLogo from './assets/brand_logo.png';
+import brandLogo from './assets/brand_logo.webp';
 
 // ✅ DIRECT IMPORTS for Absolute UI Stability
 import AnnouncementPopup from './components/AnnouncementPopup';
 import HotUpdateManager from './components/HotUpdateManager';
+import PageLoader from './components/PageLoader';
 
-const DashboardHome = lazy(() => import('./pages/DashboardHome'));
-const CustomerDashboard = lazy(() => import('./pages/CustomerDashboard'));
+import DashboardHome from './pages/DashboardHome';
+import CustomerDashboard from './pages/CustomerDashboard';
 
 // Lazy load non-critical pages
 const CustomerBookings = lazy(() => import('./pages/CustomerBookings'));
@@ -40,7 +41,7 @@ const RoleManagement = lazy(() => import('./pages/RoleManagement'));
 const ManualRefunds = lazy(() => import('./pages/ManualRefunds'));
 const SalesOptions = lazy(() => import('./pages/SalesOptions'));
 const BookingManagement = lazy(() => import('./pages/BookingManagement'));
-const LoginPage = lazy(() => import('./pages/LoginPage'));
+import LoginPage from './pages/LoginPage';
 const SalesBookings = lazy(() => import('./pages/SalesBookings'));
 const SalesTransactions = lazy(() => import('./pages/SalesTransactions'));
 const CommissionChart = lazy(() => import('./pages/CommissionChart'));
@@ -69,15 +70,7 @@ const WalletDashboard = lazy(() => import('./pages/WalletDashboard'));
 const AuditLogAndroid = lazy(() => import('./pages/AuditLogAndroid'));
 const ManagePromotions = lazy(() => import('./pages/ManagePromotions'));
 
-const PageLoader = () => (
-  <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 animate-in fade-in duration-500">
-    <div className="relative">
-      <div className="w-12 h-12 border-4 border-brand-teal/20 rounded-full"></div>
-      <div className="absolute top-0 left-0 w-12 h-12 border-4 border-brand-teal border-t-transparent rounded-full animate-spin"></div>
-    </div>
-    <p className="text-slate-400 font-medium text-sm">Loading experience...</p>
-  </div>
-);
+
 
 axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 axios.interceptors.request.use((config) => {
@@ -441,18 +434,12 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
   const handleOtaRelease = async () => {
     if (otaStatus.loading) return;
 
-    if (!otaStatus.updateAvailable) {
-      const forceReRelease = window.confirm(
-        `App is currently showing as up-to-date (Version: ${otaStatus.authorizedVersion || otaStatus.remoteVersion || 'None'}).\n\nDo you want to force re-push / synchronize the OTA release to all devices now?`
-      );
-      if (!forceReRelease) return;
-    } else {
-      const confirmRelease = window.confirm(
-        `Are you sure you want to release the latest update (${otaStatus.remoteVersion}) to all app users?\n` +
-        `Current Active Version: ${otaStatus.authorizedVersion || 'None'}`
-      );
-      if (!confirmRelease) return;
-    }
+    const message = otaStatus.updateAvailable
+      ? `Are you sure you want to release the latest update (${otaStatus.remoteVersion}) to all app users?\n\nCurrent Active Version: ${otaStatus.authorizedVersion || 'None'}`
+      : `Push OTA Update to All Users?\n\nActive Version: ${otaStatus.authorizedVersion || 'Live'}\nRemote Build: ${otaStatus.remoteVersion || 'Live'}\n\nThis will re-broadcast the OTA update signal so all connected mobile & web apps detect and download the latest build.`;
+
+    const confirmRelease = window.confirm(message);
+    if (!confirmRelease) return;
 
     setOtaStatus(prev => ({ ...prev, loading: true }));
     try {
@@ -777,6 +764,7 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
             {auth.role === 'ADMIN' && (
               <>
                 <SidebarSection label="Operations" />
+                <NavLink to="/sales/bookings" icon={Ticket}>My Bookings</NavLink>
                 <NavLink to="/sales/team" icon={BookOpen}>Team Bookings</NavLink>
                 
                 <SidebarSection label="Sales" />
@@ -788,7 +776,6 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
                 <NavLink to="/audit-logs" icon={LucideHistory}>Audit Logs</NavLink>
 
                 <SidebarSection label="Financials" />
-                <NavLink to="/wallet" icon={Wallet}>My Wallet</NavLink>
                 <NavLink to="/sales/transactions" icon={ReceiptText}>My Transactions</NavLink>
                 <NavLink to="/refunds" icon={Tags}>Manual Refunds</NavLink>
               </>
@@ -804,6 +791,7 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
                 {auth.specialPermissions?.includes('GLOBAL_BOOKINGS') && <NavLink to="/manage-bookings" icon={Settings}>Global Bookings</NavLink>}
                 {auth.specialPermissions?.includes('WALLET_MANAGEMENT') && <NavLink to="/admin/wallet-management" icon={Wallet}>Global Wallet</NavLink>}
                 {auth.specialPermissions?.includes('MANAGE_COUPONS') && <NavLink to="/coupons" icon={Tags}>Manage Coupons</NavLink>}
+                {auth.specialPermissions?.includes('TEST_WALLET') && <NavLink to="/wallet" icon={Wallet}>Test Wallet</NavLink>}
               </>
             )}
             {auth.role === 'SUPER_ADMIN' && (
@@ -852,6 +840,7 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
                 <NavLink to="/latest-updates" icon={Megaphone}>Platform Broadcasts</NavLink>
                 <NavLink to="/inbox" icon={Mail}>Contact Inbox</NavLink>
                 <NavLink to="/audit-logs" icon={LucideHistory}>Audit Logs</NavLink>
+
               </>
             )}
 
@@ -930,31 +919,31 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
                 <button
                   onClick={handleOtaRelease}
                   disabled={otaStatus.loading}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-brand uppercase tracking-wider transition-all border shadow-sm shrink-0 ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-brand uppercase tracking-wider transition-all border shadow-sm shrink-0 cursor-pointer ${
                     otaStatus.updateAvailable
-                      ? 'bg-gradient-to-r from-brand-blue to-teal-500 hover:shadow-[0_0_15px_rgba(14,165,233,0.3)] text-white border-brand-blue/30 cursor-pointer animate-pulse'
-                      : 'bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-300 hover:text-brand-blue hover:border-brand-blue/40 border-slate-200 dark:border-white/10 cursor-pointer active:scale-95'
+                      ? 'bg-gradient-to-r from-brand-blue to-teal-500 hover:shadow-[0_0_15px_rgba(14,165,233,0.3)] text-white border-brand-blue/30 animate-pulse'
+                      : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:scale-105 active:scale-95'
                   }`}
                   title={
                     otaStatus.updateAvailable
-                      ? `New Update Available: ${otaStatus.remoteVersion} (Current: ${otaStatus.authorizedVersion})`
-                      : `App is up to date (Active: ${otaStatus.authorizedVersion || 'None'}) - Click to re-sync or force push OTA`
+                      ? `New Update Ready: ${otaStatus.remoteVersion} (Click to Release OTA to All Users)`
+                      : `OTA Active: ${otaStatus.authorizedVersion || 'Live'} (Click to Push OTA to All Users)`
                   }
                 >
                   {otaStatus.loading ? (
                     <>
-                      <Loader2 size={10} className="animate-spin" />
+                      <Loader2 size={10} className="animate-spin text-brand-blue" />
                       <span>Pushing...</span>
                     </>
                   ) : otaStatus.updateAvailable ? (
                     <>
-                      <Sparkles size={10} className="animate-bounce" />
-                      <span>Release OTA</span>
+                      <Sparkles size={11} className="animate-bounce" />
+                      <span className="font-black">Release OTA</span>
                     </>
                   ) : (
                     <>
-                      <CheckCircle2 size={10} className="text-emerald-500" />
-                      <span>OTA Up-to-Date</span>
+                      <CheckCircle2 size={11} className="text-emerald-500" />
+                      <span className="font-bold">Push OTA</span>
                     </>
                   )}
                 </button>
