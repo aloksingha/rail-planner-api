@@ -5,7 +5,7 @@ import { db } from '../firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import axios from 'axios';
 import { motion } from 'framer-motion';
-import brandLogo from '../assets/brand_logo.png';
+import brandLogo from '../assets/brand_logo.webp';
 import PromoBannerSlider from '../components/PromoBannerSlider';
 
 
@@ -37,10 +37,14 @@ export default function CustomerDashboard() {
     const navigate = useNavigate();
     const [update, setUpdate] = useState<any>(null);
     const [stats, setStats] = useState<DashboardStats>(() => {
-        const saved = localStorage.getItem('last_known_stats');
-        return saved ? JSON.parse(saved) : { balance: 0, totalBookings: 0, activeTickets: 0 };
+        try {
+            const saved = localStorage.getItem('last_known_stats');
+            return saved ? JSON.parse(saved) : { balance: 0, totalBookings: 0, activeTickets: 0 };
+        } catch {
+            return { balance: 0, totalBookings: 0, activeTickets: 0 };
+        }
     });
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(!localStorage.getItem('last_known_stats'));
 
     const handleBookNewTicket = useCallback(() => {
         navigate('/book-ticket');
@@ -60,15 +64,16 @@ export default function CustomerDashboard() {
 
         // Fetch User Stats
         const fetchStats = async () => {
-            const cachedDataStr = sessionStorage.getItem('customer_stats_cache');
+            const cachedDataStr = sessionStorage.getItem('customer_stats_cache') || localStorage.getItem('last_known_stats');
             const cachedTimeStr = sessionStorage.getItem('customer_stats_cache_time');
-            if (cachedDataStr && cachedTimeStr) {
-                const cachedTime = parseInt(cachedTimeStr, 10);
-                if (Date.now() - cachedTime < 30000) {
+            if (cachedDataStr) {
+                try {
                     setStats(JSON.parse(cachedDataStr));
                     setLoading(false);
-                    return;
-                }
+                    if (cachedTimeStr && Date.now() - parseInt(cachedTimeStr, 10) < 30000) {
+                        return;
+                    }
+                } catch {}
             }
             try {
                 const token = localStorage.getItem('token');

@@ -7,6 +7,7 @@ import { processTicketRefund } from '../services/razorpayService';
 import { handleBookingCancellation } from '../utils/commission';
 import { cancelPassengersOrBooking } from '../utils/cancellation';
 import crypto from 'crypto';
+import { CacheService } from '../utils/cache';
 
 const router = express.Router();
 
@@ -107,6 +108,12 @@ router.get('/dashboard', requireAuth, async (req, res) => {
 router.get('/stats', requireAuth, async (req, res) => {
     try {
         const userId = req.user!.userId;
+        const cacheKey = `customer:stats:${userId}`;
+        const cached = await CacheService.get(cacheKey);
+        if (cached) {
+            return res.json(JSON.parse(cached));
+        }
+
         const [totalBookings, activeTickets, user] = await Promise.all([
             prisma.booking.count({ where: { userId } }),
             prisma.booking.count({ where: { userId, status: 'CONFIRMED' } }),
@@ -116,11 +123,15 @@ router.get('/stats', requireAuth, async (req, res) => {
             })
         ]);
 
-        return res.json({
+        const statsData = {
             totalBookings,
             activeTickets,
             balance: user?.walletBalance || 0
-        });
+        };
+
+        await CacheService.set(cacheKey, JSON.stringify(statsData), 60);
+
+        return res.json(statsData);
     } catch (error: any) {
         console.error('Fetch customer stats error:', error);
         return res.status(500).json({ error: 'Failed to fetch stats' });

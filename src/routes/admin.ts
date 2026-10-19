@@ -15,6 +15,7 @@ import fs from 'fs';
 import usersRouter from './admin/users';
 import refundsRouter from './admin/refunds';
 import bookingsRouter from './admin/bookings';
+import { CacheService } from '../utils/cache';
 
 const router = Router();
 router.use('/', usersRouter);
@@ -454,12 +455,18 @@ router.get('/activity-feed', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']),
 // Consolidate Statistics & Activity into a single High-Velocity Dashboard Payload
 router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
     const { role, userId } = req.user!;
-    const cacheKey = `dashboard-bundle-${role}-${userId}`;
-    const cached = statsCache.get(cacheKey);
-    
-    if (cached && cached.expiry > Date.now()) {
-        console.log(`[DashboardBundle] Cache HIT for ${cacheKey}`);
-        return res.json(cached.data);
+    const cacheKey = `dashboard:bundle:${role}:${userId}`;
+    try {
+        const cachedStr = await CacheService.get(cacheKey);
+        if (cachedStr) {
+            console.log(`[DashboardBundle] Redis Cache HIT for ${cacheKey}`);
+            return res.json(JSON.parse(cachedStr));
+        }
+    } catch (e) {
+        const local = statsCache.get(cacheKey);
+        if (local && local.expiry > Date.now()) {
+            return res.json(local.data);
+        }
     }
 
     try {
@@ -585,7 +592,10 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
             activities
         };
 
-        statsCache.set(cacheKey, { data: bundle, expiry: Date.now() + STATS_CACHE_TTL });
+        try {
+            await CacheService.set(cacheKey, JSON.stringify(bundle), 90);
+        } catch (e) {}
+        statsCache.set(cacheKey, { data: bundle, expiry: Date.now() + 90 * 1000 });
         return res.json(bundle);
     } catch (error: any) {
         console.error('Fetch dashboard data error:', error);

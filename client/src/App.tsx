@@ -308,11 +308,14 @@ function App() {
 
 
   const setToken = (newToken: string | null) => {
-    sessionStorage.removeItem('admin_dashboard_stats');
-    sessionStorage.removeItem('admin_dashboard_activities');
-    sessionStorage.removeItem('admin_dashboard_cache_time');
-
     if (!newToken) {
+      sessionStorage.removeItem('admin_dashboard_stats');
+      sessionStorage.removeItem('admin_dashboard_activities');
+      sessionStorage.removeItem('admin_dashboard_cache_time');
+      localStorage.removeItem('admin_dashboard_stats');
+      localStorage.removeItem('admin_dashboard_activities');
+      localStorage.removeItem('last_known_stats');
+      delete axios.defaults.headers.common['Authorization'];
       handleLogout();
       return;
     }
@@ -320,6 +323,9 @@ function App() {
       const decoded = jwtDecode<any>(newToken);
       const isMimic = !!sessionStorage.getItem('mimic_token');
       
+      // Fast synchronous authorization header injection
+      axios.defaults.headers.common['Authorization'] = `Bearer ${newToken}`;
+
       setAuth({ token: newToken, role: decoded.role, email: decoded.email, name: decoded.name, isSuperAdmin: decoded.isSuperAdmin, specialPermissions: decoded.specialPermissions });
       
       if (!isMimic) {
@@ -330,7 +336,6 @@ function App() {
         // In mimic, only set the session storage keys to keep it tab-isolated
         sessionStorage.setItem('mimic_user', JSON.stringify(decoded));
       }
-
 
     } catch { handleLogout(); }
   };

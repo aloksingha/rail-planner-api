@@ -41,6 +41,7 @@ interface IRCTCTrain {
 }
 
 /* TrainScheduleStop removed as it's unused */
+const clientTrainSearchCache = new Map<string, { data: any[]; provider?: string; timestamp: number }>();
 
 
 
@@ -336,14 +337,6 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
     // Refs for scrolling
     const passengerSectionRef = useRef<HTMLDivElement>(null);
 
-    const scrollToPassengerDetails = () => {
-        setTimeout(() => {
-            if (passengerSectionRef.current) {
-                passengerSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-        }, 120);
-    };
-
     // Recent Stations tracking
     const [recentStations, setRecentStations] = useState<{ code: string, name: string }[]>([]);
 
@@ -561,17 +554,32 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
         }
     
 
+        // Format YYYY-MM-DD to DD-MM-YYYY
+        const [year, month, day] = journeyDate.split('-');
+        const formattedDate = `${day}-${month}-${year}`;
+        const searchCacheKey = `${finalSource}-${finalDest}-${formattedDate}-${trainClass}`;
+
+        // Instant response from client memory if searched recently (<10 mins)
+        const cachedSearch = clientTrainSearchCache.get(searchCacheKey);
+        if (cachedSearch && Date.now() - cachedSearch.timestamp < 10 * 60 * 1000) {
+            console.log(`[TrainSearch] Client-side Cache HIT for ${searchCacheKey}`);
+            if (cachedSearch.provider) setTrainDataSource(cachedSearch.provider);
+            setAvailableTrains(cachedSearch.data);
+            if (cachedSearch.data.length === 0) {
+                setTrainSearchError("No trains found for this route or nearby stations on this date.");
+            } else {
+                setTrainSearchError('');
+            }
+            setIsLoadingTrains(false);
+            return;
+        }
+
         setIsLoadingTrains(true);
         setTrainSearchError('');
         // NOTE: We no longer setAvailableTrains(null) here to avoid UI blank-flickering.
         setTrainNo('');
 
-
         try {
-            // Format YYYY-MM-DD to DD-MM-YYYY
-            const [year, month, day] = journeyDate.split('-');
-            const formattedDate = `${day}-${month}-${year}`;
-
             // Single refined API call (Backend now handles proximity stations)
             const url = `/api/trains/getTrainOn?from=${finalSource}&to=${finalDest}&date=${formattedDate}&class=${trainClass}`;
             const res = await axios.get(url);
@@ -582,6 +590,13 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                 }
                 const results = res.data.data;
                 
+                // Cache result locally for rapid repeat viewing
+                clientTrainSearchCache.set(searchCacheKey, {
+                    data: results,
+                    provider: res.data.provider || res.data.source,
+                    timestamp: Date.now()
+                });
+
                 // Backend has already filtered by proximity and engine-specific rules
                 const filtered = results;
 
@@ -665,9 +680,11 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
         }
 
         const ct = availableTrains?.find(t => t.train_base.train_no === trainNo);
-        const shouldExcludeGst = paymentMethod === 'OFFLINE' || user.specialPermissions?.includes('TEST_WALLET');
-        const unitPrice = getTicketPrice(source, destination, trainClass, selectedTrainName, ct?.train_base.travel_time, ct?.train_base.prices, customPrices, dynamicCorridors, shouldExcludeGst);
-        let baseTotalAmount = passengers.length * unitPrice;
+        const shouldExcludeGst = paymentMethod === 'OFFLINE' || user?.specialPermissions?.includes('TEST_WALLET');
+        const isAc = ['1A', '2A', '3A', '3E', 'CC', 'EC', 'EV', 'FC'].includes(trainClass.toUpperCase());
+        const baseUnitPrice = getTicketPrice(source, destination, trainClass, selectedTrainName, ct?.train_base.travel_time, ct?.train_base.prices, customPrices, dynamicCorridors, true);
+        const finalUnitPrice = (isAc && !shouldExcludeGst) ? Math.round(baseUnitPrice * 1.05) : baseUnitPrice;
+        let baseTotalAmount = passengers.length * finalUnitPrice;
         if (appliedCoupon) baseTotalAmount -= appliedCoupon.discount;
 
         const walletAmountUsed = useWalletBalance ? Math.min(baseTotalAmount, walletBalance) : 0;
@@ -1013,7 +1030,7 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                         </div>
                         <div>
                             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 underline decoration-slate-300 underline-offset-4">From &rarr; To</p>
-                            <p className="text-slate-900 dark:text-white font-black text-lg flex items-center gap-2"><MapPin size={18} className="text-brand-blue" /> {sourceSearch} &rarr; {destinationSearch}</p>
+                            <p className="text-slate-900 dark:text-white font-black text-lg flex items-center gap-2"><MapPin size={18} className="text-brand-blue" /> {currentTrain?.train_base?.from_stn_name || sourceSearch} &rarr; {currentTrain?.train_base?.to_stn_name || destinationSearch}</p>
                         </div>
                         <div>
                             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 underline decoration-slate-300 underline-offset-4">Contact Mobile</p>
@@ -1024,51 +1041,71 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                             <p className="text-slate-900 dark:text-white font-black text-lg flex items-center gap-2 truncate"><Mail size={18} className="text-brand-blue" /> {email}</p>
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 underline decoration-slate-300 underline-offset-4">Total Fare ({trainClass})</p>
-                            <div className="flex flex-col gap-1 w-full max-w-[200px]">
-                                {(() => {
-                                    const currentTrain = availableTrains?.find(t => t.train_base?.train_no === trainNo);
-                                    const shouldExcludeGst = paymentMethod === 'OFFLINE' || user?.specialPermissions?.includes('TEST_WALLET');
-                                    const unitPrice = getTicketPrice(source, destination, trainClass, selectedTrainName, currentTrain?.train_base?.travel_time, currentTrain?.train_base?.prices, customPrices, dynamicCorridors, shouldExcludeGst);
-                                    const totalPassengers = passengers.length;
-                                    const totalAmount = unitPrice * totalPassengers;
-                                    const finalAmount = totalAmount - (appliedCoupon?.discount || 0);
-                                    
-                                    const isAcClass = ['1A', '2A', '3A', '3E', 'CC', 'EC', 'EV', 'FC'].includes(trainClass.toUpperCase());
-                                    const hasGst = isAcClass && !shouldExcludeGst;
-                                    
-                                    const baseFareUnit = hasGst ? Math.round(unitPrice / 1.05) : unitPrice;
-                                    const gstUnit = unitPrice - baseFareUnit;
-                                    
-                                    const baseFareTotal = baseFareUnit * totalPassengers;
-                                    const gstTotal = gstUnit * totalPassengers;
-                                    
-                                    return (
-                                        <>
-                                            <div className="flex justify-between items-center text-xs text-slate-600 dark:text-slate-400 font-medium">
-                                                <span>Base Fare (x{totalPassengers})</span>
-                                                <span>₹{baseFareTotal.toLocaleString()}</span>
-                                            </div>
-                                            {hasGst && (
-                                                <div className="flex justify-between items-center text-xs text-slate-600 dark:text-slate-400 font-medium pb-1 border-b border-slate-200 dark:border-slate-700/50">
-                                                    <span>GST (5%)</span>
-                                                    <span>₹{gstTotal.toLocaleString()}</span>
-                                                </div>
-                                            )}
-                                            {appliedCoupon && (
-                                                <div className="flex justify-between items-center text-xs text-emerald-500 font-medium pb-1 border-b border-slate-200 dark:border-slate-700/50">
-                                                    <span>Discount ({appliedCoupon.code})</span>
-                                                    <span>-₹{appliedCoupon.discount.toLocaleString()}</span>
-                                                </div>
-                                            )}
-                                            <p className="text-brand-blue font-black text-2xl flex items-center gap-1 italic mt-1">
-                                                ₹{finalAmount.toLocaleString()}
-                                            </p>
-                                        </>
-                                    );
-                                })()}
-                            </div>
-                        </div>
+                              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5 underline decoration-slate-300 underline-offset-4">Base Fare ({trainClass})</p>
+                              <p className="text-slate-900 dark:text-white font-black text-2xl flex items-center gap-1 italic">
+                                  ?{(() => {
+                                      const currentTrain = availableTrains?.find(t => t.train_base?.train_no === trainNo);
+                                      const baseUnitPrice = getTicketPrice(source, destination, trainClass, selectedTrainName, currentTrain?.train_base?.travel_time, currentTrain?.train_base?.prices, customPrices, dynamicCorridors, true);
+                                      return (baseUnitPrice * passengers.length).toLocaleString();
+                                  })()}
+                                  <span className="text-[10px] text-slate-500 font-normal uppercase ml-1">({passengers.length} Pax)</span>
+                              </p>
+
+                              {['1A', '2A', '3A', '3E', 'CC', 'EC', 'EV', 'FC'].includes(trainClass.toUpperCase()) && !(paymentMethod === 'OFFLINE' || user?.specialPermissions?.includes('TEST_WALLET')) && (
+                                  <div className="mt-2 space-y-1">
+                                      <div className="flex justify-between items-center max-w-[200px]">
+                                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">CGST (2.5%)</span>
+                                          <span className="text-slate-900 dark:text-white font-black text-sm">
+                                              ?{(() => {
+                                                  const currentTrain = availableTrains?.find(t => t.train_base?.train_no === trainNo);
+                                                  const baseUnitPrice = getTicketPrice(source, destination, trainClass, selectedTrainName, currentTrain?.train_base?.travel_time, currentTrain?.train_base?.prices, customPrices, dynamicCorridors, true);
+                                                  const finalUnitPrice = Math.round(baseUnitPrice * 1.05);
+                                                  return (((finalUnitPrice * passengers.length) - (baseUnitPrice * passengers.length)) / 2).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                                              })()}
+                                          </span>
+                                      </div>
+                                      <div className="flex justify-between items-center max-w-[200px]">
+                                          <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">SGST (2.5%)</span>
+                                          <span className="text-slate-900 dark:text-white font-black text-sm">
+                                              ?{(() => {
+                                                  const currentTrain = availableTrains?.find(t => t.train_base?.train_no === trainNo);
+                                                  const baseUnitPrice = getTicketPrice(source, destination, trainClass, selectedTrainName, currentTrain?.train_base?.travel_time, currentTrain?.train_base?.prices, customPrices, dynamicCorridors, true);
+                                                  const finalUnitPrice = Math.round(baseUnitPrice * 1.05);
+                                                  return (((finalUnitPrice * passengers.length) - (baseUnitPrice * passengers.length)) / 2).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                                              })()}
+                                          </span>
+                                      </div>
+                                  </div>
+                              )}
+                              
+                              <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700/50 max-w-[250px]">
+                                  <div className="flex justify-between items-center">
+                                      <span className="text-[10px] font-black text-brand-blue uppercase tracking-widest">Grand Total</span>
+                                      <span className="text-brand-blue font-black text-xl flex items-center gap-1 italic">
+                                          ?{(() => {
+                                              const currentTrain = availableTrains?.find(t => t.train_base?.train_no === trainNo);
+                                              const shouldExcludeGst = paymentMethod === 'OFFLINE' || user?.specialPermissions?.includes('TEST_WALLET');
+                                              const isAc = ['1A', '2A', '3A', '3E', 'CC', 'EC', 'EV', 'FC'].includes(trainClass.toUpperCase());
+                                              const baseUnitPrice = getTicketPrice(source, destination, trainClass, selectedTrainName, currentTrain?.train_base?.travel_time, currentTrain?.train_base?.prices, customPrices, dynamicCorridors, true);
+                                              const finalUnitPrice = (isAc && !shouldExcludeGst) ? Math.round(baseUnitPrice * 1.05) : baseUnitPrice;
+                                              return ((finalUnitPrice * passengers.length) - (appliedCoupon?.discount || 0)).toLocaleString();
+                                          })()}
+                                          {appliedCoupon && (
+                                              <span className="text-[10px] text-emerald-400 line-through ml-1 opacity-50">
+                                                  ?{(() => {
+                                                      const currentTrain = availableTrains?.find(t => t.train_base?.train_no === trainNo);
+                                                      const shouldExcludeGst = paymentMethod === 'OFFLINE' || user?.specialPermissions?.includes('TEST_WALLET');
+                                                      const isAc = ['1A', '2A', '3A', '3E', 'CC', 'EC', 'EV', 'FC'].includes(trainClass.toUpperCase());
+                                                      const baseUnitPrice = getTicketPrice(source, destination, trainClass, selectedTrainName, currentTrain?.train_base?.travel_time, currentTrain?.train_base?.prices, customPrices, dynamicCorridors, true);
+                                                      const finalUnitPrice = (isAc && !shouldExcludeGst) ? Math.round(baseUnitPrice * 1.05) : baseUnitPrice;
+                                                      return (finalUnitPrice * passengers.length).toLocaleString();
+                                                  })()}
+                                              </span>
+                                          )}
+                                      </span>
+                                  </div>
+                              </div>
+                          </div>
                     </div>
 
                     <div className="bg-slate-900/30 p-5 rounded-2xl border border-slate-700/30">
@@ -1167,8 +1204,11 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                             <>
                                 {paymentMethod === 'OFFLINE' && (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') && (() => {
                                     const currentTrain = availableTrains?.find(t => t.train_base?.train_no === trainNo);
-                                    const unitPrice = selectedUnitPrice || getTicketPrice(source, destination, trainClass, selectedTrainName, currentTrain?.train_base?.travel_time, currentTrain?.train_base?.prices, customPrices, dynamicCorridors, paymentMethod === 'OFFLINE' || user?.specialPermissions?.includes('TEST_WALLET'));
-                                    const baseTotalAmount = (unitPrice * passengers.length) - (appliedCoupon?.discount || 0);
+                                    const shouldExcludeGst = paymentMethod === 'OFFLINE' || user?.specialPermissions?.includes('TEST_WALLET');
+                                      const isAc = ['1A', '2A', '3A', '3E', 'CC', 'EC', 'EV', 'FC'].includes(trainClass.toUpperCase());
+                                      const baseUnitPrice = getTicketPrice(source, destination, trainClass, selectedTrainName, currentTrain?.train_base?.travel_time, currentTrain?.train_base?.prices, customPrices, dynamicCorridors, true);
+                                      const finalUnitPrice = (isAc && !shouldExcludeGst) ? Math.round(baseUnitPrice * 1.05) : baseUnitPrice;
+                                      const baseTotalAmount = (finalUnitPrice * passengers.length) - (appliedCoupon?.discount || 0);
                                     const walletAmountUsed = useWalletBalance ? Math.min(baseTotalAmount, walletBalance) : 0;
                                     const amountToPayViaGateway = Math.max(0, baseTotalAmount - walletAmountUsed);
                                     return (
@@ -1186,8 +1226,11 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                                 })()}
                                 {paymentMethod === 'RAZORPAY' && (() => {
                                     const currentTrain = availableTrains?.find(t => t.train_base?.train_no === trainNo);
-                                    const unitPrice = selectedUnitPrice || getTicketPrice(source, destination, trainClass, selectedTrainName, currentTrain?.train_base?.travel_time, currentTrain?.train_base?.prices, customPrices, dynamicCorridors, paymentMethod === 'OFFLINE' || user?.specialPermissions?.includes('TEST_WALLET'));
-                                    const baseTotalAmount = (unitPrice * passengers.length) - (appliedCoupon?.discount || 0);
+                                    const shouldExcludeGst = paymentMethod === 'OFFLINE' || user?.specialPermissions?.includes('TEST_WALLET');
+                                      const isAc = ['1A', '2A', '3A', '3E', 'CC', 'EC', 'EV', 'FC'].includes(trainClass.toUpperCase());
+                                      const baseUnitPrice = getTicketPrice(source, destination, trainClass, selectedTrainName, currentTrain?.train_base?.travel_time, currentTrain?.train_base?.prices, customPrices, dynamicCorridors, true);
+                                      const finalUnitPrice = (isAc && !shouldExcludeGst) ? Math.round(baseUnitPrice * 1.05) : baseUnitPrice;
+                                      const baseTotalAmount = (finalUnitPrice * passengers.length) - (appliedCoupon?.discount || 0);
                                     const walletAmountUsed = useWalletBalance ? Math.min(baseTotalAmount, walletBalance) : 0;
                                     const amountToPayViaGateway = Math.max(0, baseTotalAmount - walletAmountUsed);
                                     return (
@@ -1426,7 +1469,7 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                             availableTrains.map((train, idx) => {
                                 const t = train.train_base;
                             const isSelected = trainNo === t.train_no;
-                            const price = getTicketPrice(source, destination, trainClass, t.train_name, t.travel_time, t.prices, customPrices, dynamicCorridors, user?.specialPermissions?.includes('TEST_WALLET'));
+                            const price = getTicketPrice(source, destination, trainClass, t.train_name, t.travel_time, t.prices, customPrices, dynamicCorridors, true);
                             
                             return (
                                 <div 
@@ -1435,7 +1478,6 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                                         setTrainNo(t.train_no);
                                         setSelectedTrainName(t.train_name);
                                         setSelectedUnitPrice(price);
-                                        scrollToPassengerDetails();
                                     }}
                                     className={`train-card bg-white border rounded-2xl overflow-hidden group transition-all shadow-sm hover:shadow-md cursor-pointer ${isSelected ? 'border-primary ring-2 ring-primary/20' : 'border-slate-200 hover:border-primary/30'}`}
                                 >
@@ -1501,7 +1543,7 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                                              <div className={`grid ${(() => {
                                                  const classesToShow = getClassesToShow(t.available_classes, t.train_name, t.train_no, t.train_type).filter(clsCode => {
                                                      if (clsCode === '1A') {
-                                                         const p = getTicketPrice(source, destination, clsCode, t.train_name, t.travel_time, t.prices, customPrices, dynamicCorridors, user?.specialPermissions?.includes('TEST_WALLET'));
+                                                         const p = getTicketPrice(source, destination, clsCode, t.train_name, t.travel_time, t.prices, customPrices, dynamicCorridors, true);
                                                          return p > 0;
                                                      }
                                                      return true;
@@ -1511,7 +1553,7 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                                                  {(() => {
                                                      const classesToShow = getClassesToShow(t.available_classes, t.train_name, t.train_no, t.train_type).filter(clsCode => {
                                                          if (clsCode === '1A') {
-                                                             const p = getTicketPrice(source, destination, clsCode, t.train_name, t.travel_time, t.prices, customPrices, dynamicCorridors, user?.specialPermissions?.includes('TEST_WALLET'));
+                                                             const p = getTicketPrice(source, destination, clsCode, t.train_name, t.travel_time, t.prices, customPrices, dynamicCorridors, true);
                                                              return p > 0;
                                                          }
                                                          return true;
@@ -1528,15 +1570,14 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                                                                      setTrainClass(clsCode); 
                                                                      setTrainNo(t.train_no); 
                                                                      setSelectedTrainName(t.train_name);
-                                                                     const p = getTicketPrice(source, destination, clsCode, t.train_name, t.travel_time, t.prices, customPrices, dynamicCorridors, user?.specialPermissions?.includes('TEST_WALLET'));
+                                                                     const p = getTicketPrice(source, destination, clsCode, t.train_name, t.travel_time, t.prices, customPrices, dynamicCorridors, true);
                                                                      if (p > 0) setSelectedUnitPrice(p);
-                                                                      scrollToPassengerDetails();
                                                                  }}
                                                                  className={`p-2 rounded-xl border shadow-sm cursor-pointer transition-all flex flex-col justify-between h-full min-h-[64px] ${isClsSelected ? 'bg-white border-primary/20 ring-1 ring-primary/30' : 'bg-slate-100/50 border-slate-100 opacity-70 hover:opacity-100'}`}
                                                              >
                                                                  <p className="text-[7.5px] text-slate-400 font-bold uppercase mb-0.5">{TRAIN_CLASS_LABELS[clsCode] || clsCode}</p>
                                                                  {(() => { 
-                                                                     const p = getTicketPrice(source, destination, clsCode, t.train_name, t.travel_time, t.prices, customPrices, dynamicCorridors, user?.specialPermissions?.includes('TEST_WALLET')); 
+                                                                     const p = getTicketPrice(source, destination, clsCode, t.train_name, t.travel_time, t.prices, customPrices, dynamicCorridors, true); 
                                                                      return p > 0 ? <p className={`text-sm font-black mt-auto ${isClsSelected ? 'text-primary' : 'text-slate-700'}`}>{'₹'}{p}</p> : <p className="text-[9px] font-bold text-amber-500 mt-auto">On Request</p>; 
                                                                  })()}
                                                              </div>
@@ -1546,7 +1587,7 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                                              </div>
                                              <button 
                                                  type="button"
-                                                 onClick={(e) => { e.stopPropagation(); setTrainNo(t.train_no); setSelectedTrainName(t.train_name); scrollToPassengerDetails(); }}
+                                                 onClick={(e) => { e.stopPropagation(); setTrainNo(t.train_no); setSelectedTrainName(t.train_name); }}
                                                  className={`w-full py-3 rounded-xl text-xs font-bold tracking-widest uppercase transition-all active:scale-95 ${isSelected ? 'bg-primary text-white shadow-lg shadow-sky-100 hover:bg-sky-600' : 'border border-primary/30 text-primary hover:bg-primary/5'}`}
                                              >
                                                  {isSelected ? 'Train Selected' : 'Select Train'}
@@ -1562,7 +1603,7 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
             )}
 
             {/* Passengers Section */}
-            <div className={`relative z-[70] transition-all duration-500 mt-12 px-6 md:px-10 max-w-5xl mx-auto w-full ${!trainNo ? 'opacity-40 pointer-events-none select-none' : ''}`} style={{ scrollMarginTop: '80px' }} ref={passengerSectionRef}>
+            <div className={`relative z-[70] transition-all duration-500 mt-12 px-6 md:px-10 max-w-5xl mx-auto w-full ${!trainNo ? 'opacity-40 pointer-events-none select-none' : ''}`} ref={passengerSectionRef}>
                 {!trainNo && (
                     <div className="mb-4 flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3">
                         <span className="material-symbols-outlined text-amber-500">lock</span>

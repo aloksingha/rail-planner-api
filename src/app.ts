@@ -26,6 +26,7 @@ import promotionsRoutes from './routes/promotions';
 import testDiagnosticsRoutes from './routes/testDiagnostics';
 
 import compression from 'compression';
+import { prisma } from './prisma';
 
 const app = express();
 
@@ -37,8 +38,13 @@ app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 app.use('/downloads', express.static(path.join(__dirname, '..', 'downloads')));
 
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok' });
+app.get('/health', async (req, res) => {
+    try {
+        await prisma.$queryRaw`SELECT 1`;
+        res.json({ status: 'ok', db: 'ready' });
+    } catch {
+        res.json({ status: 'ok', db: 'connecting' });
+    }
 });
 
 app.get('/test-api', async (req, res) => {

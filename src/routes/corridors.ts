@@ -3,6 +3,7 @@ import { requireAuth, requireRole } from '../middleware/auth';
 import { prisma } from '../prisma';
 import { CacheService } from '../utils/cache';
 import { createAuditLog } from '../services/auditService';
+import { invalidatePricingContextCache } from './trains';
 
 const router = Router();
 
@@ -172,6 +173,7 @@ router.post('/', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermiss
         });
 
         await CacheService.del('corridors_all');
+        invalidatePricingContextCache();
 
         await createAuditLog({
             action: 'CREATE_CORRIDOR',
@@ -209,6 +211,7 @@ router.put('/:id', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermi
         });
 
         await CacheService.del('corridors_all');
+        invalidatePricingContextCache();
 
         await createAuditLog({
             action: 'UPDATE_CORRIDOR',
@@ -235,6 +238,7 @@ router.delete('/:id', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPe
         });
 
         await CacheService.del('corridors_all');
+        invalidatePricingContextCache();
 
         await createAuditLog({
             action: 'DELETE_CORRIDOR',

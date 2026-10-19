@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import WalletCard from '../components/WalletCard';
 import { InteractiveCard } from '../components/InteractiveCard';
-import brandLogo from '../assets/brand_logo.png';
+import brandLogo from '../assets/brand_logo.webp';
 
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import PromoBannerSlider from '../components/PromoBannerSlider';
@@ -96,19 +96,17 @@ const itemVariants = {
 export default function DashboardHomeAndroid({ role }: { role?: string }) {
   const [stats, setStats] = useState<any>(() => {
     try {
-      const saved = sessionStorage.getItem('admin_dashboard_stats');
+      const saved = sessionStorage.getItem('admin_dashboard_stats') || localStorage.getItem('admin_dashboard_stats');
       return saved ? JSON.parse(saved) : null;
     } catch {
-      sessionStorage.removeItem('admin_dashboard_stats');
       return null;
     }
   });
   const [activities, setActivities] = useState<any[]>(() => {
     try {
-      const saved = sessionStorage.getItem('admin_dashboard_activities');
+      const saved = sessionStorage.getItem('admin_dashboard_activities') || localStorage.getItem('admin_dashboard_activities');
       return saved ? JSON.parse(saved) : [];
     } catch {
-      sessionStorage.removeItem('admin_dashboard_activities');
       return [];
     }
   });
@@ -126,24 +124,20 @@ export default function DashboardHomeAndroid({ role }: { role?: string }) {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const cachedStatsStr = sessionStorage.getItem('admin_dashboard_stats');
-        const cachedActivitiesStr = sessionStorage.getItem('admin_dashboard_activities');
+        const cachedStatsStr = sessionStorage.getItem('admin_dashboard_stats') || localStorage.getItem('admin_dashboard_stats');
+        const cachedActivitiesStr = sessionStorage.getItem('admin_dashboard_activities') || localStorage.getItem('admin_dashboard_activities');
         const cachedTimeStr = sessionStorage.getItem('admin_dashboard_cache_time');
-        if (cachedStatsStr && cachedActivitiesStr && cachedTimeStr) {
-          const cachedTime = parseInt(cachedTimeStr, 10);
-          if (Date.now() - cachedTime < 30000) {
-            setStats(JSON.parse(cachedStatsStr));
-            setActivities(JSON.parse(cachedActivitiesStr));
-            setLoading(false);
-            setLoadingActivities(false);
+        if (cachedStatsStr && cachedActivitiesStr) {
+          setStats(JSON.parse(cachedStatsStr));
+          setActivities(JSON.parse(cachedActivitiesStr));
+          setLoading(false);
+          setLoadingActivities(false);
+          if (cachedTimeStr && Date.now() - parseInt(cachedTimeStr, 10) < 30000) {
             return;
           }
         }
       } catch (cacheError) {
         console.warn('Failed to parse cached dashboard stats', cacheError);
-        sessionStorage.removeItem('admin_dashboard_stats');
-        sessionStorage.removeItem('admin_dashboard_activities');
-        sessionStorage.removeItem('admin_dashboard_cache_time');
       }
 
       try {
@@ -154,6 +148,8 @@ export default function DashboardHomeAndroid({ role }: { role?: string }) {
         sessionStorage.setItem('admin_dashboard_stats', JSON.stringify(statsData));
         sessionStorage.setItem('admin_dashboard_activities', JSON.stringify(data.activities));
         sessionStorage.setItem('admin_dashboard_cache_time', Date.now().toString());
+        localStorage.setItem('admin_dashboard_stats', JSON.stringify(statsData));
+        localStorage.setItem('admin_dashboard_activities', JSON.stringify(data.activities));
       } catch (error) {
         console.error('Failed to fetch dashboard bundle', error);
         if (!stats) {

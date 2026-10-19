@@ -27,6 +27,54 @@ import { CacheService } from '../utils/cache';
 import { PricingContext, getTicketPrice } from '../utils/pricing';
 import { prisma } from '../prisma';
 
+// In-memory memoization for pricing context (5 minutes TTL) to prevent 6 DB queries per search
+let cachedPricingContext: PricingContext | null = null;
+let pricingContextExpiry = 0;
+
+export async function getCachedPricingContext(): Promise<PricingContext> {
+    const now = Date.now();
+    if (cachedPricingContext && now < pricingContextExpiry) {
+        return cachedPricingContext;
+    }
+
+    const [corridors, customPrices, rules, specialCharges, mappings, nearbys] = await Promise.all([
+        prisma.corridorPricing.findMany(),
+        prisma.priceRequest.findMany({ where: { status: 'UPDATED' } }),
+        prisma.pricingRule.findMany(),
+        prisma.specialCharge.findMany(),
+        prisma.stationMapping.findMany(),
+        prisma.stationNearby.findMany()
+    ]);
+
+    cachedPricingContext = {
+        corridors,
+        customPrices,
+        rules,
+        specialCharges,
+        mappings,
+        nearbys
+    };
+    pricingContextExpiry = now + 5 * 60 * 1000;
+    return cachedPricingContext;
+}
+
+export function invalidatePricingContextCache() {
+    cachedPricingContext = null;
+    pricingContextExpiry = 0;
+}
+
+// Circuit breaker for RailRadar API (skips redundant 429 delays when monthly quota is exhausted)
+let railRadarThrottledUntil = 0;
+
+export const isRailRadarAvailable = () => {
+    return Date.now() > railRadarThrottledUntil;
+};
+
+export const tripRailRadarCircuitBreaker = (minutes = 30) => {
+    railRadarThrottledUntil = Date.now() + minutes * 60 * 1000;
+    console.warn(`[RailRadar] Circuit breaker tripped! Skipping RailRadar for ${minutes} minutes due to quota exhaustion.`);
+};
+
 router.get('/getTrainOn', async (req: Request, res: Response) => {
     try {
         const { from, to, date, class: reqClass } = req.query;
@@ -35,7 +83,6 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             return res.status(400).json({ success: false, data: "Missing query parameters" });
         }
 
-
         const cacheKey = `train_search:${from}-${to}-${date}-${reqClass || 'ALL'}-${SEARCH_VERSION}`;
         const cached = await CacheService.get(cacheKey);
         if (cached) {
@@ -43,24 +90,9 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
             return res.json({ success: true, data: JSON.parse(cached) });
         }
 
-        // Fetch all context data in parallel
-        const [corridors, customPrices, rules, specialCharges, mappings, nearbys] = await Promise.all([
-            prisma.corridorPricing.findMany(),
-            prisma.priceRequest.findMany({ where: { status: 'UPDATED' } }),
-            prisma.pricingRule.findMany(),
-            prisma.specialCharge.findMany(),
-            prisma.stationMapping.findMany(),
-            prisma.stationNearby.findMany()
-        ]);
-
-        const pricingContext: PricingContext = {
-            corridors,
-            customPrices,
-            rules,
-            specialCharges,
-            mappings,
-            nearbys
-        };
+        // Fast cached pricing context (0 DB queries on warm cache)
+        const pricingContext = await getCachedPricingContext();
+        const nearbys = pricingContext.nearbys;
 
         // ❌ Block "Intra-City" searches to prevent confusion
         const nearbyCodes = nearbys
@@ -86,62 +118,71 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
 
         // Helper to fetch from API with dual-engine failover
         const fetchRemote = async (src: string, dst: string, isFallback = false) => {
-            const maxRetries = 3;
             let lastError: any = null;
 
-            for (let i = 0; i < maxRetries; i++) {
-                const key = getRailRadarKey();
-                try {
-                    console.log(`[SearchEngine] Trying RailRadar with key ${key.substring(0, 8)}...`);
-                    // Convert DD-MM-YYYY to YYYY-MM-DD for the new RailRadar API
-                    const apiDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
-                    const response = await axios.get(`${RAILRADAR_BASE_URL}/trains/between/${src}/${dst}?date=${apiDate}`, {
-                        headers: { 
-                            'Authorization': `Bearer ${key}`,
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                            'Accept': 'application/json, text/plain, */*',
-                            'Accept-Language': 'en-US,en;q=0.9'
-                        },
-                        timeout: 8000
-                    });
-                    const externalTrains = response.data?.trains || response.data?.data?.trains || [];
-                    console.log(`[SearchEngine] RailRadar ${isFallback ? 'Proximity' : 'Direct'} HIT for ${src}->${dst} (${externalTrains.length} trains)`);
-                    return externalTrains.map((t: any) => {
-                        const durHrs = Math.floor(t.duration / 60);
-                        const durRem = t.duration % 60;
-                        const srcMins = parseInt(t.from.departure.split(':')[0]) * 60 + parseInt(t.from.departure.split(':')[1]) + (t.from.day - 1) * 1440;
-                        const dstMins = parseInt(t.to.arrival.split(':')[0]) * 60 + parseInt(t.to.arrival.split(':')[1]) + (t.to.day - 1) * 1440;
-                        const dayMap: {[key: string]: string} = {
-                            'mon': 'Mon', 'tue': 'Tue', 'wed': 'Wed', 'thu': 'Thu', 'fri': 'Fri', 'sat': 'Sat', 'sun': 'Sun'
-                        };
-
-                        return {
-                            train_name: t.train.name,
-                            train_no: t.train.number,
-                            from_stn_name: t.from.code,
-                            to_stn_name: t.to.code,
-                            from_time: t.from.departure,
-                            to_time: t.to.arrival,
-                            travel_time: `${durHrs.toString().padStart(2, '0')}:${durRem.toString().padStart(2, '0')}`,
-                            from_std_mins: srcMins,
-                            to_sta_mins: dstMins,
-                            running_days: {
-                                days: (Array.isArray(t.train.runDays) ? t.train.runDays : (typeof t.train.runDays === 'string' ? t.train.runDays.split(',') : [])).map((d: string) => dayMap[d.trim().toLowerCase()] || d),
-                                allDays: (t.train.runDays || []).length === 7 || (typeof t.train.runDays === 'string' && t.train.runDays.toLowerCase() === 'daily')
+            if (isRailRadarAvailable()) {
+                const maxRetries = 3;
+                for (let i = 0; i < maxRetries; i++) {
+                    const key = getRailRadarKey();
+                    try {
+                        console.log(`[SearchEngine] Trying RailRadar with key ${key.substring(0, 8)}...`);
+                        // Convert DD-MM-YYYY to YYYY-MM-DD for the new RailRadar API
+                        const apiDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+                        const response = await axios.get(`${RAILRADAR_BASE_URL}/trains/between/${src}/${dst}?date=${apiDate}`, {
+                            headers: { 
+                                'Authorization': `Bearer ${key}`,
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                                'Accept': 'application/json, text/plain, */*',
+                                'Accept-Language': 'en-US,en;q=0.9'
                             },
-                            isAlternative: isFallback
-                        };
-                    });
-                } catch (e: any) {
-                    lastError = e;
-                    const status = e.response?.status;
-                    if (status === 401 || status === 403 || status === 429) {
-                        console.log(`[RailRadar] Key ${key.substring(0, 8)} throttled/invalid (Status: ${status}). Body: ${typeof e.response?.data === 'string' ? e.response?.data.substring(0, 200) : 'JSON'}. Trying next...`);
-                        continue; 
+                            timeout: 5000
+                        });
+                        const externalTrains = response.data?.trains || response.data?.data?.trains || [];
+                        console.log(`[SearchEngine] RailRadar ${isFallback ? 'Proximity' : 'Direct'} HIT for ${src}->${dst} (${externalTrains.length} trains)`);
+                        return externalTrains.map((t: any) => {
+                            const durHrs = Math.floor(t.duration / 60);
+                            const durRem = t.duration % 60;
+                            const srcMins = parseInt(t.from.departure.split(':')[0]) * 60 + parseInt(t.from.departure.split(':')[1]) + (t.from.day - 1) * 1440;
+                            const dstMins = parseInt(t.to.arrival.split(':')[0]) * 60 + parseInt(t.to.arrival.split(':')[1]) + (t.to.day - 1) * 1440;
+                            const dayMap: {[key: string]: string} = {
+                                'mon': 'Mon', 'tue': 'Tue', 'wed': 'Wed', 'thu': 'Thu', 'fri': 'Fri', 'sat': 'Sat', 'sun': 'Sun'
+                            };
+
+                            return {
+                                train_name: t.train.name,
+                                train_no: t.train.number,
+                                from_stn_name: t.from.code,
+                                to_stn_name: t.to.code,
+                                from_time: t.from.departure,
+                                to_time: t.to.arrival,
+                                travel_time: `${durHrs.toString().padStart(2, '0')}:${durRem.toString().padStart(2, '0')}`,
+                                from_std_mins: srcMins,
+                                to_sta_mins: dstMins,
+                                running_days: {
+                                    days: (Array.isArray(t.train.runDays) ? t.train.runDays : (typeof t.train.runDays === 'string' ? t.train.runDays.split(',') : [])).map((d: string) => dayMap[d.trim().toLowerCase()] || d),
+                                    allDays: (t.train.runDays || []).length === 7 || (typeof t.train.runDays === 'string' && t.train.runDays.toLowerCase() === 'daily')
+                                },
+                                isAlternative: isFallback
+                            };
+                        });
+                    } catch (e: any) {
+                        lastError = e;
+                        const status = e.response?.status;
+                        if (status === 429) {
+                            console.warn(`[RailRadar] Key ${key.substring(0, 8)} quota exceeded (429). Tripping circuit breaker for 30 minutes.`);
+                            tripRailRadarCircuitBreaker(30);
+                            break; // Skip further keys immediately when monthly quota is exhausted
+                        }
+                        if (status === 401 || status === 403) {
+                            console.log(`[RailRadar] Key ${key.substring(0, 8)} throttled/invalid (Status: ${status}). Body: ${typeof e.response?.data === 'string' ? e.response?.data.substring(0, 200) : 'JSON'}. Trying next...`);
+                            continue; 
+                        }
+                        console.warn(`[RailRadar] Failed with status ${status}, breaking loop to try RailKit. Error: ${e.message}`);
+                        break;
                     }
-                    console.warn(`[RailRadar] Failed with status ${status}, breaking loop to try RailKit. Error: ${e.message}`);
-                    break;
                 }
+            } else {
+                console.log(`[SearchEngine] RailRadar circuit open (throttled). Skipping directly to Engine 2 (RailKit)...`);
             }
             
 
@@ -442,7 +483,7 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                 originDate.setDate(originDate.getDate() - (depDay - 1));
                 const originDayFullName = dayFullNames[originDate.getDay()];
 
-                const rd = t.runningDays;
+                const rd = t.runningDays || t.running_days;
                 if (!rd || rd.allDays === true) return true;
                 
                 const daysList = rd.days || [];

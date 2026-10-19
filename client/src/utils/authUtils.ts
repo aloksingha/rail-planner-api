@@ -46,6 +46,9 @@ export const updateRememberMe = (rememberMe: boolean, email: string, roleType: s
  * High Intensity Asset Warming & Component Pre-fetching (Deferred)
  */
 export const warmUpAssets = (roleType: string) => {
+    // Low-priority background ping to wake Render server and DB connection pool while user is on login screen
+    axios.get('/health').catch(() => {});
+
     const doWarmup = () => {
         if (roleType === 'CUSTOMER') {
             import('../pages/CustomerDashboard');
