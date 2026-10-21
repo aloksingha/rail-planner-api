@@ -39,7 +39,9 @@ export default function WalletDashboardAndroid() {
     const [ifsc, setIfsc] = useState<string>('');
     const [processing, setProcessing] = useState(false);
     const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
-    const [topupGateway, setTopupGateway] = useState<'YOUPI' | 'RAZORPAY'>('YOUPI');
+    const userRole = JSON.parse(localStorage.getItem('user') || '{}')?.role;
+    const isSuperAdmin = userRole === 'SUPER_ADMIN';
+    const [topupGateway, setTopupGateway] = useState<'YOUPI' | 'RAZORPAY'>('RAZORPAY');
     const [youpiOrder, setYoupiOrder] = useState<any>(null);
     const [showYoupiModal, setShowYoupiModal] = useState<boolean>(false);
 

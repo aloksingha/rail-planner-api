@@ -41,8 +41,9 @@ const PaymentGatewaySelectorAndroid: React.FC<PaymentGatewaySelectorAndroidProps
             .catch(() => {});
     }, [setPaymentMethod]);
 
-    const showYouPi = config.paymentGatewayMode !== 'RAZORPAY' && config.youpiEnabled !== false;
-    const showRazorpay = config.paymentGatewayMode !== 'YOUPI';
+    const isSuperAdmin = userRole === 'SUPER_ADMIN';
+    const showYouPi = isSuperAdmin && config.paymentGatewayMode !== 'RAZORPAY' && config.youpiEnabled !== false;
+    const showRazorpay = config.paymentGatewayMode !== 'YOUPI' || !isSuperAdmin;
 
     return (
         <div className="bg-slate-50 dark:bg-slate-900/40 p-5 rounded-2xl border border-slate-200 dark:border-white/5">

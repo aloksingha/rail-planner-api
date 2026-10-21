@@ -51,7 +51,9 @@ export default function WalletDashboard() {
     const [ifsc, setIfsc] = useState<string>('');
     const [processing, setProcessing] = useState(false);
     const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
-    const [topupGateway, setTopupGateway] = useState<'YOUPI' | 'RAZORPAY'>('YOUPI');
+    const userRole = JSON.parse(localStorage.getItem('user') || '{}')?.role;
+    const isSuperAdmin = userRole === 'SUPER_ADMIN';
+    const [topupGateway, setTopupGateway] = useState<'YOUPI' | 'RAZORPAY'>('RAZORPAY');
     const [youpiOrder, setYoupiOrder] = useState<any>(null);
     const [showYoupiModal, setShowYoupiModal] = useState<boolean>(false);
     const [isForbidden, setIsForbidden] = useState(false);
@@ -432,7 +434,8 @@ export default function WalletDashboard() {
                             />
                         </div>
 
-                        {/* Gateway Selection in Topup Modal */}
+                        {/* Gateway Selection in Topup Modal - Super Admin Testing Phase */}
+                        {isSuperAdmin && (
                         <div className="mb-6">
                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Payment Method</p>
                             <div className="grid grid-cols-2 gap-3">
@@ -469,6 +472,7 @@ export default function WalletDashboard() {
                                 </button>
                             </div>
                         </div>
+                        )}
 
                         <div className="flex gap-3">
                             <button 
