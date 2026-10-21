@@ -14,6 +14,7 @@ router.get('/payment-config', async (req, res) => {
             success: true,
             paymentGatewayMode: (settings as any)?.paymentGatewayMode || 'BOTH',
             youpiEnabled: (settings as any)?.youpiEnabled ?? (process.env.YOUPI_ENABLED === 'true'),
+            youpiTestingOnly: true,
             youpiVpa: (settings as any)?.youpiVpa || process.env.YOUPI_VPA || 'ticketspro@upi',
             youpiMerchantName: (settings as any)?.youpiMerchantName || process.env.YOUPI_MERCHANT_NAME || 'TicketsPro',
             razorpayKeyId: process.env.RAZORPAY_KEY_ID || ''

@@ -43,6 +43,10 @@ async function getYouPiConfig() {
  * Creates a YouPI UPI order session for ticket booking or wallet top-up.
  */
 router.post('/create-order', auth_1.requireAuth, async (req, res) => {
+    // In Testing Phase: Restrict YouPI checkout to SUPER_ADMIN only
+    if (req.user?.role !== 'SUPER_ADMIN') {
+        return res.status(403).json({ error: 'Direct UPI gateway is currently in testing mode and only available to Super Admin.' });
+    }
     const { amount, type = 'BOOKING', // 'BOOKING' | 'WALLET_TOPUP'
     // Booking metadata:
     trainNo, trainName, fromStation, toStation, journeyDate, passengers, mobile, email, trainClass, passengerList, walletAmountUsed = 0 } = req.body;
@@ -276,11 +280,14 @@ async function fulfillYouPiOrder(orderData, utr) {
 router.post('/webhook', async (req, res) => {
     try {
         const config = await getYouPiConfig();
-        const signature = (req.headers['x-youpi-signature'] || req.headers['x-signature']);
+        const rawSignature = (req.headers['x-gateway-signature'] ||
+            req.headers['x-youpi-signature'] ||
+            req.headers['x-signature']);
+        const signature = rawSignature ? rawSignature.replace(/^sha256=/, '') : '';
         // If webhook secret is configured, verify HMAC signature
         if (config.webhookSecret) {
             if (!signature) {
-                console.warn('[YouPI Webhook] Rejected: Missing X-YouPi-Signature header.');
+                console.warn('[YouPI Webhook] Rejected: Missing signature header.');
                 return res.status(401).json({ error: 'Missing webhook signature' });
             }
             const expected = crypto_1.default
@@ -292,9 +299,11 @@ router.post('/webhook', async (req, res) => {
                 return res.status(401).json({ error: 'Invalid webhook signature' });
             }
         }
-        const { event, orderId, status, utr, vpa, amountPaise } = req.body;
+        const { event, orderId: bOrderId, order_id, status, utr: bUtr, rrn, vpa, amountPaise } = req.body;
+        const orderId = bOrderId || order_id;
+        const utr = bUtr || rrn;
         console.log(`[YouPI Webhook] Received event: ${event || status} for Order: ${orderId}, UTR: ${utr}`);
-        const isSuccess = event === 'payment.success' || status === 'SUCCESS' || status === 'PAID';
+        const isSuccess = event === 'SUCCESS' || event === 'payment.success' || event === 'payment.captured' || status === 'SUCCESS' || status === 'PAID';
         if (!isSuccess) {
             return res.json({ status: 'ignored', message: `Event ${event || status} not actionable.` });
         }

@@ -13,6 +13,7 @@ router.get('/payment-config', async (req, res) => {
             success: true,
             paymentGatewayMode: settings?.paymentGatewayMode || 'BOTH',
             youpiEnabled: settings?.youpiEnabled ?? (process.env.YOUPI_ENABLED === 'true'),
+            youpiTestingOnly: true,
             youpiVpa: settings?.youpiVpa || process.env.YOUPI_VPA || 'ticketspro@upi',
             youpiMerchantName: settings?.youpiMerchantName || process.env.YOUPI_MERCHANT_NAME || 'TicketsPro',
             razorpayKeyId: process.env.RAZORPAY_KEY_ID || ''
