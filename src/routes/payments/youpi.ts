@@ -377,7 +377,7 @@ router.post('/webhook', async (req: Request, res: Response) => {
  * Polls payment status for an active order session.
  */
 router.get('/status/:orderId', async (req: Request, res: Response) => {
-    const { orderId } = req.params;
+    const orderId = String(req.params.orderId);
 
     try {
         // 1. Check in-memory / Redis cache

@@ -11,6 +11,7 @@ const refundQueue_1 = require("../queue/refundQueue");
 const razorpayService_1 = require("../services/razorpayService");
 const cancellation_1 = require("../utils/cancellation");
 const crypto_1 = __importDefault(require("crypto"));
+const cache_1 = require("../utils/cache");
 const router = express_1.default.Router();
 router.get('/dashboard', auth_1.requireAuth, async (req, res) => {
     try {
@@ -100,6 +101,11 @@ router.get('/dashboard', auth_1.requireAuth, async (req, res) => {
 router.get('/stats', auth_1.requireAuth, async (req, res) => {
     try {
         const userId = req.user.userId;
+        const cacheKey = `customer:stats:${userId}`;
+        const cached = await cache_1.CacheService.get(cacheKey);
+        if (cached) {
+            return res.json(JSON.parse(cached));
+        }
         const [totalBookings, activeTickets, user] = await Promise.all([
             prisma_1.prisma.booking.count({ where: { userId } }),
             prisma_1.prisma.booking.count({ where: { userId, status: 'CONFIRMED' } }),
@@ -108,11 +114,13 @@ router.get('/stats', auth_1.requireAuth, async (req, res) => {
                 select: { walletBalance: true }
             })
         ]);
-        return res.json({
+        const statsData = {
             totalBookings,
             activeTickets,
             balance: user?.walletBalance || 0
-        });
+        };
+        await cache_1.CacheService.set(cacheKey, JSON.stringify(statsData), 60);
+        return res.json(statsData);
     }
     catch (error) {
         console.error('Fetch customer stats error:', error);

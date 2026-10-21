@@ -137,7 +137,7 @@ const formatTime = (isoDateTime) => {
 };
 /**
  * GET /api/flights/search
- * Secondary: sky-scrapper via RapidAPI (held temporarily)
+ * Provider: sky-scrapper via RapidAPI
  * Fallback: Route-accurate estimated prices
  */
 router.get('/search', async (req, res) => {

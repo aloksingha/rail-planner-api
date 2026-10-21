@@ -5,6 +5,23 @@ const auth_1 = require("../middleware/auth");
 const prisma_1 = require("../prisma");
 const auditService_1 = require("../services/auditService");
 const router = (0, express_1.Router)();
+// Get public payment configuration (Public for checkout forms)
+router.get('/payment-config', async (req, res) => {
+    try {
+        const settings = await prisma_1.prisma.globalSettings.findUnique({ where: { id: 'singleton' } });
+        return res.json({
+            success: true,
+            paymentGatewayMode: settings?.paymentGatewayMode || 'BOTH',
+            youpiEnabled: settings?.youpiEnabled ?? (process.env.YOUPI_ENABLED === 'true'),
+            youpiVpa: settings?.youpiVpa || process.env.YOUPI_VPA || 'ticketspro@upi',
+            youpiMerchantName: settings?.youpiMerchantName || process.env.YOUPI_MERCHANT_NAME || 'TicketsPro',
+            razorpayKeyId: process.env.RAZORPAY_KEY_ID || ''
+        });
+    }
+    catch (err) {
+        return res.status(500).json({ success: false, error: 'Failed to load payment config' });
+    }
+});
 // Get settings (Public)
 router.get('/', async (req, res) => {
     try {
@@ -37,7 +54,7 @@ router.get('/', async (req, res) => {
 // Update settings (Super Admin Only)
 router.patch('/', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_ADMIN']), async (req, res) => {
     try {
-        const { email, phone, address, whatsapp, facebook, telegram, gstNo } = req.body;
+        const { email, phone, address, whatsapp, facebook, telegram, gstNo, youpiEnabled, youpiBaseUrl, youpiMerchantKey, youpiWebhookSecret, youpiVpa, youpiMerchantName, paymentGatewayMode } = req.body;
         const settings = await prisma_1.prisma.globalSettings.upsert({
             where: { id: 'singleton' },
             update: {
@@ -47,7 +64,14 @@ router.patch('/', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_ADMIN']), 
                 whatsapp,
                 facebook,
                 telegram,
-                gstNo
+                gstNo,
+                ...(youpiEnabled !== undefined && { youpiEnabled: Boolean(youpiEnabled) }),
+                ...(youpiBaseUrl !== undefined && { youpiBaseUrl }),
+                ...(youpiMerchantKey !== undefined && { youpiMerchantKey }),
+                ...(youpiWebhookSecret !== undefined && { youpiWebhookSecret }),
+                ...(youpiVpa !== undefined && { youpiVpa }),
+                ...(youpiMerchantName !== undefined && { youpiMerchantName }),
+                ...(paymentGatewayMode !== undefined && { paymentGatewayMode })
             },
             create: {
                 id: 'singleton',
@@ -108,6 +132,7 @@ router.post('/ota-update', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_A
         return res.status(500).json({ error: error.message || 'Internal Server Error' });
     }
 });
+// Auto-Sync OTA Version from Firebase Manifest (Public / Automated Deployment)
 const syncOtaFromManifest = async (req, res) => {
     try {
         const REMOTE_HOST = 'https://rail-planner-pro.web.app';

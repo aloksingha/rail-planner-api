@@ -13,6 +13,7 @@ const path_1 = __importDefault(require("path"));
 const users_1 = __importDefault(require("./admin/users"));
 const refunds_1 = __importDefault(require("./admin/refunds"));
 const bookings_1 = __importDefault(require("./admin/bookings"));
+const cache_1 = require("../utils/cache");
 const router = (0, express_1.Router)();
 router.use('/', users_1.default);
 router.use('/', refunds_1.default);
@@ -414,11 +415,19 @@ router.get('/activity-feed', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER
 // Consolidate Statistics & Activity into a single High-Velocity Dashboard Payload
 router.get('/dashboard-data', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
     const { role, userId } = req.user;
-    const cacheKey = `dashboard-bundle-${role}-${userId}`;
-    const cached = statsCache.get(cacheKey);
-    if (cached && cached.expiry > Date.now()) {
-        console.log(`[DashboardBundle] Cache HIT for ${cacheKey}`);
-        return res.json(cached.data);
+    const cacheKey = `dashboard:bundle:${role}:${userId}`;
+    try {
+        const cachedStr = await cache_1.CacheService.get(cacheKey);
+        if (cachedStr) {
+            console.log(`[DashboardBundle] Redis Cache HIT for ${cacheKey}`);
+            return res.json(JSON.parse(cachedStr));
+        }
+    }
+    catch (e) {
+        const local = statsCache.get(cacheKey);
+        if (local && local.expiry > Date.now()) {
+            return res.json(local.data);
+        }
     }
     try {
         const todayStart = new Date(new Date().setHours(0, 0, 0, 0));
@@ -525,7 +534,11 @@ router.get('/dashboard-data', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPE
             },
             activities
         };
-        statsCache.set(cacheKey, { data: bundle, expiry: Date.now() + STATS_CACHE_TTL });
+        try {
+            await cache_1.CacheService.set(cacheKey, JSON.stringify(bundle), 90);
+        }
+        catch (e) { }
+        statsCache.set(cacheKey, { data: bundle, expiry: Date.now() + 90 * 1000 });
         return res.json(bundle);
     }
     catch (error) {

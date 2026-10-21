@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.notifyPaymentReceived = exports.notifyBookingCancelled = exports.notifyBookingConfirmed = exports.sendWhatsApp = exports.sendSMS = void 0;
+exports.notifyPaymentReceived = exports.notifyBookingCancelled = exports.notifyBookingConfirmed = exports.sendSMS = void 0;
 const axios_1 = __importDefault(require("axios"));
 // ─── Resend SMTP Configuration ──────────────────────────────────────────────────
 const isEmailConfigured = !!process.env.RESEND_API_KEY;

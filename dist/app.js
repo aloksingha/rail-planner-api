@@ -26,7 +26,9 @@ const adminBookings_1 = __importDefault(require("./routes/adminBookings"));
 const wallet_1 = __importDefault(require("./routes/wallet"));
 const notifications_1 = __importDefault(require("./routes/notifications"));
 const promotions_1 = __importDefault(require("./routes/promotions"));
+const testDiagnostics_1 = __importDefault(require("./routes/testDiagnostics"));
 const compression_1 = __importDefault(require("compression"));
+const prisma_1 = require("./prisma");
 const app = (0, express_1.default)();
 app.use((0, compression_1.default)());
 app.use((0, cors_1.default)());
@@ -34,8 +36,14 @@ app.use(express_1.default.json());
 // Serve uploaded PDF tickets statically
 app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '..', 'uploads')));
 app.use('/downloads', express_1.default.static(path_1.default.join(__dirname, '..', 'downloads')));
-app.get('/health', (req, res) => {
-    res.json({ status: 'ok' });
+app.get('/health', async (req, res) => {
+    try {
+        await prisma_1.prisma.$queryRaw `SELECT 1`;
+        res.json({ status: 'ok', db: 'ready' });
+    }
+    catch {
+        res.json({ status: 'ok', db: 'connecting' });
+    }
 });
 app.get('/test-api', async (req, res) => {
     try {
@@ -84,6 +92,7 @@ app.use('/api/admin/bookings/manual', adminBookings_1.default);
 app.use('/api/wallet', wallet_1.default);
 app.use('/api/notifications', notifications_1.default);
 app.use('/api/promotions', promotions_1.default);
+app.use('/api/test', testDiagnostics_1.default);
 // --- PRODUCTION STATIC SERVING ---
 if (process.env.NODE_ENV === 'production') {
     // Correctly resolve client/dist from the compiled dist/ directory

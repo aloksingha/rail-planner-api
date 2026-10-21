@@ -5,6 +5,7 @@ const auth_1 = require("../middleware/auth");
 const prisma_1 = require("../prisma");
 const cache_1 = require("../utils/cache");
 const auditService_1 = require("../services/auditService");
+const trains_1 = require("./trains");
 const router = (0, express_1.Router)();
 // Seed default corridors (for production setup)
 router.post('/seed', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_ADMIN'], { allowSpecialPermission: 'CORRIDOR_PRICING' }), async (req, res) => {
@@ -167,6 +168,7 @@ router.post('/', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_ADMIN'], { 
             }
         });
         await cache_1.CacheService.del('corridors_all');
+        (0, trains_1.invalidatePricingContextCache)();
         await (0, auditService_1.createAuditLog)({
             action: 'CREATE_CORRIDOR',
             performedByUserId: req.user.userId,
@@ -205,6 +207,7 @@ router.put('/:id', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_ADMIN'], 
             data: updateData
         });
         await cache_1.CacheService.del('corridors_all');
+        (0, trains_1.invalidatePricingContextCache)();
         await (0, auditService_1.createAuditLog)({
             action: 'UPDATE_CORRIDOR',
             performedByUserId: req.user.userId,
@@ -226,6 +229,7 @@ router.delete('/:id', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_ADMIN'
             where: { id: id }
         });
         await cache_1.CacheService.del('corridors_all');
+        (0, trains_1.invalidatePricingContextCache)();
         await (0, auditService_1.createAuditLog)({
             action: 'DELETE_CORRIDOR',
             performedByUserId: req.user.userId,
