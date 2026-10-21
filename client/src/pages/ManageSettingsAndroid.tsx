@@ -1,16 +1,23 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Settings, Mail, Phone, MapPin, Save, Loader2, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
+import { Settings, QrCode, Mail, Phone, MapPin, Save, Loader2, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
 
 export default function ManageSettings() {
     const [form, setForm] = useState({
-        email: '',
+                email: '',
         phone: '',
         address: '',
         whatsapp: '',
         facebook: '',
         telegram: '',
-        gstNo: ''
+        gstNo: '',
+        youpiEnabled: true,
+        paymentGatewayMode: 'BOTH',
+        youpiVpa: 'ticketspro@upi',
+        youpiMerchantName: 'TicketsPro',
+        youpiBaseUrl: '',
+        youpiMerchantKey: '',
+        youpiWebhookSecret: ''
     });
     const [otaVersion, setOtaVersion] = useState('');
     const [loading, setLoading] = useState(true);
@@ -24,13 +31,20 @@ export default function ManageSettings() {
                 const { data } = await axios.get('/api/settings');
                 if (data.success && data.settings) {
                     setForm({
-                        email: data.settings.email || '',
+                                                email: data.settings.email || '',
                         phone: data.settings.phone || '',
                         address: data.settings.address || '',
                         whatsapp: data.settings.whatsapp || '',
                         facebook: data.settings.facebook || '',
                         telegram: data.settings.telegram || '',
-                        gstNo: data.settings.gstNo || ''
+                        gstNo: data.settings.gstNo || '',
+                        youpiEnabled: data.settings.youpiEnabled ?? true,
+                        paymentGatewayMode: data.settings.paymentGatewayMode || 'BOTH',
+                        youpiVpa: data.settings.youpiVpa || 'ticketspro@upi',
+                        youpiMerchantName: data.settings.youpiMerchantName || 'TicketsPro',
+                        youpiBaseUrl: data.settings.youpiBaseUrl || '',
+                        youpiMerchantKey: data.settings.youpiMerchantKey || '',
+                        youpiWebhookSecret: data.settings.youpiWebhookSecret || ''
                     });
                     setOtaVersion(data.settings.otaVersion || 'None');
                 }
@@ -140,6 +154,148 @@ export default function ManageSettings() {
                     >
                         {otaLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
                         {otaLoading ? 'Pushing...' : '🚀 Push OTA'}
+                    </button>
+                </div>
+            </div>
+
+                        {/* YOUPI DIRECT UPI PAYMENT GATEWAY (0% PLATFORM FEE) */}
+            <div className="bg-gradient-to-br from-slate-900/90 to-slate-950 border border-emerald-500/30 p-6 rounded-3xl space-y-6 shadow-xl shadow-emerald-500/5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/5">
+                    <div className="flex items-center gap-3">
+                        <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl">
+                            <QrCode className="text-emerald-400" size={24} />
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <h2 className="text-lg font-black text-white uppercase tracking-wider">YouPI Gateway (0% Fee)</h2>
+                                <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Direct UPI</span>
+                            </div>
+                            <p className="text-xs text-slate-400 mt-0.5">Self-hosted 0% fee UPI gateway with instant SMS & notification observer.</p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={form.youpiEnabled}
+                                onChange={(e) => setForm((prev: any) => ({ ...prev, youpiEnabled: e.target.checked }))}
+                                className="sr-only peer"
+                            />
+                            <div className="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
+                            <span className="ml-3 text-xs font-black uppercase text-slate-300">{form.youpiEnabled ? 'Enabled' : 'Disabled'}</span>
+                        </label>
+                    </div>
+                </div>
+
+                {/* Gateway Mode Selection */}
+                <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Active Gateway Mode</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {[
+                            { id: 'BOTH', title: 'Both (YouPI & Razorpay)', desc: 'Users choose Direct UPI or Cards/NetBanking' },
+                            { id: 'YOUPI', title: 'YouPI Only (0% Fee)', desc: 'Exclusively Direct UPI (GPay, PhonePe, Paytm, QR)' },
+                            { id: 'RAZORPAY', title: 'Razorpay Only', desc: 'Standard Razorpay aggregator checkout' }
+                        ].map(m => (
+                            <button
+                                key={m.id}
+                                type="button"
+                                onClick={() => setForm((prev: any) => ({ ...prev, paymentGatewayMode: m.id as any }))}
+                                className={`p-4 rounded-2xl border text-left transition-all cursor-pointer ${
+                                    form.paymentGatewayMode === m.id
+                                        ? 'bg-emerald-500/10 border-emerald-500 text-white shadow-lg shadow-emerald-500/10'
+                                        : 'bg-slate-950 border-white/5 text-slate-400 hover:border-slate-700'
+                                }`}
+                            >
+                                <p className="font-bold text-xs uppercase tracking-wider">{m.title}</p>
+                                <p className="text-[10px] text-slate-500 mt-1">{m.desc}</p>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Gateway Credentials */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Receiver UPI VPA / ID</label>
+                        <input
+                            type="text"
+                            name="youpiVpa"
+                            value={form.youpiVpa}
+                            onChange={handleChange}
+                            placeholder="e.g. ticketspro@okaxis or merchant@upi"
+                            className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500/50 outline-none text-sm font-mono"
+                        />
+                        <p className="text-[10px] text-slate-500">The UPI ID receiving payments from customer QR & UPI apps.</p>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Merchant Display Name</label>
+                        <input
+                            type="text"
+                            name="youpiMerchantName"
+                            value={form.youpiMerchantName}
+                            onChange={handleChange}
+                            placeholder="e.g. TicketsPro"
+                            className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500/50 outline-none text-sm"
+                        />
+                        <p className="text-[10px] text-slate-500">The display name customers see in GPay/PhonePe when scanning.</p>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">YouPI Server URL (Optional)</label>
+                        <input
+                            type="text"
+                            name="youpiBaseUrl"
+                            value={form.youpiBaseUrl}
+                            onChange={handleChange}
+                            placeholder="e.g. https://youpi.yourdomain.com"
+                            className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500/50 outline-none text-sm font-mono"
+                        />
+                        <p className="text-[10px] text-slate-500">Leave empty to use direct NPCI UPI URI with observer webhook.</p>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">YouPI Server API Key (Optional)</label>
+                        <input
+                            type="text"
+                            name="youpiMerchantKey"
+                            value={form.youpiMerchantKey}
+                            onChange={handleChange}
+                            placeholder="Your YouPI instance server API token"
+                            className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500/50 outline-none text-sm font-mono"
+                        />
+                    </div>
+
+                    <div className="md:col-span-2 space-y-2">
+                        <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Webhook Secret (HMAC-SHA256)</label>
+                        <input
+                            type="text"
+                            name="youpiWebhookSecret"
+                            value={form.youpiWebhookSecret}
+                            onChange={handleChange}
+                            placeholder="Secret key for signing webhook payloads"
+                            className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-white focus:ring-2 focus:ring-emerald-500/50 outline-none text-sm font-mono"
+                        />
+                        <p className="text-[10px] text-slate-500">Provide this same secret in your YouPI gateway / APK settings to sign webhook notifications.</p>
+                    </div>
+                </div>
+
+                {/* Webhook Endpoint Info Box */}
+                <div className="bg-slate-950/80 border border-emerald-500/20 p-4 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest text-emerald-400 mb-0.5">TicketsPro Webhook URL (Paste into YouPI)</p>
+                        <p className="text-xs font-mono text-slate-300 break-all select-all">https://rail-planner-api.onrender.com/api/payments/youpi/webhook</p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => {
+                            navigator.clipboard.writeText('https://rail-planner-api.onrender.com/api/payments/youpi/webhook');
+                            alert('Webhook URL copied to clipboard!');
+                        }}
+                        className="self-start sm:self-auto px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap"
+                    >
+                        Copy URL
                     </button>
                 </div>
             </div>

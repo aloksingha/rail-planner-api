@@ -12,7 +12,9 @@ import {
     Info,
     CreditCard,
     ShieldCheck
+    QrCode
 } from 'lucide-react';
+import YouPiPaymentModal from '../components/booking/YouPiPaymentModal';
 
 interface WalletTransaction {
     id: string;
@@ -49,6 +51,9 @@ export default function WalletDashboard() {
     const [ifsc, setIfsc] = useState<string>('');
     const [processing, setProcessing] = useState(false);
     const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+    const [topupGateway, setTopupGateway] = useState<'YOUPI' | 'RAZORPAY'>('YOUPI');
+    const [youpiOrder, setYoupiOrder] = useState<any>(null);
+    const [showYoupiModal, setShowYoupiModal] = useState<boolean>(false);
     const [isForbidden, setIsForbidden] = useState(false);
 
     const fetchData = useCallback(async () => {
@@ -95,6 +100,29 @@ export default function WalletDashboard() {
         const amount = parseFloat(topupAmount);
         if (isNaN(amount) || amount < 100) {
             return showMsg('Minimum top-up amount is ₹100', 'error');
+        }
+
+        if (topupGateway === 'YOUPI') {
+            setProcessing(true);
+            try {
+                const { data: order } = await axios.post('/api/payments/youpi/create-order', {
+                    amount,
+                    type: 'WALLET_TOPUP'
+                });
+
+                if (order.success) {
+                    setYoupiOrder(order);
+                    setShowTopupModal(false);
+                    setShowYoupiModal(true);
+                } else {
+                    showMsg(order.error || 'Failed to initiate Direct UPI top-up', 'error');
+                }
+            } catch (err: any) {
+                showMsg(err.response?.data?.error || 'Failed to initiate Direct UPI top-up', 'error');
+            } finally {
+                setProcessing(false);
+            }
+            return;
         }
 
         setProcessing(true);
@@ -404,6 +432,44 @@ export default function WalletDashboard() {
                             />
                         </div>
 
+                        {/* Gateway Selection in Topup Modal */}
+                        <div className="mb-6">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Payment Method</p>
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setTopupGateway('YOUPI')}
+                                    className={`p-3 rounded-2xl border flex flex-col items-center gap-1 transition-all text-center ${
+                                        topupGateway === 'YOUPI'
+                                            ? 'bg-emerald-500/15 border-emerald-500 text-emerald-400 shadow-lg shadow-emerald-500/10'
+                                            : 'bg-slate-950 border-white/5 text-slate-400 hover:border-slate-700'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-1.5">
+                                        <QrCode size={14} />
+                                        <span className="font-black text-xs">Direct UPI</span>
+                                        <span className="text-[8px] bg-emerald-500/20 text-emerald-400 px-1 py-0.5 rounded font-black uppercase">0% Fee</span>
+                                    </div>
+                                    <span className="text-[9px] text-slate-400">GPay • PhonePe • Paytm</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setTopupGateway('RAZORPAY')}
+                                    className={`p-3 rounded-2xl border flex flex-col items-center gap-1 transition-all text-center ${
+                                        topupGateway === 'RAZORPAY'
+                                            ? 'bg-brand-blue/15 border-brand-blue text-brand-blue shadow-lg shadow-brand-blue/10'
+                                            : 'bg-slate-950 border-white/5 text-slate-400 hover:border-slate-700'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-1.5">
+                                        <CreditCard size={14} />
+                                        <span className="font-black text-xs">Razorpay</span>
+                                    </div>
+                                    <span className="text-[9px] text-slate-400">Cards • NetBanking</span>
+                                </button>
+                            </div>
+                        </div>
+
                         <div className="flex gap-3">
                             <button 
                                 onClick={() => { setShowTopupModal(false); setMessage(null); }}
@@ -537,6 +603,8 @@ export default function WalletDashboard() {
                     </div>
                 </div>
             )}
-        </div>
+        
+            <YouPiPaymentModal isOpen={showYoupiModal} onClose={() => setShowYoupiModal(false)} onSuccess={() => { setShowYoupiModal(false); showMsg(`₹${topupAmount} added to wallet successfully!`, "success"); setTopupAmount(""); fetchData(); }} orderData={youpiOrder} />
+</div>
     );
 }

@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { motion } from 'framer-motion';
+import { QrCode, CreditCard } from 'lucide-react';
+import YouPiPaymentModal from '../components/booking/YouPiPaymentModal';
 
 interface WalletTransaction {
     id: string;
@@ -37,6 +39,9 @@ export default function WalletDashboardAndroid() {
     const [ifsc, setIfsc] = useState<string>('');
     const [processing, setProcessing] = useState(false);
     const [message, setMessage] = useState<{ text: string, type: 'success' | 'error' } | null>(null);
+    const [topupGateway, setTopupGateway] = useState<'YOUPI' | 'RAZORPAY'>('YOUPI');
+    const [youpiOrder, setYoupiOrder] = useState<any>(null);
+    const [showYoupiModal, setShowYoupiModal] = useState<boolean>(false);
 
     const fetchData = useCallback(async () => {
         try {
@@ -350,6 +355,43 @@ export default function WalletDashboardAndroid() {
                             />
                         </div>
 
+                                                {/* Gateway Selector in Topup Modal */}
+                        <div className="mb-6 relative z-10">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-sky-400/60 mb-2">Payment Method</p>
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setTopupGateway('YOUPI')}
+                                    className={`p-3 rounded-xl border flex flex-col items-center gap-1 transition-all text-center ${
+                                        topupGateway === 'YOUPI'
+                                            ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]'
+                                            : 'bg-slate-100 dark:bg-slate-950/50 border-slate-200 dark:border-white/5 text-slate-400 hover:border-slate-600'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-1">
+                                        <QrCode size={13} />
+                                        <span className="font-black text-[11px]">Direct UPI</span>
+                                    </div>
+                                    <span className="text-[8px] bg-emerald-500/20 text-emerald-400 px-1 py-0.5 rounded font-black uppercase">0% Fee</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setTopupGateway('RAZORPAY')}
+                                    className={`p-3 rounded-xl border flex flex-col items-center gap-1 transition-all text-center ${
+                                        topupGateway === 'RAZORPAY'
+                                            ? 'bg-brand-blue/20 border-brand-blue text-brand-blue shadow-[0_0_15px_rgba(14,165,233,0.2)]'
+                                            : 'bg-slate-100 dark:bg-slate-950/50 border-slate-200 dark:border-white/5 text-slate-400 hover:border-slate-600'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-1">
+                                        <CreditCard size={13} />
+                                        <span className="font-black text-[11px]">Razorpay</span>
+                                    </div>
+                                    <span className="text-[8px] text-slate-500 uppercase font-bold">Cards / UPI</span>
+                                </button>
+                            </div>
+                        </div>
+
                         <div className="flex gap-3 z-10 relative">
                             <button 
                                 onClick={() => { setShowTopupModal(false); setMessage(null); }}
@@ -466,6 +508,8 @@ export default function WalletDashboardAndroid() {
                     </div>
                 </div>
             )}
+        
+            <YouPiPaymentModal isOpen={showYoupiModal} onClose={() => setShowYoupiModal(false)} onSuccess={() => { setShowYoupiModal(false); showMsg(`₹${topupAmount} added to wallet successfully!`, "success"); setTopupAmount(""); fetchData(); }} orderData={youpiOrder} />
         </div>
     );
 }

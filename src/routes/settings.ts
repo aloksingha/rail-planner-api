@@ -5,6 +5,24 @@ import { createAuditLog } from '../services/auditService';
 
 const router = Router();
 
+
+// Get public payment configuration (Public for checkout forms)
+router.get('/payment-config', async (req, res) => {
+    try {
+        const settings = await prisma.globalSettings.findUnique({ where: { id: 'singleton' } });
+        return res.json({
+            success: true,
+            paymentGatewayMode: (settings as any)?.paymentGatewayMode || 'BOTH',
+            youpiEnabled: (settings as any)?.youpiEnabled ?? (process.env.YOUPI_ENABLED === 'true'),
+            youpiVpa: (settings as any)?.youpiVpa || process.env.YOUPI_VPA || 'ticketspro@upi',
+            youpiMerchantName: (settings as any)?.youpiMerchantName || process.env.YOUPI_MERCHANT_NAME || 'TicketsPro',
+            razorpayKeyId: process.env.RAZORPAY_KEY_ID || ''
+        });
+    } catch (err: any) {
+        return res.status(500).json({ success: false, error: 'Failed to load payment config' });
+    }
+});
+
 // Get settings (Public)
 router.get('/', async (req, res) => {
     try {
@@ -39,7 +57,11 @@ router.get('/', async (req, res) => {
 // Update settings (Super Admin Only)
 router.patch('/', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) => {
     try {
-        const { email, phone, address, whatsapp, facebook, telegram, gstNo } = req.body;
+        const { 
+            email, phone, address, whatsapp, facebook, telegram, gstNo,
+            youpiEnabled, youpiBaseUrl, youpiMerchantKey, youpiWebhookSecret,
+            youpiVpa, youpiMerchantName, paymentGatewayMode
+        } = req.body;
 
         const settings = await prisma.globalSettings.upsert({
             where: { id: 'singleton' },
@@ -50,7 +72,14 @@ router.patch('/', requireAuth, requireRole(['SUPER_ADMIN']), async (req, res) =>
                 whatsapp,
                 facebook,
                 telegram,
-                gstNo
+                gstNo,
+                ...(youpiEnabled !== undefined && { youpiEnabled: Boolean(youpiEnabled) }),
+                ...(youpiBaseUrl !== undefined && { youpiBaseUrl }),
+                ...(youpiMerchantKey !== undefined && { youpiMerchantKey }),
+                ...(youpiWebhookSecret !== undefined && { youpiWebhookSecret }),
+                ...(youpiVpa !== undefined && { youpiVpa }),
+                ...(youpiMerchantName !== undefined && { youpiMerchantName }),
+                ...(paymentGatewayMode !== undefined && { paymentGatewayMode })
             },
             create: {
                 id: 'singleton',

@@ -190,6 +190,13 @@ model GlobalSettings {
   updatedAt  DateTime @updatedAt
   otaVersion String   @default("")
   gstNo      String   @default("")
+  youpiEnabled       Boolean  @default(false)
+  youpiBaseUrl       String   @default("")
+  youpiMerchantKey   String   @default("")
+  youpiWebhookSecret String   @default("")
+  youpiVpa           String   @default("")
+  youpiMerchantName  String   @default("TicketsPro")
+  paymentGatewayMode String   @default("RAZORPAY")
 }
 
 model FailedBooking {

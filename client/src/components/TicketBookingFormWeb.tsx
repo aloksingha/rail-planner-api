@@ -10,7 +10,8 @@ import axios from 'axios';
 import { isValidIndianMobile } from '../utils/validation';
 import { POPULAR_STATIONS, STATION_OVERRIDES, FRONTEND_NEARBY_STATIONS } from '../utils/constants';
 import { TRAIN_CLASS_LABELS, getClassesToShow, getTicketPrice, resolveToCode } from '../utils/trainUtils';
-import PaymentGatewaySelector from './booking/PaymentGatewaySelector';
+import PaymentGatewaySelector, { PaymentMethod } from './booking/PaymentGatewaySelector';
+import YouPiPaymentModal from './booking/YouPiPaymentModal';
 
 interface Passenger {
     name: string;
@@ -224,7 +225,9 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
     const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
     const [couponError, setCouponError] = useState('');
     const isSelecting = useRef(false);
-    const [paymentMethod, setPaymentMethod] = useState<'RAZORPAY' | 'OFFLINE' | 'SKYDO'>('RAZORPAY');
+    const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('YOUPI');
+    const [youpiOrder, setYoupiOrder] = useState<any>(null);
+    const [showYoupiModal, setShowYoupiModal] = useState<boolean>(false);
     const [walletBalance, setWalletBalance] = useState<number>(0);
     const [useWalletBalance, setUseWalletBalance] = useState<boolean>(false);
     const [isFetchingWallet, setIsFetchingWallet] = useState(false);
@@ -793,6 +796,42 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
             return;
         }
 
+        // --- YOUPI (DIRECT UPI 0% FEE) BRANCH ---
+        if (effectivePaymentMethod === 'YOUPI') {
+            try {
+                const { data } = await axios.post('/api/payments/youpi/create-order', {
+                    amount: amountToPayViaGateway,
+                    walletAmountUsed,
+                    type: 'BOOKING',
+                    trainNo,
+                    trainName: selectedTrainName,
+                    fromStation: source,
+                    toStation: destination,
+                    journeyDate,
+                    passengers: passengers.length,
+                    mobile,
+                    email,
+                    trainClass,
+                    passengerList: passengers
+                }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                if (data.success) {
+                    setYoupiOrder(data);
+                    setShowYoupiModal(true);
+                } else {
+                    setPaymentError(data.error || 'Failed to initiate Direct UPI payment.');
+                }
+            } catch (err: any) {
+                console.error('YouPI payment error:', err);
+                setPaymentError(err.response?.data?.error || 'Failed to generate Direct UPI QR. Please retry or choose another payment method.');
+            } finally {
+                setIsProcessing(false);
+            }
+            return;
+        }
+
         // --- RAZORPAY BRANCH ---
         try {
             const res = await loadRazorpay();
@@ -1221,6 +1260,21 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                                     return (
                                         <button onClick={handleFinalConfirm} disabled={isProcessing} className="bg-sky-500 text-white font-semibold py-2.5 px-8 rounded-xl shadow-lg shadow-sky-500/25 hover:bg-sky-600 transition-all disabled:opacity-50 flex items-center gap-2">
                                             {isProcessing ? <Loader2 size={18} className="animate-spin" /> : `Confirm International Transfer`}
+                                        </button>
+                                    );
+                                })()}
+                                {paymentMethod === 'YOUPI' && (() => {
+                                    const currentTrain = availableTrains?.find(t => t.train_base?.train_no === trainNo);
+                                    const shouldExcludeGst = paymentMethod === 'OFFLINE' || user?.specialPermissions?.includes('TEST_WALLET');
+                                    const isAc = ['1A', '2A', '3A', '3E', 'CC', 'EC', 'EV', 'FC'].includes(trainClass.toUpperCase());
+                                    const baseUnitPrice = getTicketPrice(source, destination, trainClass, selectedTrainName, currentTrain?.train_base?.travel_time, currentTrain?.train_base?.prices, customPrices, dynamicCorridors, true);
+                                    const finalUnitPrice = (isAc && !shouldExcludeGst) ? Math.round(baseUnitPrice * 1.05) : baseUnitPrice;
+                                    const baseTotalAmount = (finalUnitPrice * passengers.length) - (appliedCoupon?.discount || 0);
+                                    const walletAmountUsed = useWalletBalance ? Math.min(baseTotalAmount, walletBalance) : 0;
+                                    const amountToPayViaGateway = Math.max(0, baseTotalAmount - walletAmountUsed);
+                                    return (
+                                        <button onClick={handleFinalConfirm} disabled={isProcessing} className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 px-8 rounded-xl shadow-lg shadow-emerald-600/25 transition-all disabled:opacity-50 flex items-center gap-2 cursor-pointer">
+                                            {isProcessing ? <Loader2 size={18} className="animate-spin" /> : (amountToPayViaGateway === 0 ? `Pay ₹${baseTotalAmount.toLocaleString()} via Wallet` : `Pay ₹${amountToPayViaGateway.toLocaleString()} via Direct UPI (0% Fee)`)}
                                         </button>
                                     );
                                 })()}
@@ -1900,6 +1954,16 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                     </div>
                 </div>
             )}
+            {/* YouPI Direct UPI Modal */}
+            <YouPiPaymentModal
+                isOpen={showYoupiModal}
+                onClose={() => setShowYoupiModal(false)}
+                onSuccess={() => {
+                    setShowYoupiModal(false);
+                    setBookingState('success');
+                }}
+                orderData={youpiOrder}
+            />
         </>
     );
 }

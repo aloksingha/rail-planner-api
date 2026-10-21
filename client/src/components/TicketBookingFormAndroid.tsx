@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import { POPULAR_STATIONS, STATION_OVERRIDES, FRONTEND_NEARBY_STATIONS } from '../utils/constants';
 import { TRAIN_CLASS_LABELS, getClassesToShow, getTicketPrice, resolveToCode } from '../utils/trainUtils';
 import PaymentGatewaySelectorAndroid from './booking/PaymentGatewaySelectorAndroid';
+import YouPiPaymentModal from './booking/YouPiPaymentModal';
 import { Train, MapPin, Phone, Users, Calendar, CheckCircle2, ArrowLeft, Ticket, Loader2, AlertCircle, ArrowLeftRight, Tags, Mail, IndianRupee, AlertTriangle, Wallet } from 'lucide-react';
 import brandLogo from '../assets/brand_logo.webp';
 import axios from 'axios';
@@ -221,7 +222,9 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
     const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
     const [couponError, setCouponError] = useState('');
     const isSelecting = useRef(false);
-    const [paymentMethod, setPaymentMethod] = useState<'RAZORPAY' | 'OFFLINE' | 'SKYDO'>('RAZORPAY');
+    const [paymentMethod, setPaymentMethod] = useState<'RAZORPAY' | 'OFFLINE' | 'SKYDO' | 'YOUPI'>('YOUPI');
+    const [youpiOrder, setYoupiOrder] = useState<any>(null);
+    const [showYoupiModal, setShowYoupiModal] = useState<boolean>(false);
     const [walletBalance, setWalletBalance] = useState<number>(0);
     const [useWalletBalance, setUseWalletBalance] = useState<boolean>(false);
     const [isFetchingWallet, setIsFetchingWallet] = useState(false);
@@ -698,6 +701,20 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
 
         const effectivePaymentMethod = (amountToPayViaGateway === 0) ? 'WALLET' : paymentMethod;
 
+        const bookingData = {
+            walletAmountUsed,
+            trainNo,
+            trainName: selectedTrainName,
+            fromStation: source,
+            toStation: destination,
+            journeyDate,
+            passengers: passengers.length,
+            mobile,
+            email,
+            trainClass,
+            passengerList: passengers
+        };
+
         // --- WALLET PAYMENT BRANCH ---
         if (effectivePaymentMethod === 'WALLET') {
             try {
@@ -773,6 +790,32 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
             } catch (err: any) {
                 console.error('Skydo payment error:', err);
                 setPaymentError(err.response?.data?.error || 'Failed to submit Skydo payment.');
+            } finally {
+                setIsProcessing(false);
+            }
+            return;
+        }
+
+        // --- YOUPI (DIRECT UPI 0% FEE) BRANCH ---
+        if (effectivePaymentMethod === 'YOUPI') {
+            try {
+                const { data } = await axios.post('/api/payments/youpi/create-order', {
+                    ...bookingData,
+                    amount: amountToPayViaGateway,
+                    type: 'BOOKING'
+                }, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                if (data.success) {
+                    setYoupiOrder(data);
+                    setShowYoupiModal(true);
+                } else {
+                    setPaymentError(data.error || 'Failed to initiate Direct UPI payment.');
+                }
+            } catch (err: any) {
+                console.error('YouPI payment error:', err);
+                setPaymentError(err.response?.data?.error || 'Failed to generate Direct UPI QR. Please retry or choose another payment method.');
             } finally {
                 setIsProcessing(false);
             }
@@ -1084,6 +1127,13 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                                         return (
                                         <button onClick={handleFinalConfirm} disabled={isProcessing} className="bg-rose-500 text-white font-black tracking-widest uppercase text-sm py-4 rounded-xl shadow-xl active:scale-95 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
                                             {isProcessing ? <><span className="material-symbols-outlined animate-spin text-sm">refresh</span> Processing...</> : (amountToPayViaGateway === 0 ? `Pay ₹${baseTotalAmount.toLocaleString()} via Wallet` : `Record ₹${amountToPayViaGateway.toLocaleString()} Offline Payment`)}
+                                        </button>
+                                    );
+                                })()}
+                                {paymentMethod === 'YOUPI' && (() => {
+                                    return (
+                                        <button onClick={handleFinalConfirm} disabled={isProcessing} className="bg-emerald-600 hover:bg-emerald-500 text-white font-black tracking-widest uppercase text-sm py-4 rounded-xl shadow-xl active:scale-95 disabled:opacity-50 transition-all flex items-center justify-center gap-2 cursor-pointer">
+                                            {isProcessing ? <><span className="material-symbols-outlined animate-spin text-sm">refresh</span> Processing...</> : (amountToPayViaGateway === 0 ? `Pay ₹${baseTotalAmount.toLocaleString()} via Wallet` : `Pay ₹${amountToPayViaGateway.toLocaleString()} via Direct UPI (0% Fee)`)}
                                         </button>
                                     );
                                 })()}
@@ -1665,6 +1715,16 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                     </div>
                 </div>
             )}
+            {/* YouPI Direct UPI Modal */}
+            <YouPiPaymentModal
+                isOpen={showYoupiModal}
+                onClose={() => setShowYoupiModal(false)}
+                onSuccess={() => {
+                    setShowYoupiModal(false);
+                    setBookingState('success');
+                }}
+                orderData={youpiOrder}
+            />
         </>
     );
 }
