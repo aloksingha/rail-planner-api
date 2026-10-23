@@ -89,26 +89,20 @@ const CACHE_VERSION = '3.1.0-STABLE-V38';
 
 // REFINED CACHE INVALIDATION
 if (typeof window !== 'undefined') {
-  const lastPurge = localStorage.getItem('last_purge_v2');
-  if (lastPurge !== CACHE_VERSION) {
-    console.log('[SYNC] Stabilizing UI and clearing stale memory...');
-    
-    // Wipe Cache Storage only (preserves login)
-    if ('caches' in window) {
-      caches.keys().then(names => {
-        names.forEach(name => caches.delete(name));
-      });
+  const isNative = Boolean((window as any).Capacitor?.isNative) ||
+                   window.location.protocol === 'capacitor:' ||
+                   window.location.hostname === 'localhost';
+  if (!isNative) {
+    const lastPurge = localStorage.getItem('last_purge_v2');
+    if (lastPurge !== CACHE_VERSION) {
+      console.log('[SYNC] Stabilizing UI and clearing stale memory...');
+      if ('caches' in window) {
+        caches.keys().then(names => {
+          names.filter(n => n !== 'tickets-pro-hot-cache').forEach(name => caches.delete(name));
+        });
+      }
+      localStorage.setItem('last_purge_v2', CACHE_VERSION);
     }
-
-    // Unregister legacy service workers
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(regs => {
-        regs.forEach(reg => reg.unregister());
-      });
-    }
-
-    localStorage.setItem('last_purge_v2', CACHE_VERSION);
-    setTimeout(() => window.location.reload(), 500); // Small delay to let caches clear
   }
 }
 

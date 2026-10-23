@@ -130,8 +130,8 @@ export default function YouPiPaymentModal({ isOpen, onClose, onSuccess, orderDat
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=8&data=${encodeURIComponent(orderData.upiUrl)}`;
 
     return (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200">
-            <div className="relative w-full max-w-lg bg-slate-900 border border-slate-700/80 rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} style={{ position: 'fixed', inset: 0, zIndex: 999999, backgroundColor: 'rgba(2, 6, 23, 0.92)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }} className="fixed inset-0 flex items-center justify-center p-4">
+            <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', zIndex: 1000000, backgroundColor: '#0f172a', border: '1px solid rgba(51, 65, 85, 0.9)', borderRadius: '1.5rem', boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.9)', overflow: 'hidden', color: '#ffffff' }} className="relative w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden">
                 
                 {/* Header */}
                 <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-slate-900/50">
@@ -148,8 +148,9 @@ export default function YouPiPaymentModal({ isOpen, onClose, onSuccess, orderDat
                         </div>
                     </div>
                     <button 
-                        onClick={onClose} 
-                        className="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-slate-800 transition-colors"
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClose(); }} 
+                        style={{ width: '2.25rem', height: '2.25rem', borderRadius: '9999px', backgroundColor: '#1e293b', border: 'none', color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
                     >
                         <X size={18} />
                     </button>

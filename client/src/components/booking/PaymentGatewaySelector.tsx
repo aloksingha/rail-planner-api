@@ -31,7 +31,7 @@ const PaymentGatewaySelector: React.FC<PaymentGatewaySelectorProps> = memo(({
             .then(res => {
                 if (res.data) {
                     setConfig(res.data);
-                    if (res.data.paymentGatewayMode === 'YOUPI') {
+                    if (res.data.paymentGatewayMode === 'YOUPI' && userRole === 'SUPER_ADMIN') {
                         setPaymentMethod('YOUPI');
                     }
                 }

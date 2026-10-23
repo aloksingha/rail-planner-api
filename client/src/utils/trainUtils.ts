@@ -304,8 +304,7 @@ export const getTicketPrice = (
     let finalPrice = Math.round(baseResult + sfCharge + trainVariation);
 
     // 7. APPLY GST (5% on AC classes)
-    const acClasses = ['1A', '2A', '3A', '3E', 'CC', 'EC', 'EV', 'FC'];
-    if (acClasses.includes(cls) && !excludeGst) {
+    if (!excludeGst) {
         finalPrice = Math.round(finalPrice * 1.05);
     }
 
