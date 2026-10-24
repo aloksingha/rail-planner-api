@@ -20,6 +20,7 @@
         // Register Service Worker for Hot updates
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker.register('/sw.js').then(function(reg) {
+            reg.update();
             console.log('[SW] Registration successful with scope:', reg.scope);
           }).catch(function(err) {
             console.warn('[SW] Registration failed:', err);

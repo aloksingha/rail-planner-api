@@ -1,20 +1,6 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <!-- Force Clear Legacy Service Worker Cache -->
-    <script>
-      if ('caches' in window) {
-        caches.keys().then(function(keys) {
-          keys.forEach(function(k) {
-            if (k === 'tickets-pro-hot-cache') {
-              console.log('[App] Purged stale cache:', k);
-              caches.delete(k);
-            }
-          });
-        });
-      }
-    </script>
-
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/assets/brand_logo-YKjiARpF.webp" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
@@ -163,7 +149,7 @@
         }
       }, 7500);
     </script>
-    <script type="module" crossorigin src="/assets/index-D1i000XD.js?v=1792765529631"></script>
+    <script type="module" crossorigin src="/assets/index-D1i000XD.js"></script>
     <link rel="modulepreload" crossorigin href="/assets/icons-DciIWsPJ.js">
     <link rel="modulepreload" crossorigin href="/assets/charts-CJ7LU1mB.js">
     <link rel="modulepreload" crossorigin href="/assets/pdf-export-BO05fxPA.js">
