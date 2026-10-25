@@ -25,7 +25,9 @@ export const isACOnlyTrain = (trainName: string | undefined): boolean => {
         upperName.includes(' AC ') || 
         upperName.includes('AC ') || 
         upperName.endsWith(' AC') ||
-        upperName.includes('RAJDHANI')
+        upperName.includes('AC EXP') ||
+        upperName.includes('RAJDHANI') ||
+        upperName.includes('TEJAS')
     );
 };
 
@@ -47,8 +49,8 @@ export const getClassesToShow = (
     const avCls = availableClasses || [];
     
     if (avCls.length > 0) {
-        // Return filtered list of supported classes that are available
-        result = ['SL', '3A', '2A', 'CC', '3E', '1A', '2S', 'FC', 'EV', 'EC'].filter(c => avCls.includes(c));
+        // Return filtered list of supported classes that are available in preferred display order
+        result = ['SL', '3E', '3A', '2A', 'CC', '1A', '2S', 'FC', 'EV', 'EC'].filter(c => avCls.includes(c));
     } else if (tType === 'PASSENGER' || tType.includes('PASS') || tName.includes('PASSENGER') || tName.includes('PASSGR')) {
         result = ['2S'];
     } else if (tName.includes('HUMSAFAR')) {
@@ -75,7 +77,12 @@ export const getClassesToShow = (
         result = ['2S', 'CC'];
     } else {
         const isAC = isACOnlyTrain(trainName);
-        result = isAC ? ['3A', '2A', '1A'] : ['SL', '3A', '2A'];
+        result = isAC ? ['3A', '2A', '1A'] : ['SL', '3E', '3A', '2A'];
+    }
+
+    // Safety: If train is AC only, NEVER allow SL or 2S
+    if (isACOnlyTrain(trainName)) {
+        result = result.filter(c => c !== 'SL' && c !== '2S');
     }
 
     // BLOCK BOOKING OPTION FOR 2S AND 1A CLASS
