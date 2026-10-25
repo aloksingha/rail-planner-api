@@ -206,10 +206,21 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                     let railkit: any;
                     try {
                         const importDynamic = new Function('m', 'return import(m)');
-                        const mod = await importDynamic('railkit');
+                        let mod: any;
+                        try {
+                            mod = await importDynamic('railkit');
+                        } catch {
+                            try {
+                                mod = await importDynamic('railkit/index.obfuscated.js');
+                            } catch {
+                                const { pathToFileURL } = require('url');
+                                const resolved = require.resolve('railkit');
+                                mod = await importDynamic(pathToFileURL(resolved).href);
+                            }
+                        }
                         railkit = mod.railkit || mod.default || mod;
-                    } catch {
-                        railkit = require('railkit');
+                    } catch (rkLoadErr: any) {
+                        console.warn(`[SearchEngine] Could not load railkit: ${rkLoadErr.message}`);
                     }
                     if (typeof railkit?.configure === 'function') {
                         railkit.configure(railkitKey);
