@@ -22,6 +22,52 @@ const transporter = {
 
 const FROM = `"Tickets Pro" <noreply@ticketspro.in>`;
 
+// ─── WhatsGateway WhatsApp Utility ─────────────────────────────────────────────
+/**
+ * Generic WhatsApp message sender using WhatsGateway REST API
+ */
+export const sendWhatsApp = async (mobile: string, text: string) => {
+    const gatewayUrl = (process.env.WHATS_GATEWAY_URL || 'https://whats-gateway-f8x4.onrender.com').replace(/\/+$/, '');
+    const apiKey = process.env.WHATS_GATEWAY_API_KEY || 'wag_a2MbxmoHVXu4wX8pNLlSzjDz_a_DIuIW';
+    const sessionId = process.env.WHATS_GATEWAY_SESSION_ID || '1ootlb';
+
+    if (!mobile || !text) {
+        return;
+    }
+
+    try {
+        let cleanMobile = mobile.replace(/\D/g, '');
+        if (cleanMobile.length === 10) {
+            cleanMobile = '91' + cleanMobile;
+        }
+
+        const jid = `${cleanMobile}@s.whatsapp.net`;
+        const url = `${gatewayUrl}/api/messages/${sessionId}/${encodeURIComponent(jid)}/send`;
+
+        const response = await axios.post(
+            url,
+            {
+                message: { text }
+            },
+            {
+                headers: {
+                    'X-API-Key': apiKey,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 10000
+            }
+        );
+
+        if (response.data?.status) {
+            console.log(`✅ WhatsApp successfully delivered to ${cleanMobile} via WhatsGateway (session: ${sessionId})`);
+        } else {
+            console.warn(`⚠️ WhatsApp gateway response for ${cleanMobile}:`, response.data);
+        }
+    } catch (error: any) {
+        console.error('❌ WhatsGateway API Error:', error?.response?.data || error.message);
+    }
+};
+
 // ─── Infozy SMS Utility ────────────────────────────────────────────────────────
 /**
  * Generic SMS sender using Infozy SMS API
@@ -74,6 +120,7 @@ export const notifyBookingConfirmed = async (
         amount?: string | number;
     }
 ) => {
+    // 1. Send Email via Resend
     if (isEmailConfigured) {
         const journeyDateHtml = details?.journeyDate ? `
             <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:24px;">
@@ -166,8 +213,6 @@ export const notifyBookingConfirmed = async (
         .catch((e: any) => {
             console.error('❌ Email send failed (non-fatal):', e?.message || e);
         });
-    } else {
-        console.log(`⚠️ Email skipped for ${email} because ZOHO_MAIL_PASSWORD is not configured.`);
     }
 
     // 2. Send SMS via Infozy
@@ -186,10 +231,36 @@ export const notifyBookingConfirmed = async (
     } catch (e: any) {
         console.error('❌ SMS send failed (non-fatal):', e?.message || e);
     }
+
+    // 3. Send WhatsApp via WhatsGateway
+    try {
+        if (mobile) {
+            const waMessage = 
+`🎫 *Tickets Pro — Booking Confirmed!*
+
+Dear Passenger,
+Your train ticket has been booked successfully!
+
+🚆 *Journey:* ${eventName}
+${details?.journeyDate ? `📅 *Date:* ${details.journeyDate}\n` : ''}${details?.passengerDetails ? `👥 *Passengers:* ${details.passengerDetails}\n` : ''}${details?.amount ? `💰 *Total Fare:* ₹${details.amount}\n` : ''}${details?.transactionId ? `💳 *Txn ID:* ${details.transactionId}\n` : ''}
+📲 *View & Download E-Ticket:*
+https://ticketspro.in/bookings
+
+Please carry a valid government-issued photo ID during travel.
+
+Thank you for booking with *Tickets Pro*!
+Support: https://ticketspro.in`;
+
+            await sendWhatsApp(mobile, waMessage);
+        }
+    } catch (e: any) {
+        console.error('❌ WhatsApp send failed (non-fatal):', e?.message || e);
+    }
 };
 
 // ─── Booking Cancelled ────────────────────────────────────────────────────────
 export const notifyBookingCancelled = async (email: string, reason: string, mobile?: string) => {
+    // 1. Email via Resend
     if (isEmailConfigured) {
         transporter.sendMail({
             from: FROM,
@@ -246,8 +317,6 @@ export const notifyBookingCancelled = async (email: string, reason: string, mobi
         .catch((e: any) => {
             console.error('❌ Email send failed (non-fatal):', e?.message || e);
         });
-    } else {
-        console.log(`⚠️ Email skipped for ${email} because ZOHO_MAIL_PASSWORD is not configured.`);
     }
 
     // 2. Send SMS via Infozy
@@ -264,6 +333,27 @@ export const notifyBookingCancelled = async (email: string, reason: string, mobi
         }
     } catch (e: any) {
         console.error('❌ SMS send failed (non-fatal):', e?.message || e);
+    }
+
+    // 3. Send WhatsApp via WhatsGateway
+    try {
+        if (mobile) {
+            const waMessage = 
+`🚫 *Tickets Pro — Booking Cancellation*
+
+Dear Customer,
+Your booking has been cancelled.
+
+*Reason:* ${reason || 'Cancelled per customer or admin request.'}
+
+If a refund is applicable, it will be initiated to your original payment source or wallet in accordance with IRCTC refund rules.
+
+For assistance, please visit https://ticketspro.in or reply to this chat.`;
+
+            await sendWhatsApp(mobile, waMessage);
+        }
+    } catch (e: any) {
+        console.error('❌ WhatsApp send failed (non-fatal):', e?.message || e);
     }
 };
 
@@ -284,5 +374,23 @@ export const notifyPaymentReceived = async (mobile: string, amount: number, orde
         }
     } catch (e: any) {
         console.error('❌ SMS send failed (non-fatal):', e?.message || e);
+    }
+
+    // 2. Send WhatsApp via WhatsGateway
+    try {
+        if (mobile) {
+            const waMessage = 
+`💳 *Tickets Pro — Payment Received*
+
+We have received your payment of *₹${amount.toLocaleString('en-IN')}* for Order *#${orderId}*.
+
+Your ticket booking is currently being processed by our system. You will receive your confirmed E-Ticket details shortly.
+
+Check status: https://ticketspro.in/bookings`;
+
+            await sendWhatsApp(mobile, waMessage);
+        }
+    } catch (e: any) {
+        console.error('❌ WhatsApp send failed (non-fatal):', e?.message || e);
     }
 };
