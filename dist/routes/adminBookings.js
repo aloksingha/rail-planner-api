@@ -64,7 +64,17 @@ router.post('/', auth_1.requireAuth, restrict_1.requireActiveUser, async (req, r
         try {
             const targetEmail = email || result.user.email;
             const targetMobile = mobile || result.user.mobile || undefined;
-            (0, notificationService_1.notifyBookingConfirmed)(targetEmail, result.event.name, targetMobile).catch(err => console.error('Manual booking notification background error:', err));
+            const pDesc = Array.isArray(passengerList)
+                ? passengerList.map((p, i) => `0${i + 1} ${p.name} (Age: ${p.age}, Gender: ${p.gender})`).join('<br/>')
+                : `Passengers: ${passengers || 1}`;
+            const emailDetails = {
+                journeyDate: journeyDate ? new Date(journeyDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '',
+                passengerDetails: pDesc,
+                transactionId: result.paymentId || 'MANUAL_OFFLINE',
+                amount: amount,
+                trainClass: trainClass
+            };
+            (0, notificationService_1.notifyBookingConfirmed)(targetEmail, result.event.name, targetMobile, emailDetails).catch(err => console.error('Manual booking notification background error:', err));
         }
         catch (err) {
             console.error('Failed to send manual booking notification:', err);

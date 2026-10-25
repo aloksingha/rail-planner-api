@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.notifyPaymentReceived = exports.notifyBookingCancelled = exports.notifyBookingConfirmed = exports.sendSMS = exports.sendWhatsApp = void 0;
+exports.notifyPaymentReceived = exports.notifyBookingCancelled = exports.notifyBookingConfirmed = exports.formatTrainClass = exports.sendSMS = exports.sendWhatsApp = void 0;
 const axios_1 = __importDefault(require("axios"));
 // ─── Resend SMTP Configuration ──────────────────────────────────────────────────
 const isEmailConfigured = !!process.env.RESEND_API_KEY;
@@ -101,13 +101,49 @@ const sendSMS = async (mobile, templateId, params, dltTemplateId) => {
 };
 exports.sendSMS = sendSMS;
 // ─── Booking Confirmed ────────────────────────────────────────────────────────
+const CLASS_LABELS = {
+    'SL': 'Sleeper (SL)',
+    'SLEEPER': 'Sleeper (SL)',
+    '3A': 'AC 3 Tier (3A)',
+    '2A': 'AC 2 Tier (2A)',
+    '1A': 'AC First Class (1A)',
+    '3E': 'AC 3 Economy (3E)',
+    'CC': 'AC Chair Car (CC)',
+    '2S': 'Second Sitting (2S)',
+    'EC': 'Executive Class (EC)',
+    'EV': 'Vistadome AC (EV)',
+    'FC': 'First Class (FC)',
+    'AC': 'AC Class'
+};
+const formatTrainClass = (rawClass) => {
+    if (!rawClass)
+        return '';
+    const upper = rawClass.trim().toUpperCase();
+    return CLASS_LABELS[upper] || rawClass.trim();
+};
+exports.formatTrainClass = formatTrainClass;
 const notifyBookingConfirmed = async (email, eventName, mobile, details) => {
+    const formattedClass = (0, exports.formatTrainClass)(details?.trainClass);
     // 1. Send Email via Resend
     if (isEmailConfigured) {
-        const journeyDateHtml = details?.journeyDate ? `
-            <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:24px;">
-              <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 8px;">Journey Date</p>
-              <p style="color:#f1f5f9;font-size:16px;font-weight:700;margin:0;">${details.journeyDate}</p>
+        const journeyDateAndClassHtml = (details?.journeyDate || formattedClass) ? `
+            <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:20px 24px;margin-bottom:24px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  ${details?.journeyDate ? `
+                  <td valign="top" style="${formattedClass ? 'width:55%;' : 'width:100%;'}">
+                    <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;">Journey Date</p>
+                    <p style="color:#f1f5f9;font-size:15px;font-weight:700;margin:0;">${details.journeyDate}</p>
+                  </td>
+                  ` : ''}
+                  ${formattedClass ? `
+                  <td valign="top" align="${details?.journeyDate ? 'right' : 'left'}" style="${details?.journeyDate ? 'width:45%;' : 'width:100%;'}">
+                    <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;">Booking Class</p>
+                    <p style="color:#38bdf8;font-size:15px;font-weight:700;margin:0;">${formattedClass}</p>
+                  </td>
+                  ` : ''}
+                </tr>
+              </table>
             </div>
         ` : '';
         const passengerHtml = details?.passengerDetails ? `
@@ -158,7 +194,7 @@ const notifyBookingConfirmed = async (email, eventName, mobile, details) => {
                   <p style="color:#f1f5f9;font-size:18px;font-weight:800;margin:0;">${eventName}</p>
                 </div>
                 
-                ${journeyDateHtml}
+                ${journeyDateAndClassHtml}
                 ${passengerHtml}
                 ${paymentHtml}
 
@@ -209,13 +245,16 @@ const notifyBookingConfirmed = async (email, eventName, mobile, details) => {
     // 3. Send WhatsApp via WhatsGateway
     try {
         if (mobile) {
+            const waPassengers = details?.passengerDetails
+                ? details.passengerDetails.replace(/<br\s*\/?>/gi, '\n   ')
+                : '';
             const waMessage = `🎫 *Tickets Pro — Booking Confirmed!*
 
 Dear Passenger,
 Your train ticket has been booked successfully!
 
 🚆 *Journey:* ${eventName}
-${details?.journeyDate ? `📅 *Date:* ${details.journeyDate}\n` : ''}${details?.passengerDetails ? `👥 *Passengers:* ${details.passengerDetails}\n` : ''}${details?.amount ? `💰 *Total Fare:* ₹${details.amount}\n` : ''}${details?.transactionId ? `💳 *Txn ID:* ${details.transactionId}\n` : ''}
+${formattedClass ? `💺 *Class:* ${formattedClass}\n` : ''}${details?.journeyDate ? `📅 *Date:* ${details.journeyDate}\n` : ''}${waPassengers ? `👥 *Passengers:*\n   ${waPassengers}\n` : ''}${details?.amount ? `💰 *Total Fare:* ₹${details.amount}\n` : ''}${details?.transactionId ? `💳 *Txn ID:* ${details.transactionId}\n` : ''}
 📲 *View & Download E-Ticket:*
 https://ticketspro.in/bookings
 

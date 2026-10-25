@@ -250,7 +250,12 @@ router.patch('/bookings/:id/status', requireAuth, requireRole(['SUPER_ADMIN'], {
             });
             const event = await prisma.event.findUnique({ where: { id: booking.eventId } });
             if (user && event) {
-                notifyBookingConfirmed(user.email, event.name, user.mobile || undefined).catch(err => console.error('Admin status update notification background error:', err));
+                const emailDetails = {
+                    journeyDate: event.date ? new Date(event.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : undefined,
+                    transactionId: booking.paymentId || undefined,
+                    trainClass: booking.class || undefined
+                };
+                notifyBookingConfirmed(user.email, event.name, user.mobile || undefined, emailDetails).catch(err => console.error('Admin status update notification background error:', err));
             }
         }
 

@@ -74,7 +74,8 @@ router.post('/skydo-pay', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_AD
                     journeyDate: journeyDate ? new Date(journeyDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '',
                     passengerDetails: pDesc,
                     transactionId: result.booking.paymentId || 'SKYDO_TRANSFER',
-                    amount: amount
+                    amount: amount,
+                    trainClass: trainClass
                 };
                 // For Skydo, we still send the confirmation email, but status is Pending
                 (0, notificationService_1.notifyBookingConfirmed)(targetEmail, result.eventName, targetMobile, emailDetails).catch(err => console.error('Skydo notification background error:', err));

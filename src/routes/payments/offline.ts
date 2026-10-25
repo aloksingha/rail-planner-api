@@ -103,7 +103,8 @@ router.post('/offline-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), 
                     journeyDate: journeyDate ? new Date(journeyDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '',
                     passengerDetails: pDesc,
                     transactionId: result.booking.paymentId || 'OFFLINE',
-                    amount: amount
+                    amount: amount,
+                    trainClass: trainClass
                 };
 
                 notifyBookingConfirmed(targetEmail, result.eventName, targetMobile, emailDetails).catch(err => console.error('Offline notification background error:', err));

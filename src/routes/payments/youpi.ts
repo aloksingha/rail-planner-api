@@ -298,7 +298,8 @@ async function fulfillYouPiOrder(orderData: any, utr: string) {
                 journeyDate: orderData.journeyDate ? new Date(orderData.journeyDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '',
                 passengerDetails: pDesc,
                 transactionId: utr || orderId,
-                amount: orderData.amount
+                amount: orderData.amount,
+                trainClass: orderData.trainClass
             };
 
             notifyBookingConfirmed(targetEmail, result.eventName, targetMobile, emailDetails).catch(err => console.error('[YouPI] Notification error:', err));

@@ -121,7 +121,8 @@ router.post('/verify', auth_1.requireAuth, async (req, res) => {
                     journeyDate: journeyDate ? new Date(journeyDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '',
                     passengerDetails: pDesc,
                     transactionId: result.booking.paymentId || razorpay_payment_id,
-                    amount: amount
+                    amount: amount,
+                    trainClass: trainClass
                 };
                 (0, notificationService_1.notifyBookingConfirmed)(targetEmail, result.eventName, targetMobile, emailDetails).catch(err => console.error('Verify notification background error:', err));
             }

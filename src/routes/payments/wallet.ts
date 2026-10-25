@@ -144,7 +144,8 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
                     journeyDate: journeyDate ? new Date(journeyDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '',
                     passengerDetails: pDesc,
                     transactionId: 'WALLET_PAYMENT',
-                    amount: amount
+                    amount: amount,
+                    trainClass: trainClass
                 };
 
                 notifyBookingConfirmed(targetEmail, eventName, targetMobile, emailDetails).catch(err => console.error('Wallet notification background error:', err));

@@ -224,7 +224,12 @@ router.patch('/bookings/:id/status', auth_1.requireAuth, (0, auth_1.requireRole)
             });
             const event = await prisma_1.prisma.event.findUnique({ where: { id: booking.eventId } });
             if (user && event) {
-                (0, notificationService_1.notifyBookingConfirmed)(user.email, event.name, user.mobile || undefined).catch(err => console.error('Admin status update notification background error:', err));
+                const emailDetails = {
+                    journeyDate: event.date ? new Date(event.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : undefined,
+                    transactionId: booking.paymentId || undefined,
+                    trainClass: booking.class || undefined
+                };
+                (0, notificationService_1.notifyBookingConfirmed)(user.email, event.name, user.mobile || undefined, emailDetails).catch(err => console.error('Admin status update notification background error:', err));
             }
         }
         return res.json({ success: true, booking });
