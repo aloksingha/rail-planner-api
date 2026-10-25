@@ -442,7 +442,7 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
 
     setOtaStatus(prev => ({ ...prev, loading: true }));
     try {
-      const { data } = await axios.post('/api/settings/ota-update');
+      const { data } = await axios.post('/api/settings/ota-update', { version: otaStatus.remoteVersion });
       if (data.success) {
         alert(`🚀 OTA Update released successfully! Active version is now ${data.otaVersion}`);
         setOtaStatus({
@@ -466,20 +466,65 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
 
     const checkOtaStatus = async () => {
       try {
-        const remoteRes = await fetch('https://rail-planner-pro.web.app/manifest.json?t=' + Date.now());
-        if (!remoteRes.ok) return;
-        const remoteManifest = await remoteRes.json();
-        if (!remoteManifest) return;
+        const isNative = Capacitor.isNativePlatform() || 
+                         (typeof window !== 'undefined' && (
+                             window.location.protocol === 'capacitor:' || 
+                             Boolean((window as any).Capacitor?.isNative)
+                         ));
 
+        // 1. Fetch authorized OTA version from database settings
         const settingsRes = await axios.get('/api/settings');
         const settingsData = settingsRes.data;
-
-        const remoteVer = remoteManifest.version || '';
         const authVer = settingsData.settings?.otaVersion || '';
 
+        // In Native Mobile App:
+        // The mobile app is a client consumer that downloads updates via HotUpdateManager.
+        // It must NEVER blink "Release OTA" in the app header (especially after updating).
+        if (isNative) {
+          setOtaStatus({
+            updateAvailable: false,
+            remoteVersion: authVer || 'Live',
+            authorizedVersion: authVer || 'Live',
+            loading: false
+          });
+          return;
+        }
+
+        // On Web (Desktop / Mobile Browser Control Center):
+        // Fetch manifest from current origin first (the actual build deployed on web),
+        // then fallback to remote Firebase Hosting host
+        let webBuildVer = '';
+        try {
+          const localRes = await fetch('/manifest.json?t=' + Date.now(), { cache: 'no-store' });
+          if (localRes.ok) {
+            const localManifest = await localRes.json();
+            if (localManifest?.version) {
+              webBuildVer = localManifest.version;
+            }
+          }
+        } catch (_) {}
+
+        if (!webBuildVer) {
+          try {
+            const remoteRes = await fetch('https://rail-planner-pro.web.app/manifest.json?t=' + Date.now(), { cache: 'no-store' });
+            if (remoteRes.ok) {
+              const remoteManifest = await remoteRes.json();
+              if (remoteManifest?.version) {
+                webBuildVer = remoteManifest.version;
+              }
+            }
+          } catch (_) {}
+        }
+
+        if (!webBuildVer) return;
+
+        // An update is available to release if:
+        // - Current web build version is different from the authorized database OTA version
+        const isUpdateAvailable = Boolean(webBuildVer && (!authVer || webBuildVer !== authVer));
+
         setOtaStatus({
-          updateAvailable: remoteVer && authVer && remoteVer !== authVer,
-          remoteVersion: remoteVer,
+          updateAvailable: isUpdateAvailable,
+          remoteVersion: webBuildVer,
           authorizedVersion: authVer,
           loading: false
         });
