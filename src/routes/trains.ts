@@ -20,7 +20,7 @@ const formatTravelTime = (minutes: number) => {
 };
 
 const CACHE_TTL = 2 * 60 * 60; // 2 hours in seconds (instant repeat searches, quota defense)
-const SEARCH_VERSION = 'v3.17-quota-optimizer'; // Invalidate old caches and enforce 1-search=1-credit policy
+const SEARCH_VERSION = 'v4.0-railkit-primary'; // Invalidate old caches and enforce 1-search=1-credit policy
 
 import { CacheService } from '../utils/cache';
 
