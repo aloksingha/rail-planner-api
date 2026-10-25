@@ -120,75 +120,8 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         const fetchRemote = async (src: string, dst: string, isFallback = false) => {
             let lastError: any = null;
 
-            if (isRailRadarAvailable()) {
-                const maxRetries = 3;
-                for (let i = 0; i < maxRetries; i++) {
-                    const key = getRailRadarKey();
-                    try {
-                        console.log(`[SearchEngine] Trying RailRadar with key ${key.substring(0, 8)}...`);
-                        // Convert DD-MM-YYYY to YYYY-MM-DD for the new RailRadar API
-                        const apiDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
-                        const response = await axios.get(`${RAILRADAR_BASE_URL}/trains/between/${src}/${dst}?date=${apiDate}`, {
-                            headers: { 
-                                'Authorization': `Bearer ${key}`,
-                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                                'Accept': 'application/json, text/plain, */*',
-                                'Accept-Language': 'en-US,en;q=0.9'
-                            },
-                            timeout: 5000
-                        });
-                        const externalTrains = response.data?.trains || response.data?.data?.trains || [];
-                        console.log(`[SearchEngine] RailRadar ${isFallback ? 'Proximity' : 'Direct'} HIT for ${src}->${dst} (${externalTrains.length} trains)`);
-                        return externalTrains.map((t: any) => {
-                            const durHrs = Math.floor(t.duration / 60);
-                            const durRem = t.duration % 60;
-                            const srcMins = parseInt(t.from.departure.split(':')[0]) * 60 + parseInt(t.from.departure.split(':')[1]) + (t.from.day - 1) * 1440;
-                            const dstMins = parseInt(t.to.arrival.split(':')[0]) * 60 + parseInt(t.to.arrival.split(':')[1]) + (t.to.day - 1) * 1440;
-                            const dayMap: {[key: string]: string} = {
-                                'mon': 'Mon', 'tue': 'Tue', 'wed': 'Wed', 'thu': 'Thu', 'fri': 'Fri', 'sat': 'Sat', 'sun': 'Sun'
-                            };
-
-                            return {
-                                train_name: t.train.name,
-                                train_no: t.train.number,
-                                from_stn_name: t.from.code,
-                                to_stn_name: t.to.code,
-                                from_time: t.from.departure,
-                                to_time: t.to.arrival,
-                                travel_time: `${durHrs.toString().padStart(2, '0')}:${durRem.toString().padStart(2, '0')}`,
-                                from_std_mins: srcMins,
-                                to_sta_mins: dstMins,
-                                running_days: {
-                                    days: (Array.isArray(t.train.runDays) ? t.train.runDays : (typeof t.train.runDays === 'string' ? t.train.runDays.split(',') : [])).map((d: string) => dayMap[d.trim().toLowerCase()] || d),
-                                    allDays: (t.train.runDays || []).length === 7 || (typeof t.train.runDays === 'string' && t.train.runDays.toLowerCase() === 'daily')
-                                },
-                                isAlternative: isFallback
-                            };
-                        });
-                    } catch (e: any) {
-                        lastError = e;
-                        const status = e.response?.status;
-                        if (status === 429) {
-                            console.warn(`[RailRadar] Key ${key.substring(0, 8)} quota exceeded (429). Tripping circuit breaker for 30 minutes.`);
-                            tripRailRadarCircuitBreaker(30);
-                            break; // Skip further keys immediately when monthly quota is exhausted
-                        }
-                        if (status === 401 || status === 403) {
-                            console.log(`[RailRadar] Key ${key.substring(0, 8)} throttled/invalid (Status: ${status}). Body: ${typeof e.response?.data === 'string' ? e.response?.data.substring(0, 200) : 'JSON'}. Trying next...`);
-                            continue; 
-                        }
-                        console.warn(`[RailRadar] Failed with status ${status}, breaking loop to try RailKit. Error: ${e.message}`);
-                        break;
-                    }
-                }
-            } else {
-                console.log(`[SearchEngine] RailRadar circuit open (throttled). Skipping directly to Engine 2 (RailKit)...`);
-            }
-            
-
-            // --- ENGINE 2: RAILKIT LIVE FALLBACK ---
-            // If RailRadar is unavailable, throttled, or returns 0 trains, use RailKit.
-            // RailKit results are cached in Redis for 6 hours (21600s) to protect API quota.
+            // --- ENGINE 1: RAILKIT (PRIMARY SEARCH ENGINE) ---
+            // RailKit is the primary real-time IRCTC provider. Results are cached in Redis for 6 hours.
             const rkCacheKey = `rk_search:${src}-${dst}-${date}`;
             try {
                 const rkCached = await CacheService.get(rkCacheKey);
@@ -227,11 +160,11 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
                     }
                     const searchMethod = railkit?.searchTrainBetweenStations || railkit?.findTrainsBetweenStations;
                     if (typeof searchMethod === 'function') {
-                        console.log(`[SearchEngine] RailKit API Call: ${src}->${dst} on ${date} (isFallback=${isFallback})`);
+                        console.log(`[SearchEngine] RailKit API Call (Primary): ${src}->${dst} on ${date} (isFallback=${isFallback})`);
                         const rkResponse = await searchMethod(src, dst, date as string);
                         const rkTrains = rkResponse?.data || (Array.isArray(rkResponse) ? rkResponse : []);
                         if (rkResponse?.success !== false && Array.isArray(rkTrains) && rkTrains.length > 0) {
-                            console.log(`[SearchEngine] RailKit HIT for ${src}->${dst} (${rkTrains.length} trains)`);
+                            console.log(`[SearchEngine] RailKit Primary HIT for ${src}->${dst} (${rkTrains.length} trains)`);
                             const dayMapIndices = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
                             const mappedTrains = rkTrains.filter((t: any) => t && (t.train_no || t.trainNumber)).map((t: any) => {
@@ -343,12 +276,80 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
 
                             return mappedTrains;
                         } else {
-                            console.log(`[SearchEngine] RailKit returned 0 trains for ${src}->${dst}`);
+                            console.log(`[SearchEngine] RailKit returned 0 trains for ${src}->${dst}. Trying secondary engine (RailRadar)...`);
                         }
                     }
                 }
             } catch (rkErr: any) {
-                console.warn(`[SearchEngine] RailKit search failed: ${rkErr.message}. Falling back to Engine 3 (Offline)...`);
+                console.warn(`[SearchEngine] RailKit primary search failed: ${rkErr.message}. Trying secondary engine (RailRadar)...`);
+            }
+
+            // --- ENGINE 2: RAILRADAR (SECONDARY LIVE FALLBACK) ---
+            if (isRailRadarAvailable()) {
+                const maxRetries = 3;
+                for (let i = 0; i < maxRetries; i++) {
+                    const key = getRailRadarKey();
+                    try {
+                        console.log(`[SearchEngine] Trying RailRadar secondary fallback with key ${key.substring(0, 8)}...`);
+                        const apiDate = `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}`;
+                        const response = await axios.get(`${RAILRADAR_BASE_URL}/trains/between/${src}/${dst}?date=${apiDate}`, {
+                            headers: { 
+                                'Authorization': `Bearer ${key}`,
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                                'Accept': 'application/json, text/plain, */*',
+                                'Accept-Language': 'en-US,en;q=0.9'
+                            },
+                            timeout: 5000
+                        });
+                        const externalTrains = response.data?.trains || response.data?.data?.trains || [];
+                        if (externalTrains.length > 0) {
+                            console.log(`[SearchEngine] RailRadar Fallback HIT for ${src}->${dst} (${externalTrains.length} trains)`);
+                            return externalTrains.map((t: any) => {
+                                const durHrs = Math.floor(t.duration / 60);
+                                const durRem = t.duration % 60;
+                                const srcMins = parseInt(t.from.departure.split(':')[0]) * 60 + parseInt(t.from.departure.split(':')[1]) + (t.from.day - 1) * 1440;
+                                const dstMins = parseInt(t.to.arrival.split(':')[0]) * 60 + parseInt(t.to.arrival.split(':')[1]) + (t.to.day - 1) * 1440;
+                                const dayMap: {[key: string]: string} = {
+                                    'mon': 'Mon', 'tue': 'Tue', 'wed': 'Wed', 'thu': 'Thu', 'fri': 'Fri', 'sat': 'Sat', 'sun': 'Sun'
+                                };
+
+                                return {
+                                    train_name: t.train.name,
+                                    train_no: t.train.number,
+                                    from_stn_code: t.from.code,
+                                    from_stn_name: t.from.name || t.from.code,
+                                    to_stn_code: t.to.code,
+                                    to_stn_name: t.to.name || t.to.code,
+                                    from_time: t.from.departure,
+                                    to_time: t.to.arrival,
+                                    travel_time: `${durHrs.toString().padStart(2, '0')}:${durRem.toString().padStart(2, '0')}`,
+                                    from_std_mins: srcMins,
+                                    to_sta_mins: dstMins,
+                                    running_days: {
+                                        days: (Array.isArray(t.train.runDays) ? t.train.runDays : (typeof t.train.runDays === 'string' ? t.train.runDays.split(',') : [])).map((d: string) => dayMap[d.trim().toLowerCase()] || d),
+                                        allDays: (t.train.runDays || []).length === 7 || (typeof t.train.runDays === 'string' && t.train.runDays.toLowerCase() === 'daily')
+                                    },
+                                    classes: t.classes || [],
+                                    isAlternative: isFallback
+                                };
+                            });
+                        }
+                    } catch (e: any) {
+                        lastError = e;
+                        const status = e.response?.status;
+                        if (status === 429) {
+                            console.warn(`[RailRadar] Key ${key.substring(0, 8)} quota exceeded (429). Tripping circuit breaker for 30 minutes.`);
+                            tripRailRadarCircuitBreaker(30);
+                            break;
+                        }
+                        if (status === 401 || status === 403) {
+                            console.log(`[RailRadar] Key ${key.substring(0, 8)} throttled/invalid (Status: ${status}). Trying next...`);
+                            continue; 
+                        }
+                        console.warn(`[RailRadar] Failed with status ${status}. Error: ${e.message}`);
+                        break;
+                    }
+                }
             }
 
             // --- ENGINE 3: OFFLINE TRAINS FALLBACK ---
@@ -676,7 +677,7 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         return res.json({ 
             success: true, 
             data: uniqueTrains, 
-            provider: 'RailRadar API (Live IRCTC)' 
+            provider: 'RailKit API (Live IRCTC)' 
         });
 
     } catch (error: any) {
@@ -696,76 +697,88 @@ router.get('/schedule/:trainNo', async (req: Request, res: Response) => {
             return res.json({ success: true, data: JSON.parse(cached) });
         }
 
-        const maxRetries = 3;
-        let lastError: any = null;
         let scheduleData: any = [];
+        let lastError: any = null;
 
-        for (let i = 0; i < maxRetries; i++) {
-            const key = getRailRadarKey();
-            try {
-                // The correct endpoint in RailRadar for a train's details and route is /trains/:trainNo
-                const response = await axios.get(`${RAILRADAR_BASE_URL}/trains/${trainNo}`, {
-                    headers: { 
-                        'Authorization': `Bearer ${key}`, 
-                        'Accept': 'application/json, text/plain, */*',
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                        'Accept-Language': 'en-US,en;q=0.9'
-                    },
-                    timeout: 8000
-                });
-                
-                // The schedule is returned inside data.route
-                scheduleData = response.data?.data?.route || [];
-                lastError = null;
-                break; // Success!
-            } catch (e: any) {
-                lastError = e;
-                if (e.response?.status === 429 || e.response?.status === 401 || e.response?.status === 403) {
-                    continue; // Try next key
-                }
-                break; // Stop and try fallback
-            }
-        }
-
-        // RailKit Live Fallback for Schedule
-        if (scheduleData.length === 0) {
-            try {
-                const railkitKey = process.env.RAILKIT_API_KEY || 'railkit_cb0204e7cffc3b5cfaf811f6ca709344cae8f86899fd845a';
-                if (railkitKey) {
-                    let railkit: any;
+        // --- PRIMARY: RailKit Live Schedule ---
+        try {
+            const railkitKey = process.env.RAILKIT_API_KEY || 'railkit_cb0204e7cffc3b5cfaf811f6ca709344cae8f86899fd845a';
+            if (railkitKey) {
+                let railkit: any;
+                try {
+                    const importDynamic = new Function('m', 'return import(m)');
+                    let mod: any;
                     try {
-                        const importDynamic = new Function('m', 'return import(m)');
-                        const mod = await importDynamic('railkit');
-                        railkit = mod.default || mod;
+                        mod = await importDynamic('railkit');
                     } catch {
-                        railkit = require('railkit');
-                    }
-                    if (typeof railkit?.configure === 'function') {
-                        railkit.configure(railkitKey);
-                    }
-                    if (typeof railkit?.getTrainInfo === 'function') {
-                        const rkRes = await railkit.getTrainInfo(trainNo);
-                        const rkData = rkRes?.data || rkRes;
-                        const route = rkData?.route || rkData?.stations || [];
-                        if (Array.isArray(route) && route.length > 0) {
-                            console.log(`[ScheduleEngine] RailKit HIT for ${trainNo} schedule (${route.length} stops)`);
-                            scheduleData = route.map((st: any) => ({
-                                station: {
-                                    code: st.station_code || st.code || st.stationCode,
-                                    name: st.station_name || st.name || st.stationName
-                                },
-                                arrival: st.arrival_time === 'Source' ? '--:--' : (st.arrival_time || st.arrival || '--:--'),
-                                departure: st.departure_time === 'Destination' ? '--:--' : (st.departure_time || st.departure || '--:--'),
-                                distance: st.distance !== undefined ? st.distance : (st.distanceFromSourceKm || 0),
-                                arrivalDay: st.day || 1,
-                                isHalt: st.isHalt !== undefined ? st.isHalt : (st.halt_minutes !== undefined ? st.halt_minutes > 0 : true)
-                            }));
-                            lastError = null;
+                        try {
+                            mod = await importDynamic('railkit/index.obfuscated.js');
+                        } catch {
+                            const { pathToFileURL } = require('url');
+                            const resolved = require.resolve('railkit');
+                            mod = await importDynamic(pathToFileURL(resolved).href);
                         }
                     }
+                    railkit = mod.railkit || mod.default || mod;
+                } catch (rkLoadErr: any) {
+                    console.warn(`[ScheduleEngine] Could not load railkit: ${rkLoadErr.message}`);
                 }
-            } catch (rkErr: any) {
-                console.warn(`[ScheduleEngine] RailKit schedule fallback failed: ${rkErr.message}`);
+                if (typeof railkit?.configure === 'function') {
+                    railkit.configure(railkitKey);
+                }
+                if (typeof railkit?.getTrainInfo === 'function') {
+                    const rkRes = await railkit.getTrainInfo(trainNo);
+                    const rkData = rkRes?.data || rkRes;
+                    const route = rkData?.route || rkData?.stations || [];
+                    if (Array.isArray(route) && route.length > 0) {
+                        console.log(`[ScheduleEngine] RailKit Primary HIT for ${trainNo} schedule (${route.length} stops)`);
+                        scheduleData = route.map((st: any) => ({
+                            station: {
+                                code: st.station_code || st.code || st.stationCode,
+                                name: st.station_name || st.name || st.stationName
+                            },
+                            arrival: st.arrival_time === 'Source' ? '--:--' : (st.arrival_time || st.arrival || '--:--'),
+                            departure: st.departure_time === 'Destination' ? '--:--' : (st.departure_time || st.departure || '--:--'),
+                            distance: st.distance !== undefined ? st.distance : (st.distanceFromSourceKm || 0),
+                            arrivalDay: st.day || 1,
+                            isHalt: st.isHalt !== undefined ? st.isHalt : (st.halt_minutes !== undefined ? st.halt_minutes > 0 : true)
+                        }));
+                    }
+                }
+            }
+        } catch (rkErr: any) {
+            console.warn(`[ScheduleEngine] RailKit schedule failed: ${rkErr.message}. Trying secondary (RailRadar)...`);
+        }
+
+        // --- SECONDARY: RailRadar Live Schedule Fallback ---
+        if (scheduleData.length === 0 && isRailRadarAvailable()) {
+            const maxRetries = 3;
+            for (let i = 0; i < maxRetries; i++) {
+                const key = getRailRadarKey();
+                try {
+                    const response = await axios.get(`${RAILRADAR_BASE_URL}/trains/${trainNo}`, {
+                        headers: { 
+                            'Authorization': `Bearer ${key}`, 
+                            'Accept': 'application/json, text/plain, */*',
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                            'Accept-Language': 'en-US,en;q=0.9'
+                        },
+                        timeout: 8000
+                    });
+                    
+                    scheduleData = response.data?.data?.route || [];
+                    if (scheduleData.length > 0) {
+                        console.log(`[ScheduleEngine] RailRadar Fallback HIT for ${trainNo} schedule`);
+                        lastError = null;
+                        break;
+                    }
+                } catch (e: any) {
+                    lastError = e;
+                    if (e.response?.status === 429 || e.response?.status === 401 || e.response?.status === 403) {
+                        continue;
+                    }
+                    break;
+                }
             }
         }
 
@@ -773,7 +786,6 @@ router.get('/schedule/:trainNo', async (req: Request, res: Response) => {
             throw lastError;
         }
 
-        // RailRadar returns: station: { code, name }, arrival, departure, distance, arrivalDay, isHalt
         const adaptedSchedule = scheduleData.map((stop: any, index: number) => ({
             stationCode: stop.station?.code || stop.stationCode,
             stationName: stop.station?.name || stop.stationName,
