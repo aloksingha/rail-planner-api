@@ -2,6 +2,28 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Settings, QrCode, Mail, Phone, MapPin, Save, Loader2, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
 
+const formatOtaTimestamp = (version?: string, updatedAt?: string) => {
+    let date: Date | null = null;
+    const match = version ? String(version).match(/v?(\d{10,13})/) : null;
+    if (match) {
+        let ts = Number(match[1]);
+        if (ts < 1e11) ts *= 1000;
+        date = new Date(ts);
+    } else if (updatedAt) {
+        date = new Date(updatedAt);
+    }
+    if (!date || isNaN(date.getTime())) return 'Never';
+    return date.toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+    });
+};
+
 export default function ManageSettings() {
     const [form, setForm] = useState({
                 email: '',
@@ -20,6 +42,7 @@ export default function ManageSettings() {
         youpiWebhookSecret: ''
     });
     const [otaVersion, setOtaVersion] = useState('');
+    const [otaUpdatedAt, setOtaUpdatedAt] = useState('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [otaLoading, setOtaLoading] = useState(false);
@@ -47,6 +70,7 @@ export default function ManageSettings() {
                         youpiWebhookSecret: data.settings.youpiWebhookSecret || ''
                     });
                     setOtaVersion(data.settings.otaVersion || 'None');
+                    setOtaUpdatedAt(data.settings.updatedAt || '');
                 }
             } catch (err) {
                 console.error('Failed to fetch settings', err);
@@ -67,6 +91,7 @@ export default function ManageSettings() {
             const { data } = await axios.post('/api/settings/ota-update');
             if (data.success) {
                 setOtaVersion(data.otaVersion);
+                setOtaUpdatedAt(data.updatedAt || new Date().toISOString());
                 setMessage({ type: 'success', text: `🚀 OTA update successfully pushed! Active version is now ${data.otaVersion}` });
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
@@ -141,16 +166,22 @@ export default function ManageSettings() {
                         <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Push latest web build to all mobile devices instantly.</p>
                     </div>
                 </div>
-                <div className="flex items-center justify-between text-xs bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-white/5">
-                    <div>
-                        <span className="text-[9px] text-slate-400 uppercase tracking-widest block font-bold">Active OTA Version</span>
-                        <span className="font-mono text-emerald-500 font-bold text-xs">{otaVersion || 'None'}</span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-white/5">
+                    <div className="flex items-center gap-6">
+                        <div>
+                            <span className="text-[9px] text-slate-400 uppercase tracking-widest block font-bold">Active OTA Version</span>
+                            <span className="font-mono text-emerald-500 font-bold text-xs">{otaVersion || 'None'}</span>
+                        </div>
+                        <div>
+                            <span className="text-[9px] text-slate-400 uppercase tracking-widest block font-bold">Last Updated</span>
+                            <span className="font-mono text-sky-500 dark:text-sky-400 font-bold text-xs">{formatOtaTimestamp(otaVersion, otaUpdatedAt)}</span>
+                        </div>
                     </div>
                     <button
                         type="button"
                         onClick={handleOtaUpdate}
                         disabled={otaLoading}
-                        className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-brand-blue to-teal-500 hover:from-sky-400 hover:to-teal-400 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all hover:scale-105 active:scale-95 disabled:opacity-50 cursor-pointer"
+                        className="flex items-center justify-center gap-1.5 px-4 py-2 bg-gradient-to-r from-brand-blue to-teal-500 hover:from-sky-400 hover:to-teal-400 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all hover:scale-105 active:scale-95 disabled:opacity-50 cursor-pointer"
                     >
                         {otaLoading ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
                         {otaLoading ? 'Pushing...' : '🚀 Push OTA'}

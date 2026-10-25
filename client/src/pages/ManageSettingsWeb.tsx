@@ -20,6 +20,7 @@ export default function ManageSettings() {
         youpiWebhookSecret: ''
     });
     const [otaVersion, setOtaVersion] = useState('');
+    const [otaUpdatedAt, setOtaUpdatedAt] = useState('');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [otaLoading, setOtaLoading] = useState(false);
@@ -47,6 +48,7 @@ export default function ManageSettings() {
                         youpiWebhookSecret: data.settings.youpiWebhookSecret || ''
                     });
                     setOtaVersion(data.settings.otaVersion || 'None');
+                    setOtaUpdatedAt(data.settings.updatedAt || '');
                 }
             } catch (err) {
                 console.error('Failed to fetch settings', err);
@@ -67,6 +69,7 @@ export default function ManageSettings() {
             const { data } = await axios.post('/api/settings/ota-update');
             if (data.success) {
                 setOtaVersion(data.otaVersion);
+                setOtaUpdatedAt(data.updatedAt || new Date().toISOString());
                 setMessage({ type: 'success', text: `🚀 OTA update successfully pushed! Active version is now ${data.otaVersion}` });
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             }
@@ -153,6 +156,10 @@ export default function ManageSettings() {
                     <div>
                         <span className="text-slate-500 uppercase tracking-widest text-[10px] block font-bold">Authorized OTA Version</span>
                         <span className="font-mono text-emerald-400 font-bold">{otaVersion || 'None'}</span>
+                    </div>
+                    <div>
+                        <span className="text-slate-500 uppercase tracking-widest text-[10px] block font-bold">Last Update Date & Time</span>
+                        <span className="font-mono text-sky-400 font-bold">{formatOtaTimestamp(otaVersion, otaUpdatedAt)}</span>
                     </div>
                     <div>
                         <span className="text-slate-500 uppercase tracking-widest text-[10px] block font-bold">Deployment Host</span>

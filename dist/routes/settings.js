@@ -139,7 +139,7 @@ router.post('/ota-update', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_A
             performedByUserId: req.user.userId,
             details: `Pushed OTA update to version ${manifestVersion}`
         });
-        return res.json({ success: true, otaVersion: manifestVersion });
+        return res.json({ success: true, otaVersion: manifestVersion, updatedAt: settings.updatedAt });
     }
     catch (error) {
         console.error('OTA Update trigger error:', error);
@@ -175,6 +175,7 @@ const syncOtaFromManifest = async (req, res) => {
             success: true,
             message: 'OTA update successfully synchronized across database!',
             otaVersion: manifest.version,
+            updatedAt: settings.updatedAt,
             assetCount: manifest.assets?.length || 0
         });
     }
