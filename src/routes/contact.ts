@@ -1,3 +1,4 @@
+import { sendWhatsApp } from '../services/notificationService';
 import express, { Request, Response } from 'express';
 import { prisma } from '../prisma';
 import { requireAuth, requireRole } from '../middleware/auth';
@@ -12,8 +13,35 @@ router.post('/', async (req: Request, res: Response) => {
     }
     try {
         const msg = await prisma.contactMessage.create({
-            data: { name, email, subject, message }
+            data: { name, email, subject, message, status: 'UNREAD' }
         });
+
+        // Trigger High-Priority WhatsApp notification to Admin Mobile
+        (async () => {
+            try {
+                const settings = await prisma.globalSettings.findUnique({ where: { id: 'singleton' } });
+                const adminPhone = settings?.phone || '7318815790';
+                if (adminPhone) {
+                    const waText = 
+`🚨 *TicketsPro High Priority Alert: New Contact Inquiry!*
+
+👤 *Name:* ${name}
+📧 *Email:* ${email}
+📋 *Subject:* ${subject}
+💬 *Message:*
+"${message}"
+
+👉 *Manage in Contact Inbox:*
+https://ticketspro.in/inbox`;
+
+                    await sendWhatsApp(adminPhone, waText);
+                    console.log(`✅ Admin alerted via WhatsApp for contact inquiry (${adminPhone})`);
+                }
+            } catch (notifyErr: any) {
+                console.error('⚠️ Failed to dispatch WhatsApp admin alert for contact message:', notifyErr?.message || notifyErr);
+            }
+        })();
+
         return res.json({ success: true, id: msg.id });
     } catch (err: any) {
         console.error('Contact submit error:', err);

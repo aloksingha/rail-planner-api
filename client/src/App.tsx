@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
@@ -353,6 +353,7 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
   const [unreadNews, setUnreadNews] = useState(0);
   const [latestNews, setLatestNews] = useState<any>(null);
   const [pulseData, setPulseData] = useState<any>(null);
+  const prevContactCountRef = useRef<number>(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const [isEditProfileOpen, setIsEditProfileOpen] = useState(false);
@@ -582,6 +583,48 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
         const lastSeen = localStorage.getItem('last_pulse_timestamp') || new Date(0).toISOString();
         const { data } = await axios.get(`/api/notifications/pulse?lastSeen=${lastSeen}`);
         setPulseData(data);
+
+        // High-Priority Alert for Super Admin / Admin upon new contact inbox inquiry
+        if ((auth.role === 'SUPER_ADMIN' || auth.role === 'ADMIN') && data?.contactMessageCount > 0) {
+          if (data.contactMessageCount > prevContactCountRef.current) {
+            // Audio Chime
+            try {
+              const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+              if (AudioCtx) {
+                const ctx = new AudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(1320, ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.3);
+              }
+            } catch (err) {}
+
+            // Haptic Vibration for Mobile Devices
+            try {
+              if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+            } catch (err) {}
+
+            // System Notification (if permitted)
+            try {
+              if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+                new Notification('🚨 TicketsPro: High Priority Contact Inquiry', {
+                  body: `You have ${data.contactMessageCount} unread message(s) in Contact Inbox.`,
+                  icon: '/assets/brand_logo-YKjiARpF.webp'
+                });
+              }
+            } catch (err) {}
+          }
+          prevContactCountRef.current = data.contactMessageCount;
+        } else if (data?.contactMessageCount === 0) {
+          prevContactCountRef.current = 0;
+        }
       } catch (e) {
         console.error('Notification pulse failed', e);
       }
@@ -592,7 +635,7 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
     return () => clearInterval(interval);
   }, [auth.token]);
 
-  const totalNotifications = unreadNews + (pulseData?.priceRequestCount || 0) + (pulseData?.ticketUpdateActive ? 1 : 0) + (pulseData?.walletUpdateActive ? 1 : 0);
+  const totalNotifications = unreadNews + (pulseData?.priceRequestCount || 0) + (pulseData?.contactMessageCount || 0) + (pulseData?.failedBookingCount || 0) + (pulseData?.withdrawalRequestCount || 0) + (pulseData?.ticketUpdateActive ? 1 : 0) + (pulseData?.walletUpdateActive ? 1 : 0);
 
 
   const isMimicMode = !!sessionStorage.getItem('mimic_token');
@@ -706,6 +749,32 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
     <>
       <HotUpdateManager />
       <InteractiveBackground>
+      {/* HIGH PRIORITY CONTACT INBOX BANNER FOR ADMIN */}
+      {(auth.role === 'SUPER_ADMIN' || auth.role === 'ADMIN') && (pulseData?.contactMessageCount || 0) > 0 && (
+        <div 
+          onClick={() => navigate('/inbox')}
+          className="fixed top-14 sm:top-4 right-3 left-3 sm:left-auto sm:right-6 z-[99998] max-w-md bg-gradient-to-r from-rose-600 to-rose-700 text-white p-3.5 rounded-2xl shadow-2xl border border-rose-400/50 flex items-center gap-3 cursor-pointer animate-bounce hover:scale-[1.02] transition-transform duration-200"
+        >
+          <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center shrink-0 animate-pulse">
+            <Mail size={20} className="text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="text-[9px] font-black uppercase tracking-wider bg-white text-rose-700 px-1.5 py-0.5 rounded-md">
+                HIGH PRIORITY
+              </span>
+              <span className="text-xs font-bold truncate">Contact Inquiry</span>
+            </div>
+            <p className="text-[11px] text-white/90 truncate font-medium">
+              {pulseData.contactMessageCount} unread message{pulseData.contactMessageCount > 1 ? 's' : ''} in Contact Inbox. Tap to view!
+            </p>
+          </div>
+          <span className="text-xs font-black bg-white/20 hover:bg-white/30 text-white px-2.5 py-1.5 rounded-xl whitespace-nowrap">
+            Open →
+          </span>
+        </div>
+      )}
+
       {/* MIMIC SESSION ALERT BANNER */}
       {isMimicMode && (
         <div className="fixed top-0 inset-x-0 z-[5000] bg-rose-600 border-b border-rose-500 shadow-xl overflow-hidden animate-in slide-in-from-top duration-500">
@@ -882,7 +951,14 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
                 <NavLink to="/manage-settings" icon={Settings}>Global Settings</NavLink>
                 <NavLink to="/manage-promotions" icon={Sparkles}>Manage Campaigns</NavLink>
                 <NavLink to="/latest-updates" icon={Megaphone}>Platform Broadcasts</NavLink>
-                <NavLink to="/inbox" icon={Mail}>Contact Inbox</NavLink>
+                <NavLink to="/inbox" icon={Mail}>
+                  Contact Inbox
+                  {pulseData?.contactMessageCount > 0 && (
+                    <span className="ml-auto bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full animate-pulse shadow-sm">
+                      {pulseData.contactMessageCount}
+                    </span>
+                  )}
+                </NavLink>
                 <NavLink to="/audit-logs" icon={LucideHistory}>Audit Logs</NavLink>
 
               </>
@@ -1006,7 +1082,8 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
 
                   // Intelligent Navigation
                   if (auth.role === 'SUPER_ADMIN' || auth.role === 'ADMIN') {
-                    if (pulseData?.priceRequestCount > 0) navigate('/price-requests');
+                    if (pulseData?.contactMessageCount > 0) navigate('/inbox');
+                    else if (pulseData?.priceRequestCount > 0) navigate('/price-requests');
                     else if (unreadNews > 0) navigate('/latest-updates');
                     else navigate('/manage-bookings');
                   } else {
