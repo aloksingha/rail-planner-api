@@ -117,7 +117,7 @@ const STATS_CACHE_TTL = 60 * 1000; // 1 minute cache for stats
 router.get('/stats', auth_1.requireAuth, async (req, res) => {
     const { role, userId } = req.user;
     // Check cache
-    const cacheKey = `${role}-${userId}`;
+    const cacheKey = `stats:v4:${role}-${userId}`;
     const cached = statsCache.get(cacheKey);
     if (cached && cached.expiry > Date.now()) {
         console.log(`[StatsCache] HIT for ${cacheKey}`);
@@ -172,7 +172,10 @@ router.get('/stats', auth_1.requireAuth, async (req, res) => {
                 ? await prisma_1.prisma.$queryRaw `
                     SELECT DATE_TRUNC('day', "createdAt") as day, COUNT(id) as count, SUM(amount) as amount
                     FROM "PaymentRecord"
-                    WHERE status = 'CAPTURED' AND "createdAt" >= ${thirtyDaysAgo}
+                    WHERE status = 'CAPTURED'
+                      AND ("paymentId" IS NULL OR ("paymentId" NOT ILIKE 'OFF_%' AND "paymentId" NOT ILIKE 'MOFF_%'))
+                      AND ("orderId" IS NULL OR ("orderId" NOT ILIKE 'ORD_OFF_%' AND "orderId" NOT ILIKE 'MANUAL_%'))
+                      AND "createdAt" >= ${thirtyDaysAgo}
                     GROUP BY day
                     ORDER BY day ASC
                 `
@@ -182,6 +185,8 @@ router.get('/stats', auth_1.requireAuth, async (req, res) => {
                     JOIN "User" c ON p."userId" = c.id
                     JOIN "User" sm ON c."createdByUserId" = sm.id
                     WHERE p.status = 'CAPTURED'
+                      AND (p."paymentId" IS NULL OR (p."paymentId" NOT ILIKE 'OFF_%' AND p."paymentId" NOT ILIKE 'MOFF_%'))
+                      AND (p."orderId" IS NULL OR (p."orderId" NOT ILIKE 'ORD_OFF_%' AND p."orderId" NOT ILIKE 'MANUAL_%'))
                       AND p."createdAt" >= ${thirtyDaysAgo}
                       AND sm."createdByUserId" = ${userId}
                       AND sm.role = 'SALES_MANAGER'
@@ -415,7 +420,7 @@ router.get('/activity-feed', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER
 // Consolidate Statistics & Activity into a single High-Velocity Dashboard Payload
 router.get('/dashboard-data', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
     const { role, userId } = req.user;
-    const cacheKey = `dashboard:bundle:${role}:${userId}`;
+    const cacheKey = `dashboard:bundle:v4:${role}:${userId}`;
     try {
         const cachedStr = await cache_1.CacheService.get(cacheKey);
         if (cachedStr) {
@@ -442,7 +447,10 @@ router.get('/dashboard-data', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPE
             ? prisma_1.prisma.$queryRaw `
                 SELECT DATE_TRUNC('day', "createdAt") as day, COUNT(id) as count, SUM(amount) as amount
                 FROM "PaymentRecord"
-                WHERE status = 'CAPTURED' AND "createdAt" >= ${thirtyDaysAgo}
+                WHERE status = 'CAPTURED'
+                  AND ("paymentId" IS NULL OR ("paymentId" NOT ILIKE 'OFF_%' AND "paymentId" NOT ILIKE 'MOFF_%'))
+                  AND ("orderId" IS NULL OR ("orderId" NOT ILIKE 'ORD_OFF_%' AND "orderId" NOT ILIKE 'MANUAL_%'))
+                  AND "createdAt" >= ${thirtyDaysAgo}
                 GROUP BY day
                 ORDER BY day ASC
             `
@@ -452,6 +460,8 @@ router.get('/dashboard-data', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPE
                 JOIN "User" c ON p."userId" = c.id
                 JOIN "User" sm ON c."createdByUserId" = sm.id
                 WHERE p.status = 'CAPTURED'
+                  AND (p."paymentId" IS NULL OR (p."paymentId" NOT ILIKE 'OFF_%' AND p."paymentId" NOT ILIKE 'MOFF_%'))
+                  AND (p."orderId" IS NULL OR (p."orderId" NOT ILIKE 'ORD_OFF_%' AND p."orderId" NOT ILIKE 'MANUAL_%'))
                   AND p."createdAt" >= ${thirtyDaysAgo}
                   AND sm."createdByUserId" = ${userId}
                   AND sm.role = 'SALES_MANAGER'
@@ -468,13 +478,19 @@ router.get('/dashboard-data', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPE
             prisma_1.prisma.booking.count({ where: { ...bookingWhere, createdAt: { gte: todayStart } } }),
             prisma_1.prisma.booking.count({ where: bookingWhere }),
             prisma_1.prisma.paymentRecord.aggregate({
-                where: {
-                    ...paymentWhere,
-                    status: 'CAPTURED',
-                    createdAt: { gte: todayStart }
-                },
-                _sum: { amount: true }
-            }),
+                    where: { 
+                        ...paymentWhere, 
+                        AND: [
+                            { paymentId: { not: { startsWith: 'OFF_' } } },
+                            { paymentId: { not: { startsWith: 'MOFF_' } } },
+                            { orderId: { not: { startsWith: 'ORD_OFF_' } } },
+                            { orderId: { not: { startsWith: 'MANUAL_' } } }
+                        ],
+                        status: 'CAPTURED', 
+                        createdAt: { gte: todayStart } 
+                    },
+                    _sum: { amount: true }
+                }),
             isSuperAdmin ? prisma_1.prisma.failedBooking.count({ where: { status: 'PENDING' } }) : Promise.resolve(0),
             prisma_1.prisma.priceRequest.count({ where: { status: 'PENDING' } }),
             prisma_1.prisma.auditLog.findMany({

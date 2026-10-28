@@ -96,7 +96,7 @@ const itemVariants = {
 export default function DashboardHome({ role }: { role?: string }) {
   const [stats, setStats] = useState<any>(() => {
     try {
-      const saved = sessionStorage.getItem('admin_dashboard_stats') || localStorage.getItem('admin_dashboard_stats');
+      const saved = sessionStorage.getItem('admin_dashboard_stats_v2') || localStorage.getItem('admin_dashboard_stats_v2');
       return saved ? JSON.parse(saved) : null;
     } catch {
       return null;
@@ -124,7 +124,7 @@ export default function DashboardHome({ role }: { role?: string }) {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const cachedStatsStr = sessionStorage.getItem('admin_dashboard_stats') || localStorage.getItem('admin_dashboard_stats');
+        const cachedStatsStr = sessionStorage.getItem('admin_dashboard_stats_v2') || localStorage.getItem('admin_dashboard_stats_v2');
         const cachedActivitiesStr = sessionStorage.getItem('admin_dashboard_activities') || localStorage.getItem('admin_dashboard_activities');
         const cachedTimeStr = sessionStorage.getItem('admin_dashboard_cache_time');
         if (cachedStatsStr && cachedActivitiesStr) {
@@ -145,10 +145,10 @@ export default function DashboardHome({ role }: { role?: string }) {
         const statsData = data.stats;
         setStats(statsData);
         setActivities(data.activities);
-        sessionStorage.setItem('admin_dashboard_stats', JSON.stringify(statsData));
+        sessionStorage.setItem('admin_dashboard_stats_v2', JSON.stringify(statsData));
         sessionStorage.setItem('admin_dashboard_activities', JSON.stringify(data.activities));
         sessionStorage.setItem('admin_dashboard_cache_time', Date.now().toString());
-        localStorage.setItem('admin_dashboard_stats', JSON.stringify(statsData));
+        localStorage.setItem('admin_dashboard_stats_v2', JSON.stringify(statsData));
         localStorage.setItem('admin_dashboard_activities', JSON.stringify(data.activities));
       } catch (error) {
         console.error('Failed to fetch dashboard bundle', error);
