@@ -751,4 +751,49 @@ router.get('/schedule/:trainNo', async (req, res) => {
         });
     }
 });
+
+// Live IRCTC PNR Status Check
+router.get('/pnr/:pnr', async (req, res) => {
+    const rawPnr = req.params.pnr;
+    const pnr = rawPnr ? rawPnr.replace(/\D/g, '') : '';
+    if (!pnr || pnr.length !== 10) {
+        return res.status(400).json({ success: false, error: 'Please provide a valid 10-digit PNR number' });
+    }
+
+    try {
+        const railkitKey = process.env.RAILKIT_API_KEY || 'railkit_cb0204e7cffc3b5cfaf811f6ca709344cae8f86899fd845a';
+        let railkit;
+        const importDynamic = new Function('m', 'return import(m)');
+        try {
+            const mod = await importDynamic('railkit');
+            railkit = mod.railkit || mod.default || mod;
+        } catch {
+            try {
+                const mod = await importDynamic('railkit/index.obfuscated.js');
+                railkit = mod.railkit || mod.default || mod;
+            } catch {
+                const pathToFileURL = require('url').pathToFileURL;
+                const resolved = require.resolve('railkit');
+                const mod = await importDynamic(pathToFileURL(resolved).href);
+                railkit = mod.railkit || mod.default || mod;
+            }
+        }
+
+        if (typeof (railkit === null || railkit === void 0 ? void 0 : railkit.configure) === 'function') {
+            railkit.configure(railkitKey);
+        }
+
+        if (typeof (railkit === null || railkit === void 0 ? void 0 : railkit.checkPNRStatus) === 'function') {
+            const result = await railkit.checkPNRStatus(pnr);
+            return res.json(result);
+        } else {
+            return res.status(500).json({ success: false, error: 'PNR service unavailable' });
+        }
+    } catch (error) {
+        console.error('[PNR API] Error:', (error === null || error === void 0 ? void 0 : error.message) || error);
+        return res.status(500).json({ success: false, error: (error === null || error === void 0 ? void 0 : error.message) || 'Failed to check PNR status' });
+    }
+});
+
 exports.default = router;
+
