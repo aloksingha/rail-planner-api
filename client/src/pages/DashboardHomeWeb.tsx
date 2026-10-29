@@ -190,9 +190,9 @@ export default function DashboardHome({ role }: { role?: string }) {
               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-blue">Operational Insights</span>
             </div>
             <h1 className="text-4xl font-black text-slate-900 dark:text-slate-100 tracking-tighter italic">
-              Control <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-blue to-brand-teal">Center</span>
+              Tickets Pro Train <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-blue to-brand-teal">Control Center</span>
             </h1>
-            <p className="seo-summary-lead text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-2 max-w-2xl leading-relaxed font-medium">Tickets Pro is a smart train booking help and live PNR tracking tool for Indian Railways travelers. Our simple web system helps you search train seats, book tickets fast, and get quick alerts right on your mobile phone.</p>
+            <p className="seo-summary-lead text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-2 max-w-2xl leading-relaxed font-medium">Tickets Pro is a smart rail travel booking assistant and live PNR tracking platform for Indian Railways passengers. Our system helps you search train seats, reserve bookings quickly, and receive real-time journey updates right on your mobile phone or WhatsApp.</p>
           </div>
         </div>
         <div className="bg-white/80 dark:bg-slate-900/50 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-white/5 py-2 px-4 flex items-center gap-3 shadow-sm transition-colors">
@@ -345,7 +345,7 @@ export default function DashboardHome({ role }: { role?: string }) {
             {/* Platform Knowledge & Semantic Travel Guide */}
       <section className="bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl rounded-[2.5rem] border border-slate-200 dark:border-white/5 p-8 shadow-sm">
         <div className="max-w-4xl space-y-6">
-          <nav aria-label="Breadcrumb" className="mb-3">
+          <nav aria-label="breadcrumb" className="breadcrumb mb-3">
             <ol className="flex items-center gap-2 text-xs text-slate-500">
               <li><a href="/" className="hover:underline text-brand-blue font-medium">Home</a></li>
               <li>/</li>
