@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { prisma } from '../prisma';
 import { isValidIndianMobile } from '../utils/validation';
-import { notifyBookingCancelled, notifyBookingConfirmed } from '../services/notificationService';
+import { notifyBookingCancelled, notifyBookingConfirmed, sendSMS } from '../services/notificationService';
 import { createAuditLog } from '../services/auditService';
 import { refundQueue } from '../queue/refundQueue';
 import { processTicketRefund } from '../services/razorpayService';
@@ -875,6 +875,30 @@ router.get('/audit-logs', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), as
     } catch (error: any) {
         console.error('Fetch audit logs error:', error);
         return res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
+// Super Admin / Admin: Test SMS Gateway
+router.post('/test-sms', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+    try {
+        const { mobile, message, templateId } = req.body;
+        if (!mobile) {
+            return res.status(400).json({ success: false, error: 'Mobile number is required' });
+        }
+
+        const msgText = message || 'TicketsPro: SMS Gateway test message. Service is operational.';
+        const result = await sendSMS(
+            mobile,
+            templateId,
+            { event_name: 'Test Booking', status: 'Operational' },
+            undefined,
+            msgText
+        );
+
+        return res.json(result);
+    } catch (err: any) {
+        console.error('Test SMS error:', err);
+        return res.status(500).json({ success: false, error: err.message || 'Internal Server Error' });
     }
 });
 

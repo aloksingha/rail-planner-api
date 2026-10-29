@@ -68,44 +68,215 @@ export const sendWhatsApp = async (mobile: string, text: string) => {
     }
 };
 
-// ─── Infozy SMS Utility ────────────────────────────────────────────────────────
+// ─── Multi-Provider SMS Utility ──────────────────────────────────────────────
 /**
- * Generic SMS sender using Infozy SMS API
+ * Generic SMS sender supporting Fast2SMS, Infozy SMS, Msg91, and Twilio.
  */
-export const sendSMS = async (mobile: string, templateId: string, params: Record<string, string>, dltTemplateId?: string) => {
-    const apiKey = process.env.INFOZY_API_KEY;
-    if (!apiKey) {
-        console.warn('⚠️ Infozy API Key not found. SMS skipped.');
-        return;
+export interface SendSMSResult {
+    success: boolean;
+    provider?: string;
+    campaignId?: string;
+    message?: string;
+    error?: string;
+    raw?: any;
+}
+
+export const sendSMS = async (
+    mobile: string, 
+    templateId?: string, 
+    params: Record<string, string> = {}, 
+    dltTemplateId?: string,
+    messageText?: string
+): Promise<SendSMSResult> => {
+    if (!mobile) {
+        return { success: false, error: 'Mobile number is required' };
     }
 
-    try {
-        let cleanMobile = mobile.replace(/\D/g, ''); 
-        if (cleanMobile.length === 10) {
-            cleanMobile = '91' + cleanMobile;
-        }
+    const cleanDigits = mobile.replace(/\D/g, ''); 
+    const mobile10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
+    const mobile91 = '91' + mobile10;
 
-        const payload = {
-            template: templateId,
-            mobileNumber: cleanMobile,
-            variables: params
-        };
+    // Determine configured SMS provider
+    const configuredProvider = (process.env.SMS_PROVIDER || '').toUpperCase();
 
-        const response = await axios.post('https://infozysms.in/api/sms/send', payload, {
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
-            }
-        });
-
-        if (response.data && response.data.message === 'Message sent successfully') {
-            console.log(`✅ SMS successfully triggered for ${cleanMobile} via Infozy template ${templateId}. Campaign ID: ${response.data.campaignId}`);
+    // 1. Fast2SMS (Recommended for Quick Transactional/OTP in India without DLT blockers)
+    if (configuredProvider === 'FAST2SMS' || (!configuredProvider && process.env.FAST2SMS_API_KEY)) {
+        const apiKey = process.env.FAST2SMS_API_KEY;
+        if (!apiKey) {
+            console.warn('⚠️ Fast2SMS API Key not found in environment.');
         } else {
-            console.log(`✅ SMS successfully triggered for ${cleanMobile} via Infozy template ${templateId}:`, response.data);
+            try {
+                const route = process.env.FAST2SMS_ROUTE || 'q'; // 'q' = quick, 'dlt' = dlt, 'otp' = otp
+                const textToSend = messageText || (
+                    params.event_name ? `TicketsPro: Booking for ${params.event_name} is ${params.status || 'Confirmed'}. Check status: https://ticketspro.in` :
+                    params.amount ? `TicketsPro: Payment of Rs.${params.amount} received for order ${params.order_id}. Thank you!` :
+                    params.reason ? `TicketsPro: Booking cancelled. Reason: ${params.reason}. Refund initiated.` :
+                    'TicketsPro: Notification update.'
+                );
+
+                const fast2smsPayload: any = {
+                    route,
+                    language: 'english',
+                    flash: 0,
+                    numbers: mobile10
+                };
+
+                if (route === 'dlt') {
+                    fast2smsPayload.sender_id = process.env.FAST2SMS_SENDER_ID || 'TKTSPR';
+                    fast2smsPayload.message = dltTemplateId || templateId || '';
+                    fast2smsPayload.variables_values = Object.values(params).join('|');
+                } else {
+                    fast2smsPayload.message = textToSend;
+                }
+
+                const response = await axios.post('https://www.fast2sms.com/dev/bulkV2', fast2smsPayload, {
+                    headers: {
+                        'authorization': apiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 10000
+                });
+
+                if (response.data && (response.data.return === true || response.data.status_code === 200)) {
+                    console.log(`✅ [Fast2SMS] SMS sent to ${mobile10} (Route: ${route}, Request ID: ${response.data.request_id})`);
+                    return { success: true, provider: 'Fast2SMS', campaignId: response.data.request_id, raw: response.data };
+                } else {
+                    console.warn(`⚠️ [Fast2SMS] Gateway response for ${mobile10}:`, response.data);
+                    return { success: false, provider: 'Fast2SMS', error: response.data?.message || 'Fast2SMS delivery unsuccessful', raw: response.data };
+                }
+            } catch (err: any) {
+                console.error('❌ Fast2SMS API Error:', err?.response?.data || err.message);
+                return { success: false, provider: 'Fast2SMS', error: err?.response?.data?.message || err.message };
+            }
         }
-    } catch (error: any) {
-        console.error('❌ Infozy SMS API Error:', error?.response?.data || error.message);
     }
+
+    // 2. Infozy SMS
+    if (configuredProvider === 'INFOZY' || (!configuredProvider && process.env.INFOZY_API_KEY)) {
+        const apiKey = process.env.INFOZY_API_KEY;
+        const targetTemplate = templateId || process.env.INFOZY_TEMPLATE_ID_CONFIRMED;
+
+        if (!apiKey) {
+            console.warn('⚠️ Infozy API Key not found. SMS skipped.');
+        } else if (!targetTemplate) {
+            console.warn('⚠️ Infozy Template ID not specified. SMS skipped.');
+        } else {
+            try {
+                const payload = {
+                    template: targetTemplate,
+                    mobileNumber: mobile91,
+                    variables: params
+                };
+
+                const response = await axios.post('https://infozysms.in/api/sms/send', payload, {
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 10000
+                });
+
+                if (response.data && (response.data.message === 'Message sent successfully' || response.data.status === 'success' || response.data.campaignId)) {
+                    console.log(`✅ [Infozy] SMS successfully triggered for ${mobile91} via template ${targetTemplate}. Campaign ID: ${response.data.campaignId}`);
+                    return { success: true, provider: 'Infozy', campaignId: response.data.campaignId, raw: response.data };
+                } else {
+                    console.log(`⚠️ [Infozy] SMS response for ${mobile91}:`, response.data);
+                    return { success: false, provider: 'Infozy', error: response.data?.message || 'Infozy delivery unsuccessful', raw: response.data };
+                }
+            } catch (error: any) {
+                console.error('❌ Infozy SMS API Error:', error?.response?.data || error.message);
+                return { success: false, provider: 'Infozy', error: error?.response?.data?.message || error.message };
+            }
+        }
+    }
+
+    // 3. Msg91 Flow API
+    if (configuredProvider === 'MSG91' || (!configuredProvider && process.env.MSG91_AUTH_KEY)) {
+        const authKey = process.env.MSG91_AUTH_KEY;
+        const targetTemplate = templateId || process.env.MSG91_TEMPLATE_ID_CONFIRMED;
+
+        if (!authKey) {
+            console.warn('⚠️ Msg91 Auth Key not found.');
+        } else if (!targetTemplate) {
+            console.warn('⚠️ Msg91 Template/Flow ID not found.');
+        } else {
+            try {
+                const response = await axios.post('https://api.msg91.com/api/v5/flow/', {
+                    template_id: targetTemplate,
+                    sender: process.env.MSG91_SENDER_ID || 'TKTSPR',
+                    short_url: '1',
+                    recipients: [{ mobiles: mobile91, ...params }]
+                }, {
+                    headers: {
+                        'authkey': authKey,
+                        'content-type': 'application/json'
+                    },
+                    timeout: 10000
+                });
+
+                if (response.data?.type === 'success') {
+                    console.log(`✅ [Msg91] SMS triggered for ${mobile91} via Flow ${targetTemplate}`);
+                    return { success: true, provider: 'Msg91', raw: response.data };
+                } else {
+                    console.warn(`⚠️ [Msg91] Trigger failed for ${mobile91}:`, response.data);
+                    return { success: false, provider: 'Msg91', error: response.data?.message || 'Msg91 failed', raw: response.data };
+                }
+            } catch (err: any) {
+                console.error('❌ Msg91 API Error:', err?.response?.data || err.message);
+                return { success: false, provider: 'Msg91', error: err?.response?.data?.message || err.message };
+            }
+        }
+    }
+
+    // 4. Twilio SMS
+    if (configuredProvider === 'TWILIO' || (!configuredProvider && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN)) {
+        const accountSid = process.env.TWILIO_ACCOUNT_SID;
+        const authToken = process.env.TWILIO_AUTH_TOKEN;
+        const fromNumber = process.env.TWILIO_FROM_NUMBER;
+
+        if (!accountSid || !authToken || !fromNumber) {
+            console.warn('⚠️ Twilio credentials incomplete.');
+        } else {
+            try {
+                const toFormatted = '+' + (cleanDigits.startsWith('91') ? cleanDigits : '91' + mobile10);
+                const textToSend = messageText || (
+                    params.event_name ? `TicketsPro: Booking for ${params.event_name} is ${params.status || 'Confirmed'}.` :
+                    'TicketsPro: Notification update.'
+                );
+
+                const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+                const paramsData = new URLSearchParams();
+                paramsData.append('To', toFormatted);
+                paramsData.append('From', fromNumber);
+                paramsData.append('Body', textToSend);
+
+                const response = await axios.post(
+                    `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+                    paramsData.toString(),
+                    {
+                        headers: {
+                            'Authorization': `Basic ${auth}`,
+                            'Content-Type': 'application/x-www-form-urlencoded'
+                        },
+                        timeout: 10000
+                    }
+                );
+
+                if (response.data?.sid) {
+                    console.log(`✅ [Twilio] SMS sent to ${toFormatted}. SID: ${response.data.sid}`);
+                    return { success: true, provider: 'Twilio', campaignId: response.data.sid, raw: response.data };
+                }
+            } catch (err: any) {
+                console.error('❌ Twilio SMS Error:', err?.response?.data || err.message);
+                return { success: false, provider: 'Twilio', error: err?.response?.data?.message || err.message };
+            }
+        }
+    }
+
+    return {
+        success: false,
+        error: 'No active SMS provider configured. Please configure FAST2SMS_API_KEY, INFOZY_API_KEY, MSG91_AUTH_KEY, or TWILIO_ACCOUNT_SID in environment variables.'
+    };
 };
 
 // ─── Booking Confirmed ────────────────────────────────────────────────────────
@@ -253,17 +424,21 @@ export const notifyBookingConfirmed = async (
         });
     }
 
-    // 2. Send SMS via Infozy
+    // 2. Send SMS via Active Provider (Fast2SMS / Infozy / Msg91 / Twilio)
     try {
-        const template = process.env.INFOZY_TEMPLATE_ID_CONFIRMED;
-        if (mobile && template) {
+        if (mobile) {
+            const template = process.env.INFOZY_TEMPLATE_ID_CONFIRMED || process.env.MSG91_TEMPLATE_ID_CONFIRMED;
+            const txnText = details?.transactionId ? ` Ref: ${details.transactionId}.` : '';
+            const msgText = `TicketsPro: Booking CONFIRMED for ${eventName}.${txnText} Manage: https://ticketspro.in`;
             await sendSMS(
                 mobile, 
                 template, 
                 {
                     event_name: eventName,
                     status: 'Confirmed'
-                }
+                },
+                undefined,
+                msgText
             );
         }
     } catch (e: any) {
@@ -361,16 +536,19 @@ export const notifyBookingCancelled = async (email: string, reason: string, mobi
         });
     }
 
-    // 2. Send SMS via Infozy
+    // 2. Send SMS via Active Provider (Fast2SMS / Infozy / Msg91 / Twilio)
     try {
-        const template = process.env.INFOZY_TEMPLATE_ID_CANCELLED;
-        if (mobile && template) {
+        if (mobile) {
+            const template = process.env.INFOZY_TEMPLATE_ID_CANCELLED || process.env.MSG91_TEMPLATE_ID_CANCELLED;
+            const msgText = `TicketsPro: Booking has been CANCELLED. Reason: ${reason || 'Per customer request'}. Refund initiated as per policy. Team TicketsPro`;
             await sendSMS(
                 mobile, 
                 template, 
                 {
                     reason: reason || 'Cancelled per request'
-                }
+                },
+                undefined,
+                msgText
             );
         }
     } catch (e: any) {
@@ -401,17 +579,20 @@ For assistance, please visit https://ticketspro.in or reply to this chat.`;
 
 // ─── Payment Received (Initial Receipt) ───────────────────────────────────────
 export const notifyPaymentReceived = async (mobile: string, amount: number, orderId: string) => {
-    // 1. Send SMS via Infozy
+    // 1. Send SMS via Active Provider (Fast2SMS / Infozy / Msg91 / Twilio)
     try {
-        const template = process.env.INFOZY_TEMPLATE_ID_PAYMENT;
-        if (mobile && template) {
+        if (mobile) {
+            const template = process.env.INFOZY_TEMPLATE_ID_PAYMENT || process.env.MSG91_TEMPLATE_ID_PAYMENT;
+            const msgText = `TicketsPro: Payment of Rs.${amount} received successfully for Order ${orderId}. Thank you for choosing TicketsPro!`;
             await sendSMS(
                 mobile, 
                 template, 
                 {
                     amount: amount.toString(),
                     order_id: orderId
-                }
+                },
+                undefined,
+                msgText
             );
         }
     } catch (e: any) {
