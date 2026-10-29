@@ -87,7 +87,7 @@ router.get('/getTrainOn', async (req: Request, res: Response) => {
         const cached = await CacheService.get(cacheKey);
         if (cached) {
             console.log(`[TrainCache] HIT for ${cacheKey}`);
-            return res.json({ success: true, data: JSON.parse(cached) });
+            return res.json({ success: true, data: JSON.parse(cached), provider: 'RailKit API (Live IRCTC)' });
         }
 
         // Fast cached pricing context (0 DB queries on warm cache)

@@ -307,7 +307,7 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
     const [availableTrains, setAvailableTrains] = useState<IRCTCTrain[] | null>(null);
     const [isLoadingTrains, setIsLoadingTrains] = useState(false);
     const [trainSearchError, setTrainSearchError] = useState('');
-    const [trainDataSource, setTrainDataSource] = useState<string>('RailRadar API (Live IRCTC)');
+    const [trainDataSource, setTrainDataSource] = useState<string>('RailKit API (Live IRCTC)');
 
     // Robust Price State Synchronization
     useEffect(() => {
