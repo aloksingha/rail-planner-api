@@ -192,7 +192,7 @@ export default function DashboardHome({ role }: { role?: string }) {
             <h1 className="text-4xl font-black text-slate-900 dark:text-slate-100 tracking-tighter italic">
               Tickets Pro Train <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-blue to-brand-teal">Control Center</span>
             </h1>
-            <p className="seo-summary-lead text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-2 max-w-2xl leading-relaxed font-medium">Tickets Pro is a smart rail travel booking assistant and live PNR tracking platform for Indian Railways passengers. Our system helps you search train seats, reserve bookings quickly, and receive real-time journey updates right on your mobile phone or WhatsApp.</p>
+            <p className="seo-summary-lead text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-2 max-w-2xl leading-relaxed font-medium">Tickets Pro is a smart rail travel booking tool and live PNR tracking platform for Indian travelers. Our simple web system helps you search train seats and reserve bookings fast. You get quick journey updates right on your mobile phone or WhatsApp.</p>
           </div>
         </div>
         <div className="bg-white/80 dark:bg-slate-900/50 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-white/5 py-2 px-4 flex items-center gap-3 shadow-sm transition-colors">
@@ -398,7 +398,7 @@ export default function DashboardHome({ role }: { role?: string }) {
             <article className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5">
               <h3 id="what-is-ticketspro" className="text-base font-bold text-slate-900 dark:text-white mb-2">What is Tickets Pro?</h3>
               <p className="seo-faq-answer text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
-                Tickets Pro is a smart railway travel booking tool made to help train passengers across India. The app lets you check open seats, book train tickets fast, and track your PNR on WhatsApp. You get quick updates on your phone to make train travel simple and stress free.
+                Tickets Pro is a smart rail travel booking tool made to help train travelers across India. The app lets you check open seats, reserve bookings fast, and track your PNR on WhatsApp. You get quick updates on your phone to make your trip simple and stress free.
               </p>
             </article>
 
