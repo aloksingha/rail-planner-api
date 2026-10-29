@@ -277,7 +277,7 @@ export default function LoginPage({ setToken, roleType, isAuthenticated }: Login
                         <div className="flex items-center gap-4 mb-3 group cursor-default login-left-logo-group">
                             <div className="relative">
                                 <div className="absolute inset-0 bg-white/20 blur-xl rounded-full scale-150 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-                                <img src={brandLogo} alt="Tickets Pro" className="w-16 h-16 object-contain relative z-10 group-hover:scale-110 transition-transform duration-500 login-left-logo" />
+                                <img src={brandLogo} alt="Tickets Pro Brand Logo" width={64} height={64} loading="lazy" className="w-16 h-16 object-contain relative z-10 group-hover:scale-110 transition-transform duration-500 login-left-logo" />
                             </div>
                             <span className="text-white text-3xl font-black tracking-tighter italic leading-none drop-shadow-2xl">
                                 Tickets <span className="text-white/40">Pro</span>
@@ -334,7 +334,7 @@ export default function LoginPage({ setToken, roleType, isAuthenticated }: Login
                     <div className="w-full max-w-md my-auto flex flex-col items-center">
                         <div className="lg:hidden flex items-center gap-3 mb-10">
                             <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-white/5 backdrop-blur-md flex items-center justify-center border border-slate-200 dark:border-white/10 shadow-sm">
-                                <img src={brandLogo} alt="Logo" className="w-10 h-10 object-contain shadow-sm dark:shadow-[0_0_15px_rgba(255,255,255,0.2)]" />
+                                <img src={brandLogo} alt="Tickets Pro Brand Logo" width={40} height={40} loading="lazy" className="w-10 h-10 object-contain shadow-sm dark:shadow-[0_0_15px_rgba(255,255,255,0.2)]" />
                             </div>
                             <span className="text-slate-900 dark:text-white text-3xl font-black italic tracking-tighter transition-colors">Tickets Pro</span>
                         </div>
@@ -484,6 +484,14 @@ export default function LoginPage({ setToken, roleType, isAuthenticated }: Login
                                     </div>
                                 </a>
                                 <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">Available for Android 8.0+</p>
+                                <footer className="mt-8 pt-6 border-t border-slate-200 dark:border-white/5 flex flex-wrap items-center justify-center gap-4 text-[10px] text-slate-500 uppercase tracking-widest font-bold">
+                                    <a href="/about" className="hover:text-brand-blue transition-colors">About Us</a>
+                                    <a href="/contact" className="hover:text-brand-blue transition-colors">Contact</a>
+                                    <a href="/pricing" className="hover:text-brand-blue transition-colors">Pricing</a>
+                                    <a href="/terms" className="hover:text-brand-blue transition-colors">Terms</a>
+                                    <a href="/privacy" className="hover:text-brand-blue transition-colors">Privacy</a>
+                                    <a href="/refund-policy" className="hover:text-brand-blue transition-colors">Refund Policy</a>
+                                </footer>
                             </div>
                         </motion.div>
                     </div>

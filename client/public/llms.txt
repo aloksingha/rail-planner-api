@@ -1,0 +1,29 @@
+# Tickets Pro
+
+> Tickets Pro is an intelligent railway travel planning, IRCTC train ticket reservation, and automated Tatkal assistance platform.
+
+## Overview
+Tickets Pro provides enterprise-grade rail travel tools, real-time seat availability monitoring across Indian Railways (IRCTC), instant Tatkal booking coordination, 10-digit PNR status tracking with live coach/berth confirmation, multi-wallet settlement, and dedicated WhatsApp support.
+
+## Key Capabilities
+- **Live Train Seat Availability**: Instant availability checks across SL, 3A, 2A, 1A, 3E, and CC quotas across all IRCTC zones.
+- **Tatkal Booking Assistance**: Automated workflows ensuring rapid booking submission during 10:00 AM (AC) and 11:00 AM (Non-AC) Tatkal windows.
+- **WhatsApp PNR Status**: Instant 10-digit PNR status checks via automated WhatsApp bot and live dashboard lookup.
+- **Secure Refund & Cancellation**: Zero-friction automated refund calculation conforming strictly to Indian Railways refund rules.
+- **Android App & Web Control Center**: Multi-platform access with offline ticket storage and push notifications.
+
+## Key URLs
+- Homepage: https://ticketspro.in/
+- Ticket Booking: https://ticketspro.in/book-ticket
+- About Us: https://ticketspro.in/about
+- Contact & Support: https://ticketspro.in/contact
+- Pricing: https://ticketspro.in/pricing
+- Terms of Service: https://ticketspro.in/terms
+- Privacy Policy: https://ticketspro.in/privacy
+- Refund Policy: https://ticketspro.in/refund-policy
+
+## Organization
+- Name: Tickets Pro
+- Website: https://ticketspro.in/
+- Support Email: support@ticketspro.in
+- Support WhatsApp: +91 73188 15790

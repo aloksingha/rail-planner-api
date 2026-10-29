@@ -38,7 +38,7 @@ const StatCard = React.memo(({ title, value, icon: Icon, trend, color = 'indigo'
         <div className="flex items-start justify-between mb-4">
           <div>
             <p className="text-white/70 text-[10px] uppercase font-black tracking-widest mb-1">{title}</p>
-            <h3 className="text-3xl font-black tracking-tight drop-shadow-md">{value}</h3>
+            <div className="text-3xl font-black tracking-tight drop-shadow-md">{value}</div>
           </div>
           <div className="rounded-2xl bg-white/15 p-3 backdrop-blur-md border border-white/20 shadow-[inset_0_1px_5px_rgba(255,255,255,0.2)] group-hover:rotate-12 group-hover:scale-110 transition-all duration-500">
             <Icon size={24} className="text-white drop-shadow-lg" />

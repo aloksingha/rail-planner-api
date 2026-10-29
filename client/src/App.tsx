@@ -748,6 +748,7 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
   return (
     <>
       <HotUpdateManager />
+      <a href="#main-content" className="skip-to-content sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[999999] focus:bg-sky-500 focus:text-white focus:px-4 focus:py-2 focus:rounded-xl focus:font-bold focus:shadow-xl">Skip to main content</a>
       <InteractiveBackground>
       {/* HIGH PRIORITY CONTACT INBOX BANNER FOR ADMIN */}
       {(auth.role === 'SUPER_ADMIN' || auth.role === 'ADMIN') && (pulseData?.contactMessageCount || 0) > 0 && (
@@ -812,13 +813,13 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
             <div className="relative group">
               <div className="absolute inset-0 bg-primary/30 rounded-3xl blur-2xl group-hover:blur-3xl transition-all duration-700 opacity-50"></div>
               <div className="relative w-16 h-16 rounded-[1.5rem] bg-white dark:bg-slate-900 flex items-center justify-center shadow-[0_12px_24px_-8px_rgba(14,165,233,0.5)] dark:shadow-[0_12px_24px_-8px_rgba(0,0,0,0.8)] border border-slate-200 dark:border-white/10 overflow-hidden holographic-glow">
-                <img src={brandLogo} alt="Logo" className="w-10 h-10 object-contain transition-all duration-700 group-hover:scale-110 group-hover:rotate-3" />
+                <img src={brandLogo} alt="Tickets Pro Logo" width={40} height={40} loading="lazy" className="w-10 h-10 object-contain transition-all duration-700 group-hover:scale-110 group-hover:rotate-3" />
               </div>
             </div>
             <div className="text-center">
-              <h1 className="text-slate-900 dark:text-white font-black tracking-[-0.05em] text-2xl font-headline italic leading-none">
+              <div className="text-slate-900 dark:text-white font-black tracking-[-0.05em] text-2xl font-headline italic leading-none">
                 TICKETS<span className="text-primary"> </span>PRO
-              </h1>
+              </div>
               <div 
                 className="flex flex-col items-center gap-1 mt-2 p-2 mx-[-0.5rem] rounded-xl hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer relative group"
                 onClick={() => {
@@ -989,7 +990,7 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
           </div>
         </aside>
 
-        <main className="flex-1 flex flex-col min-w-0 w-full relative z-[25] transition-colors duration-500 bg-[#fafbfc] dark:bg-slate-950/40 h-[100dvh] overflow-y-auto">
+        <main id="main-content" className="flex-1 flex flex-col min-w-0 w-full relative z-[25] transition-colors duration-500 bg-[#fafbfc] dark:bg-slate-950/40 h-[100dvh] overflow-y-auto">
           <header 
             className="flex justify-between items-center px-6 py-4 sticky top-0 z-40 bg-[#fafbfc]/80 backdrop-blur-md border-b border-slate-200/50 dark:border-white/5"
             style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}
@@ -1172,6 +1173,17 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
                 </Routes>
               </Suspense>
             </div>
+            <footer className="w-full mt-auto py-6 px-6 border-t border-slate-200/50 dark:border-white/5 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-4">
+              <p>© 2026 Tickets Pro. Smart Rail Intelligence &amp; Automated Booking.</p>
+              <nav aria-label="Footer Navigation" className="flex flex-wrap items-center gap-4 text-xs font-bold uppercase tracking-wider">
+                <Link to="/about" className="hover:text-primary transition-colors">About Us</Link>
+                <Link to="/contact" className="hover:text-primary transition-colors">Contact</Link>
+                <Link to="/pricing" className="hover:text-primary transition-colors">Pricing</Link>
+                <Link to="/terms" className="hover:text-primary transition-colors">Terms</Link>
+                <Link to="/privacy" className="hover:text-primary transition-colors">Privacy</Link>
+                <Link to="/refund-policy" className="hover:text-primary transition-colors">Refund Policy</Link>
+              </nav>
+            </footer>
           </div>
         </main>
       </div>
