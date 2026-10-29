@@ -1001,7 +1001,7 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
               </button>
               <div className="flex items-center gap-2.5 group cursor-pointer" onClick={() => navigate('/')}>
                 <div className="w-8 h-8 rounded-lg bg-white dark:bg-slate-900 flex items-center justify-center shadow-sm border border-slate-200 dark:border-white/10 overflow-hidden">
-                  <img src={brandLogo} alt="Logo" className="w-6 h-6 object-contain transition-transform group-hover:scale-110" />
+                  <img src={brandLogo} alt="Tickets Pro Logo" width={24} height={24} loading="lazy" className="w-6 h-6 object-contain transition-transform group-hover:scale-110" />
                 </div>
                 <h2 className="text-primary text-xl font-black italic font-headline tracking-tighter">TICKETS<span className="text-slate-400 dark:text-slate-600"> </span>PRO</h2>
               </div>

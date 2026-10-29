@@ -13,7 +13,7 @@ export const InteractiveBackground: React.FC<{ children: React.ReactNode }> = ({
 
             {/* Subdued Brand Logo Watermark */}
             <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-0 opacity-[0.03] dark:opacity-[0.02]">
-                <img src={brandLogo} alt="" className="w-[800px] h-[800px] object-contain grayscale" />
+                <img src={brandLogo} alt="Background Watermark" width={800} height={800} loading="lazy" className="w-[800px] h-[800px] object-contain grayscale" />
             </div>
 
             {/* Static Gradient Overlay (Flicker-Free) */}

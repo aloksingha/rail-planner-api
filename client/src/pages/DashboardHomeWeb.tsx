@@ -182,7 +182,7 @@ export default function DashboardHome({ role }: { role?: string }) {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-2">
         <div className="flex items-center gap-5">
           <div className="w-16 h-16 rounded-[1.5rem] bg-white dark:bg-slate-900 flex items-center justify-center shadow-lg border border-slate-200 dark:border-white/10 group overflow-hidden">
-            <img src={brandLogo} alt="Logo" className="w-12 h-12 object-contain group-hover:scale-110 transition-transform duration-500" />
+            <img src={brandLogo} alt="Tickets Pro Logo" width={48} height={48} loading="lazy" className="w-12 h-12 object-contain group-hover:scale-110 transition-transform duration-500" />
           </div>
           <div>
             <div className="flex items-center gap-2 mb-2">
@@ -234,7 +234,7 @@ export default function DashboardHome({ role }: { role?: string }) {
                   <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:scale-110 transition-transform duration-700" />
                   <div className="relative z-10 flex items-center justify-between h-full">
                     <div>
-                      <h4 className="text-2xl font-black tracking-tight mb-1 uppercase italic text-white text-left">Create New Booking</h4>
+                      <h2 className="text-2xl font-black tracking-tight mb-1 uppercase italic text-white text-left">Create New Booking</h2>
                       <p className="text-blue-100/70 text-sm font-medium text-left">Instantly reserve IRCTC train tickets for your clients.</p>
                     </div>
                     <div className="bg-white/20 p-4 rounded-2xl backdrop-blur-md border border-white/20 shadow-xl group-hover:rotate-6 transition-transform">
@@ -310,7 +310,7 @@ export default function DashboardHome({ role }: { role?: string }) {
                             {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1 font-medium">{activity.details || activity.action}</p>
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1 font-medium">{(activity.details || activity.action || '').replace(/Pushed OTA update to version/gi, 'Synchronized core version')}</p>
                         {activity.type === 'BOOKING' && (
                           <div className={`mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${
                             activity.status === 'CONFIRMED' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
@@ -341,6 +341,120 @@ export default function DashboardHome({ role }: { role?: string }) {
           </div>
         )}
       </div>
+      {/* Platform Knowledge & Semantic Travel Guide */}
+      <section className="bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl rounded-[2.5rem] border border-slate-200 dark:border-white/5 p-8 shadow-sm">
+        <div className="max-w-4xl space-y-6">
+          <div className="flex items-center gap-2">
+            <span className="h-1.5 w-6 rounded-full bg-brand-blue" />
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-blue">Platform Knowledge &amp; Travel Guide</span>
+          </div>
+          
+          <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase">
+            Tickets Pro Travel Intelligence &amp; FAQ
+          </h2>
+          
+          <p className="seo-summary-lead text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
+            Tickets Pro is an automated IRCTC train booking, Tatkal assistance, and live PNR tracking platform designed to streamline train travel reservations across India with instant confirmation updates.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+            <article className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white mb-2">What is Tickets Pro?</h3>
+              <p className="seo-faq-answer text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                Tickets Pro refers to India's intelligent railway travel coordination system, providing live train seat availability across all classes, high-speed Tatkal booking assistance, automated PNR confirmation checking, and unified refund handling.
+              </p>
+            </article>
+
+            <article className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white mb-2">How to Check IRCTC PNR Status?</h3>
+              <p className="seo-faq-answer text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                Passengers can check their 10-digit IRCTC PNR status instantly via Tickets Pro WhatsApp automated bot or through the web dashboard to receive live coach allotment, berth numbers, and chart status.
+              </p>
+            </article>
+
+            <article className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white mb-2">How Does Tatkal Booking Automation Work?</h3>
+              <p className="seo-faq-answer text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                Tatkal booking automation on Tickets Pro monitors quota releases at 10:00 AM for AC classes and 11:00 AM for Non-AC classes, routing verified seat availability to secure reservations within seconds.
+              </p>
+            </article>
+
+            <article className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5">
+              <h3 className="text-base font-bold text-slate-900 dark:text-white mb-2">How Are Train Ticket Cancellations &amp; Refunds Handled?</h3>
+              <p className="seo-faq-answer text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                Refunds are processed automatically back to the passenger's original payment method or wallet according to official Indian Railways cancellation and refund rules within 24 to 48 hours.
+              </p>
+            </article>
+          </div>
+
+          <div className="pt-4 border-t border-slate-200/50 dark:border-white/5">
+            <h3 className="text-sm font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-3">Indian Railways Travel Definitions</h3>
+            <dl className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200/40 dark:border-white/5">
+                <dt className="font-bold text-slate-900 dark:text-white mb-1">PNR (Passenger Name Record)</dt>
+                <dd className="text-slate-500 dark:text-slate-400 leading-normal">A unique 10-digit number assigned to train journeys across Indian Railways storing passenger and itinerary data.</dd>
+              </div>
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200/40 dark:border-white/5">
+                <dt className="font-bold text-slate-900 dark:text-white mb-1">Tatkal Quota</dt>
+                <dd className="text-slate-500 dark:text-slate-400 leading-normal">An emergency seat reservation quota released one day prior to train departure for urgent passenger travel.</dd>
+              </div>
+              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200/40 dark:border-white/5">
+                <dt className="font-bold text-slate-900 dark:text-white mb-1">Chart Preparation</dt>
+                <dd className="text-slate-500 dark:text-slate-400 leading-normal">The finalization of passenger seat and berth allocations approximately 4 hours prior to train departure.</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div className="pt-4 border-t border-slate-200/50 dark:border-white/5">
+            <h3 className="text-sm font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-3">IRCTC Booking Quota Timings Reference</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-slate-600 dark:text-slate-400 border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-bold uppercase text-[10px] tracking-wider">
+                    <th className="py-2.5 px-3">Quota Type</th>
+                    <th className="py-2.5 px-3">Opening Time</th>
+                    <th className="py-2.5 px-3">Advance Window</th>
+                    <th className="py-2.5 px-3">Cancellation Eligibility</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-white/5 font-medium">
+                  <tr>
+                    <td className="py-2.5 px-3 font-bold text-slate-800 dark:text-slate-200">AC Tatkal (1A, 2A, 3A, 3E, CC)</td>
+                    <td className="py-2.5 px-3 text-emerald-500 font-bold">10:00 AM IST</td>
+                    <td className="py-2.5 px-3">1 Day Prior</td>
+                    <td className="py-2.5 px-3">Zero refund on confirmed Tatkal</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 px-3 font-bold text-slate-800 dark:text-slate-200">Non-AC Tatkal (Sleeper / 2S)</td>
+                    <td className="py-2.5 px-3 text-emerald-500 font-bold">11:00 AM IST</td>
+                    <td className="py-2.5 px-3">1 Day Prior</td>
+                    <td className="py-2.5 px-3">Zero refund on confirmed Tatkal</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2.5 px-3 font-bold text-slate-800 dark:text-slate-200">General Reservation (GN)</td>
+                    <td className="py-2.5 px-3 text-brand-blue font-bold">08:00 AM IST</td>
+                    <td className="py-2.5 px-3">Up to 120 Days</td>
+                    <td className="py-2.5 px-3">Full refund minus clerkage up to 48 hrs</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Semantic Footer with Site Navigation */}
+      <footer role="contentinfo" className="w-full pt-8 pb-4 border-t border-slate-200/50 dark:border-white/5 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-4">
+        <p>© 2026 Tickets Pro. Smart Rail Intelligence &amp; Automated Booking.</p>
+        <nav aria-label="Footer Site Links" className="flex flex-wrap items-center gap-4 text-xs font-bold uppercase tracking-wider">
+          <Link to="/about" className="hover:text-primary transition-colors">About Us</Link>
+          <Link to="/contact" className="hover:text-primary transition-colors">Contact Support</Link>
+          <Link to="/pricing" className="hover:text-primary transition-colors">Pricing</Link>
+          <Link to="/terms" className="hover:text-primary transition-colors">Terms &amp; Conditions</Link>
+          <Link to="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
+          <Link to="/refund-policy" className="hover:text-primary transition-colors">Refund Policy</Link>
+        </nav>
+      </footer>
     </div>
   );
 }
