@@ -192,6 +192,7 @@ export default function DashboardHome({ role }: { role?: string }) {
             <h1 className="text-4xl font-black text-slate-900 dark:text-slate-100 tracking-tighter italic">
               Control <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-blue to-brand-teal">Center</span>
             </h1>
+            <p className="seo-summary-lead text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-2 max-w-2xl leading-relaxed font-medium">Tickets Pro is a smart train booking help and live PNR tracking tool for Indian Railways travelers. Our simple web system helps you search train seats, book tickets fast, and get quick alerts right on your mobile phone.</p>
           </div>
         </div>
         <div className="bg-white/80 dark:bg-slate-900/50 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-white/5 py-2 px-4 flex items-center gap-3 shadow-sm transition-colors">
@@ -341,15 +342,28 @@ export default function DashboardHome({ role }: { role?: string }) {
           </div>
         )}
       </div>
-      {/* Platform Knowledge & Semantic Travel Guide */}
+            {/* Platform Knowledge & Semantic Travel Guide */}
       <section className="bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl rounded-[2.5rem] border border-slate-200 dark:border-white/5 p-8 shadow-sm">
         <div className="max-w-4xl space-y-6">
-          <div className="flex items-center gap-2">
-            <span className="h-1.5 w-6 rounded-full bg-brand-blue" />
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-blue">Platform Knowledge &amp; Travel Guide</span>
+          <nav aria-label="Breadcrumb" className="mb-3">
+            <ol className="flex items-center gap-2 text-xs text-slate-500">
+              <li><a href="/" className="hover:underline text-brand-blue font-medium">Home</a></li>
+              <li>/</li>
+              <li><a href="#platform-knowledge" className="hover:underline">Travel Guide</a></li>
+              <li>/</li>
+              <li className="text-slate-700 dark:text-slate-300 font-semibold">IRCTC &amp; Tatkal FAQ</li>
+            </ol>
+          </nav>
+
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <span className="h-1.5 w-6 rounded-full bg-brand-blue" />
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-blue">Platform Knowledge &amp; Travel Guide</span>
+            </div>
+            <time dateTime="2026-10-29" className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">Updated: October 29, 2026</time>
           </div>
           
-          <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase">
+          <h2 id="platform-knowledge" className="text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase">
             Tickets Pro Travel Intelligence &amp; FAQ
           </h2>
           
@@ -357,56 +371,103 @@ export default function DashboardHome({ role }: { role?: string }) {
             Tickets Pro is an automated IRCTC train booking, Tatkal assistance, and live PNR tracking platform designed to streamline train travel reservations across India with instant confirmation updates.
           </p>
 
+          <nav aria-label="Quick Table of Contents" className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200/50 dark:border-white/5 my-4">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5">Quick Links:</span>
+            <div className="flex flex-wrap gap-2 text-xs font-medium">
+              <a href="#what-is-ticketspro" className="px-2.5 py-1 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:text-brand-blue">What is Tickets Pro?</a>
+              <a href="#how-to-check-pnr-status" className="px-2.5 py-1 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:text-brand-blue">Check PNR Status</a>
+              <a href="#how-to-book-tatkal-tickets" className="px-2.5 py-1 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:text-brand-blue">Book Tatkal Faster</a>
+              <a href="#what-is-tatkal-automation" className="px-2.5 py-1 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:text-brand-blue">Tatkal Automation</a>
+              <a href="#what-is-chart-preparation" className="px-2.5 py-1 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:text-brand-blue">Chart Timings</a>
+              <a href="#train-cancellation-refunds" className="px-2.5 py-1 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:text-brand-blue">Refund Policy</a>
+            </div>
+          </nav>
+
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5 my-4 space-y-3">
+            <form id="pnr-search-form" toolname="checkPNRStatus" tooldescription="Check live Indian Railways IRCTC PNR confirmation status, coach allocation and seat details" className="flex flex-col sm:flex-row gap-3 items-center" onSubmit={(e) => e.preventDefault()}>
+              <input name="pnr" toolparamdescription="Ten digit Indian Railways PNR number" type="text" maxLength={10} placeholder="Enter 10-digit PNR Number" className="w-full sm:w-80 px-4 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-200" />
+              <button type="button" onClick={() => window.open('/pnr-status', '_self')} className="w-full sm:w-auto px-5 py-2 rounded-xl bg-brand-blue hover:bg-brand-blue/90 text-white text-xs font-bold transition-colors">Check Live PNR Status</button>
+            </form>
+            <form id="faq-search-form" toolname="searchFAQ" tooldescription="Search train travel questions, tatkal booking tips, and railway cancellation refund answers" className="flex items-center gap-2" onSubmit={(e) => e.preventDefault()}>
+              <input name="query" toolparamdescription="Search keyword for train booking or IRCTC travel rules" type="search" placeholder="Search train travel questions..." className="w-full sm:w-80 px-3 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-200" />
+              <button type="button" className="px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold">Search</button>
+            </form>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
             <article className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white mb-2">What is Tickets Pro?</h3>
-              <p className="seo-faq-answer text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Tickets Pro refers to India's intelligent railway travel coordination system, providing live train seat availability across all classes, high-speed Tatkal booking assistance, automated PNR confirmation checking, and unified refund handling.
+              <h3 id="what-is-ticketspro" className="text-base font-bold text-slate-900 dark:text-white mb-2">What is Tickets Pro?</h3>
+              <p className="seo-faq-answer text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
+                Tickets Pro is a smart railway travel booking tool made to help train passengers across India. The app lets you check open seats, book train tickets fast, and track your PNR on WhatsApp. You get quick updates on your phone to make train travel simple and stress free.
               </p>
             </article>
 
             <article className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white mb-2">How to Check IRCTC PNR Status?</h3>
-              <p className="seo-faq-answer text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Passengers can check their 10-digit IRCTC PNR status instantly via Tickets Pro WhatsApp automated bot or through the web dashboard to receive live coach allotment, berth numbers, and chart status.
+              <h3 id="how-to-check-pnr-status" className="text-base font-bold text-slate-900 dark:text-white mb-2">How to Check IRCTC PNR Status?</h3>
+              <p className="seo-faq-answer text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
+                IRCTC PNR refers to the unique ten-digit booking number printed on your train ticket. You can check live PNR status on Tickets Pro by typing your number into our search tool. We show your coach code, seat number, and train chart status in just one second.
+              </p>
+              <ol className="mt-2.5 space-y-1 list-decimal list-inside text-xs text-slate-600 dark:text-slate-400">
+                <li>Step 1: Enter your ten digit IRCTC PNR number in the search input box.</li>
+                <li>Step 2: Click Check Status to connect with Indian Railways servers.</li>
+                <li>Step 3: See your confirmed coach, seat number, and live journey chart details.</li>
+              </ol>
+            </article>
+
+            <article className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5">
+              <h3 id="how-to-book-tatkal-tickets" className="text-base font-bold text-slate-900 dark:text-white mb-2">How to Book Tatkal Train Tickets Online Faster?</h3>
+              <p className="seo-faq-answer text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
+                Tatkal booking is an urgent train seat quota that opens one day before train departure. To book fast, save passenger details early in your Tickets Pro account. Open the app before the quota opens, pick your class, and pay quickly to confirm your train seats without delay.
+              </p>
+              <ol className="mt-2.5 space-y-1 list-decimal list-inside text-xs text-slate-600 dark:text-slate-400">
+                <li>Step 1: Save passenger names, ages, and berth choices in advance.</li>
+                <li>Step 2: Sign in at 09:59 AM for AC classes or 10:59 AM for sleeper class.</li>
+                <li>Step 3: Pick the Tatkal quota and pay instantly to lock in your train seats.</li>
+              </ol>
+            </article>
+
+            <article className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5">
+              <h3 id="what-is-tatkal-automation" className="text-base font-bold text-slate-900 dark:text-white mb-2">What is Tatkal Booking Automation?</h3>
+              <p className="seo-faq-answer text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
+                Tatkal booking automation is a smart digital tool that fills in passenger details for you in seconds. It helps travelers save precious time during high morning rush hours. You can avoid slow manual typing, beat server timeouts, and secure confirmed train seats with ease and peace of mind.
               </p>
             </article>
 
             <article className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white mb-2">How Does Tatkal Booking Automation Work?</h3>
-              <p className="seo-faq-answer text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Tatkal booking automation on Tickets Pro monitors quota releases at 10:00 AM for AC classes and 11:00 AM for Non-AC classes, routing verified seat availability to secure reservations within seconds.
+              <h3 id="what-is-chart-preparation" className="text-base font-bold text-slate-900 dark:text-white mb-2">What is Chart Preparation Time in Indian Railways?</h3>
+              <p className="seo-faq-answer text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
+                Chart preparation refers to the final train seat list made by railway staff four hours before departure. Waiting list travelers can see if their seats got confirmed. Any left over open seats go to current booking so travelers can book last minute tickets at railway stations or online.
               </p>
             </article>
 
             <article className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white mb-2">How Are Train Ticket Cancellations &amp; Refunds Handled?</h3>
-              <p className="seo-faq-answer text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                Refunds are processed automatically back to the passenger's original payment method or wallet according to official Indian Railways cancellation and refund rules within 24 to 48 hours.
+              <h3 id="train-cancellation-refunds" className="text-base font-bold text-slate-900 dark:text-white mb-2">How Are Train Ticket Cancellations and Refunds Handled?</h3>
+              <p className="seo-faq-answer text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
+                A train refund is a return of ticket money when a traveler cancels a seat or a train stops. On Tickets Pro, refunds go back to your bank account or wallet within one to two days. All refunds follow official railway rules with no hidden fees or extra charges.
               </p>
             </article>
           </div>
 
           <div className="pt-4 border-t border-slate-200/50 dark:border-white/5">
-            <h3 className="text-sm font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-3">Indian Railways Travel Definitions</h3>
+            <h3 id="travel-definitions" className="text-sm font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-3">Indian Railways Travel Definitions</h3>
             <dl className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
               <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200/40 dark:border-white/5">
                 <dt className="font-bold text-slate-900 dark:text-white mb-1">PNR (Passenger Name Record)</dt>
-                <dd className="text-slate-500 dark:text-slate-400 leading-normal">A unique 10-digit number assigned to train journeys across Indian Railways storing passenger and itinerary data.</dd>
+                <dd className="text-slate-500 dark:text-slate-400 leading-normal">PNR is a unique ten-digit number assigned to train bookings in India storing trip and passenger records.</dd>
               </div>
               <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200/40 dark:border-white/5">
                 <dt className="font-bold text-slate-900 dark:text-white mb-1">Tatkal Quota</dt>
-                <dd className="text-slate-500 dark:text-slate-400 leading-normal">An emergency seat reservation quota released one day prior to train departure for urgent passenger travel.</dd>
+                <dd className="text-slate-500 dark:text-slate-400 leading-normal">Tatkal quota refers to emergency train seats opened by Indian Railways one day before the journey starts.</dd>
               </div>
               <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200/40 dark:border-white/5">
                 <dt className="font-bold text-slate-900 dark:text-white mb-1">Chart Preparation</dt>
-                <dd className="text-slate-500 dark:text-slate-400 leading-normal">The finalization of passenger seat and berth allocations approximately 4 hours prior to train departure.</dd>
+                <dd className="text-slate-500 dark:text-slate-400 leading-normal">Chart preparation refers to the final passenger seat allocation made four hours before train departure time.</dd>
               </div>
             </dl>
           </div>
 
           <div className="pt-4 border-t border-slate-200/50 dark:border-white/5">
-            <h3 className="text-sm font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-3">IRCTC Booking Quota Timings Reference</h3>
+            <h3 id="booking-quota-timings" className="text-sm font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-3">IRCTC Booking Quota Timings Reference</h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-600 dark:text-slate-400 border-collapse">
                 <thead>
@@ -440,6 +501,10 @@ export default function DashboardHome({ role }: { role?: string }) {
               </table>
             </div>
           </div>
+
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-4">
+            Official reference sources: <a href="https://www.irctc.co.in" target="_blank" rel="noopener noreferrer" className="text-brand-blue hover:underline font-medium">IRCTC Official Portal</a> and <a href="https://en.wikipedia.org/wiki/Indian_Railways" target="_blank" rel="noopener noreferrer" className="text-brand-blue hover:underline font-medium">Indian Railways Information</a>.
+          </p>
         </div>
       </section>
 
