@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { prisma } from '../prisma';
 import { isValidIndianMobile } from '../utils/validation';
-import { notifyBookingCancelled, notifyBookingConfirmed, sendSMS } from '../services/notificationService';
+import { notifyBookingCancelled, notifyBookingConfirmed, sendSMS, getTextBeeStats, getTextBeeDevices } from '../services/notificationService';
 import { createAuditLog } from '../services/auditService';
 import { refundQueue } from '../queue/refundQueue';
 import { processTicketRefund } from '../services/razorpayService';
@@ -900,6 +900,17 @@ router.post('/test-sms', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), asy
         console.error('Test SMS error:', err);
         return res.status(500).json({ success: false, error: err.message || 'Internal Server Error' });
     }
+});
+
+// TextBee Device and Status Routes
+router.get('/textbee/stats', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+    const stats = await getTextBeeStats();
+    return res.json(stats);
+});
+
+router.get('/textbee/devices', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+    const devices = await getTextBeeDevices();
+    return res.json(devices);
 });
 
 export default router;

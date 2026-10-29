@@ -99,7 +99,55 @@ export const sendSMS = async (
     // Determine configured SMS provider
     const configuredProvider = (process.env.SMS_PROVIDER || '').toUpperCase();
 
-    // 1. Fast2SMS (Recommended for Quick Transactional/OTP in India without DLT blockers)
+    // 1. TextBee SMS Gateway (Android SIM Gateway - https://api.textbee.dev/api/v1)
+    if (configuredProvider === 'TEXTBEE' || (!configuredProvider && process.env.TEXTBEE_API_KEY) || process.env.TEXTBEE_API_KEY) {
+        const apiKey = process.env.TEXTBEE_API_KEY;
+        if (!apiKey) {
+            console.warn('⚠️ TextBee API Key not configured in environment.');
+        } else {
+            try {
+                const baseUrl = (process.env.TEXTBEE_BASE_URL || 'https://api.textbee.dev/api/v1').replace(/\/+$/, '');
+                const e164Recipient = cleanDigits.startsWith('91') ? `+${cleanDigits}` : `+91${mobile10}`;
+
+                const textToSend = messageText || (
+                    params.event_name ? `TicketsPro: Booking for ${params.event_name} is ${params.status || 'Confirmed'}. Check status: https://ticketspro.in` :
+                    params.amount ? `TicketsPro: Payment of Rs.${params.amount} received for order ${params.order_id}. Thank you!` :
+                    params.reason ? `TicketsPro: Booking cancelled. Reason: ${params.reason}. Refund initiated.` :
+                    'TicketsPro: Notification update.'
+                );
+
+                const payload: any = {
+                    recipients: [e164Recipient],
+                    message: textToSend
+                };
+
+                if (process.env.TEXTBEE_DEVICE_ID) {
+                    payload.deviceId = process.env.TEXTBEE_DEVICE_ID;
+                }
+
+                const response = await axios.post(`${baseUrl}/gateway/send-sms`, payload, {
+                    headers: {
+                        'x-api-key': apiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 10000
+                });
+
+                if (response.data && (response.status === 200 || response.status === 201 || response.data.success || response.data.data)) {
+                    console.log(`✅ [TextBee] SMS dispatched to ${e164Recipient} via TextBee Gateway`);
+                    return { success: true, provider: 'TextBee', raw: response.data };
+                } else {
+                    console.warn(`⚠️ [TextBee] Gateway response for ${e164Recipient}:`, response.data);
+                    return { success: false, provider: 'TextBee', error: response.data?.message || 'TextBee delivery unconfirmed', raw: response.data };
+                }
+            } catch (err: any) {
+                console.error('❌ TextBee API Error:', err?.response?.data || err.message);
+                return { success: false, provider: 'TextBee', error: err?.response?.data?.message || err.message };
+            }
+        }
+    }
+
+    // 2. Fast2SMS (Recommended for Quick Transactional/OTP in India without DLT blockers)
     if (configuredProvider === 'FAST2SMS' || (!configuredProvider && process.env.FAST2SMS_API_KEY)) {
         const apiKey = process.env.FAST2SMS_API_KEY;
         if (!apiKey) {
@@ -275,8 +323,38 @@ export const sendSMS = async (
 
     return {
         success: false,
-        error: 'No active SMS provider configured. Please configure FAST2SMS_API_KEY, INFOZY_API_KEY, MSG91_AUTH_KEY, or TWILIO_ACCOUNT_SID in environment variables.'
+        error: 'No active SMS provider configured. Please configure TEXTBEE_API_KEY, FAST2SMS_API_KEY, INFOZY_API_KEY, MSG91_AUTH_KEY, or TWILIO_ACCOUNT_SID in environment variables.'
     };
+};
+
+export const getTextBeeStats = async () => {
+    const apiKey = process.env.TEXTBEE_API_KEY;
+    if (!apiKey) return { success: false, error: 'TEXTBEE_API_KEY not configured' };
+    const baseUrl = (process.env.TEXTBEE_BASE_URL || 'https://api.textbee.dev/api/v1').replace(/\/+$/, '');
+    try {
+        const response = await axios.get(`${baseUrl}/gateway/stats`, {
+            headers: { 'x-api-key': apiKey },
+            timeout: 8000
+        });
+        return { success: true, data: response.data };
+    } catch (e: any) {
+        return { success: false, error: e?.response?.data || e.message };
+    }
+};
+
+export const getTextBeeDevices = async () => {
+    const apiKey = process.env.TEXTBEE_API_KEY;
+    if (!apiKey) return { success: false, error: 'TEXTBEE_API_KEY not configured' };
+    const baseUrl = (process.env.TEXTBEE_BASE_URL || 'https://api.textbee.dev/api/v1').replace(/\/+$/, '');
+    try {
+        const response = await axios.get(`${baseUrl}/gateway/devices`, {
+            headers: { 'x-api-key': apiKey },
+            timeout: 8000
+        });
+        return { success: true, data: response.data };
+    } catch (e: any) {
+        return { success: false, error: e?.response?.data || e.message };
+    }
 };
 
 // ─── Booking Confirmed ────────────────────────────────────────────────────────
