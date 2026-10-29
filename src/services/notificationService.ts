@@ -121,9 +121,7 @@ export const sendSMS = async (
                     message: textToSend
                 };
 
-                if (process.env.TEXTBEE_DEVICE_ID) {
-                    payload.deviceId = process.env.TEXTBEE_DEVICE_ID;
-                }
+                payload.deviceId = process.env.TEXTBEE_DEVICE_ID || '6ae35654c1ee0a8decf5a45c';
 
                 const response = await axios.post(`${baseUrl}/gateway/send-sms`, payload, {
                     headers: {
@@ -351,6 +349,72 @@ export const getTextBeeDevices = async () => {
             headers: { 'x-api-key': apiKey },
             timeout: 8000
         });
+        return { success: true, data: response.data };
+    } catch (e: any) {
+        return { success: false, error: e?.response?.data || e.message };
+    }
+};
+
+export const sendTextBeeBulkSMS = async (
+    messages: Array<{ recipients: string[]; message: string }>,
+    deviceId?: string
+) => {
+    const apiKey = process.env.TEXTBEE_API_KEY;
+    if (!apiKey) return { success: false, error: 'TEXTBEE_API_KEY not configured' };
+    const baseUrl = (process.env.TEXTBEE_BASE_URL || 'https://api.textbee.dev/api/v1').replace(/\/+$/, '');
+    const targetDeviceId = deviceId || process.env.TEXTBEE_DEVICE_ID || '6ae35654c1ee0a8decf5a45c';
+
+    try {
+        const payload: any = {
+            deviceId: targetDeviceId,
+            messages: messages.map(m => ({
+                recipients: m.recipients.map(r => {
+                    const clean = r.replace(/\D/g, '');
+                    return clean.startsWith('91') ? `+${clean}` : (clean.length === 10 ? `+91${clean}` : `+${clean}`);
+                }),
+                message: m.message
+            }))
+        };
+
+        const response = await axios.post(`${baseUrl}/gateway/send-bulk-sms`, payload, {
+            headers: {
+                'x-api-key': apiKey,
+                'Content-Type': 'application/json'
+            },
+            timeout: 15000
+        });
+
+        return { success: true, data: response.data };
+    } catch (e: any) {
+        return { success: false, error: e?.response?.data || e.message };
+    }
+};
+
+export const getTextBeeMessages = async (query: {
+    direction?: string;
+    page?: number | string;
+    limit?: number | string;
+    smsBatchId?: string;
+    status?: string;
+} = {}) => {
+    const apiKey = process.env.TEXTBEE_API_KEY;
+    if (!apiKey) return { success: false, error: 'TEXTBEE_API_KEY not configured' };
+    const baseUrl = (process.env.TEXTBEE_BASE_URL || 'https://api.textbee.dev/api/v1').replace(/\/+$/, '');
+
+    try {
+        const params = new URLSearchParams();
+        if (query.direction) params.append('direction', query.direction);
+        if (query.page) params.append('page', query.page.toString());
+        if (query.limit) params.append('limit', query.limit.toString());
+        if (query.smsBatchId) params.append('smsBatchId', query.smsBatchId);
+        if (query.status) params.append('status', query.status);
+
+        const url = `${baseUrl}/gateway/messages${params.toString() ? '?' + params.toString() : ''}`;
+        const response = await axios.get(url, {
+            headers: { 'x-api-key': apiKey },
+            timeout: 10000
+        });
+
         return { success: true, data: response.data };
     } catch (e: any) {
         return { success: false, error: e?.response?.data || e.message };

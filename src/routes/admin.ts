@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { prisma } from '../prisma';
 import { isValidIndianMobile } from '../utils/validation';
-import { notifyBookingCancelled, notifyBookingConfirmed, sendSMS, getTextBeeStats, getTextBeeDevices } from '../services/notificationService';
+import { notifyBookingCancelled, notifyBookingConfirmed, sendSMS, getTextBeeStats, getTextBeeDevices, sendTextBeeBulkSMS, getTextBeeMessages } from '../services/notificationService';
 import { createAuditLog } from '../services/auditService';
 import { refundQueue } from '../queue/refundQueue';
 import { processTicketRefund } from '../services/razorpayService';
@@ -911,6 +911,28 @@ router.get('/textbee/stats', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']),
 router.get('/textbee/devices', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
     const devices = await getTextBeeDevices();
     return res.json(devices);
+});
+
+// TextBee Messages (History & Received messages)
+router.get('/textbee/messages', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+    const result = await getTextBeeMessages({
+        direction: req.query.direction as string,
+        page: req.query.page as string,
+        limit: req.query.limit as string,
+        smsBatchId: req.query.smsBatchId as string,
+        status: req.query.status as string
+    });
+    return res.json(result);
+});
+
+// TextBee Bulk SMS dispatch
+router.post('/textbee/send-bulk', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+    const { messages, deviceId } = req.body;
+    if (!Array.isArray(messages) || messages.length === 0) {
+        return res.status(400).json({ success: false, error: 'messages array is required' });
+    }
+    const result = await sendTextBeeBulkSMS(messages, deviceId);
+    return res.json(result);
 });
 
 export default router;
