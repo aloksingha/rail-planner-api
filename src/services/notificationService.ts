@@ -96,14 +96,17 @@ export const sendSMS = async (
     const mobile10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
     const mobile91 = '91' + mobile10;
 
-    // Determine configured SMS provider
-    const configuredProvider = (process.env.SMS_PROVIDER || '').toUpperCase();
+    // Determine configured SMS provider - Default to TEXTBEE (Airtel SIM)
+    const configuredProvider = (process.env.SMS_PROVIDER || 'TEXTBEE').toUpperCase();
 
     // 1. TextBee SMS Gateway (Android SIM Gateway - https://api.textbee.dev/api/v1)
-    if (configuredProvider === 'TEXTBEE' || (!configuredProvider && process.env.TEXTBEE_API_KEY) || process.env.TEXTBEE_API_KEY) {
-        const apiKey = process.env.TEXTBEE_API_KEY;
+    if (configuredProvider === 'TEXTBEE') {
+        const apiKey = process.env.TEXTBEE_API_KEY || 'txb_1AE95IkIqnRRdJ8oShseooWs4uXeatDM';
+        const deviceId = process.env.TEXTBEE_DEVICE_ID || '6ae35654c1ee0a8decf5a45c';
+        const simSubId = parseInt(process.env.TEXTBEE_SIM_SUBSCRIPTION_ID || '3');
+
         if (!apiKey) {
-            console.warn('⚠️ TextBee API Key not configured in environment.');
+            console.warn('⚠️ TextBee API Key not configured.');
         } else {
             try {
                 const baseUrl = (process.env.TEXTBEE_BASE_URL || 'https://api.textbee.dev/api/v1').replace(/\/+$/, '');
@@ -118,16 +121,10 @@ export const sendSMS = async (
 
                 const payload: any = {
                     recipients: [e164Recipient],
-                    message: textToSend
+                    message: textToSend,
+                    deviceId: deviceId,
+                    simSubscriptionId: isNaN(simSubId) ? 3 : simSubId // Force Airtel (3), never Jio (1)
                 };
-
-                payload.deviceId = process.env.TEXTBEE_DEVICE_ID || '6ae35654c1ee0a8decf5a45c';
-                
-                // Enforce Airtel SIM only (subscriptionId: 3) to protect personal Jio 4G SIM (subscriptionId: 1)
-                const simSubId = parseInt(process.env.TEXTBEE_SIM_SUBSCRIPTION_ID || '3');
-                if (!isNaN(simSubId)) {
-                    payload.simSubscriptionId = simSubId;
-                }
 
                 const response = await axios.post(`${baseUrl}/gateway/send-sms`, payload, {
                     headers: {
@@ -138,7 +135,7 @@ export const sendSMS = async (
                 });
 
                 if (response.data && (response.status === 200 || response.status === 201 || response.data.success || response.data.data)) {
-                    console.log(`✅ [TextBee] SMS dispatched to ${e164Recipient} via TextBee Gateway`);
+                    console.log(`✅ [TextBee] SMS dispatched to ${e164Recipient} via TextBee Gateway (Airtel SIM ${payload.simSubscriptionId})`);
                     return { success: true, provider: 'TextBee', raw: response.data };
                 } else {
                     console.warn(`⚠️ [TextBee] Gateway response for ${e164Recipient}:`, response.data);
@@ -203,8 +200,8 @@ export const sendSMS = async (
         }
     }
 
-    // 2. Infozy SMS
-    if (configuredProvider === 'INFOZY' || (!configuredProvider && process.env.INFOZY_API_KEY)) {
+    // 3. Infozy SMS (Only used if explicitly set as SMS_PROVIDER="INFOZY")
+    if (configuredProvider === 'INFOZY') {
         const apiKey = process.env.INFOZY_API_KEY;
         const targetTemplate = templateId || process.env.INFOZY_TEMPLATE_ID_CONFIRMED;
 
@@ -332,7 +329,7 @@ export const sendSMS = async (
 };
 
 export const getTextBeeStats = async () => {
-    const apiKey = process.env.TEXTBEE_API_KEY;
+    const apiKey = process.env.TEXTBEE_API_KEY || 'txb_1AE95IkIqnRRdJ8oShseooWs4uXeatDM';
     if (!apiKey) return { success: false, error: 'TEXTBEE_API_KEY not configured' };
     const baseUrl = (process.env.TEXTBEE_BASE_URL || 'https://api.textbee.dev/api/v1').replace(/\/+$/, '');
     try {
@@ -347,7 +344,7 @@ export const getTextBeeStats = async () => {
 };
 
 export const getTextBeeDevices = async () => {
-    const apiKey = process.env.TEXTBEE_API_KEY;
+    const apiKey = process.env.TEXTBEE_API_KEY || 'txb_1AE95IkIqnRRdJ8oShseooWs4uXeatDM';
     if (!apiKey) return { success: false, error: 'TEXTBEE_API_KEY not configured' };
     const baseUrl = (process.env.TEXTBEE_BASE_URL || 'https://api.textbee.dev/api/v1').replace(/\/+$/, '');
     try {
@@ -365,7 +362,7 @@ export const sendTextBeeBulkSMS = async (
     messages: Array<{ recipients: string[]; message: string }>,
     deviceId?: string
 ) => {
-    const apiKey = process.env.TEXTBEE_API_KEY;
+    const apiKey = process.env.TEXTBEE_API_KEY || 'txb_1AE95IkIqnRRdJ8oShseooWs4uXeatDM';
     if (!apiKey) return { success: false, error: 'TEXTBEE_API_KEY not configured' };
     const baseUrl = (process.env.TEXTBEE_BASE_URL || 'https://api.textbee.dev/api/v1').replace(/\/+$/, '');
     const targetDeviceId = deviceId || process.env.TEXTBEE_DEVICE_ID || '6ae35654c1ee0a8decf5a45c';
@@ -406,7 +403,7 @@ export const getTextBeeMessages = async (query: {
     smsBatchId?: string;
     status?: string;
 } = {}) => {
-    const apiKey = process.env.TEXTBEE_API_KEY;
+    const apiKey = process.env.TEXTBEE_API_KEY || 'txb_1AE95IkIqnRRdJ8oShseooWs4uXeatDM';
     if (!apiKey) return { success: false, error: 'TEXTBEE_API_KEY not configured' };
     const baseUrl = (process.env.TEXTBEE_BASE_URL || 'https://api.textbee.dev/api/v1').replace(/\/+$/, '');
 
