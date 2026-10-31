@@ -17,7 +17,8 @@ TicketsPro supports a **Unified Multi-Provider SMS Engine** in `rail-planner-api
    SMS_PROVIDER="TEXTBEE"
    TEXTBEE_BASE_URL="https://api.textbee.dev/api/v1"
    TEXTBEE_API_KEY="your_textbee_api_key_here"
-   TEXTBEE_DEVICE_ID=""  # (Optional: Leave blank to use primary active phone)
+   TEXTBEE_DEVICE_ID="6ae35654c1ee0a8decf5a45c"
+   TEXTBEE_SIM_SUBSCRIPTION_ID="3"  # 3 = Airtel SIM (Slot 0). Prevents usage of Jio 4G personal SIM.
    ```
 
 ### API Endpoints Supported:

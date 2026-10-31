@@ -122,6 +122,12 @@ export const sendSMS = async (
                 };
 
                 payload.deviceId = process.env.TEXTBEE_DEVICE_ID || '6ae35654c1ee0a8decf5a45c';
+                
+                // Enforce Airtel SIM only (subscriptionId: 3) to protect personal Jio 4G SIM (subscriptionId: 1)
+                const simSubId = parseInt(process.env.TEXTBEE_SIM_SUBSCRIPTION_ID || '3');
+                if (!isNaN(simSubId)) {
+                    payload.simSubscriptionId = simSubId;
+                }
 
                 const response = await axios.post(`${baseUrl}/gateway/send-sms`, payload, {
                     headers: {
@@ -365,6 +371,8 @@ export const sendTextBeeBulkSMS = async (
     const targetDeviceId = deviceId || process.env.TEXTBEE_DEVICE_ID || '6ae35654c1ee0a8decf5a45c';
 
     try {
+        const simSubId = parseInt(process.env.TEXTBEE_SIM_SUBSCRIPTION_ID || '3');
+
         const payload: any = {
             deviceId: targetDeviceId,
             messages: messages.map(m => ({
@@ -372,7 +380,8 @@ export const sendTextBeeBulkSMS = async (
                     const clean = r.replace(/\D/g, '');
                     return clean.startsWith('91') ? `+${clean}` : (clean.length === 10 ? `+91${clean}` : `+${clean}`);
                 }),
-                message: m.message
+                message: m.message,
+                simSubscriptionId: simSubId
             }))
         };
 
