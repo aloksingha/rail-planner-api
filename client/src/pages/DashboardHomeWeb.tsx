@@ -1,16 +1,15 @@
 import React, { useEffect, useState, Suspense, useMemo } from 'react';
 import axios from 'axios';
-import { Users, ShoppingBag, Activity, ChevronRight, TrendingUp, Plus, Clock, Terminal, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Users, ShoppingBag, Activity, ChevronRight, TrendingUp, Plus, Clock, Terminal, AlertCircle, CheckCircle2, Zap, ArrowUpRight, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import WalletCard from '../components/WalletCard';
 import { InteractiveCard } from '../components/InteractiveCard';
 import brandLogo from '../assets/brand_logo.webp';
-
-import { AreaChart as AreaChartIcon } from 'lucide-react';
 import PromoBannerSlider from '../components/PromoBannerSlider';
 
 const DashboardCharts = React.lazy(() => import('../components/DashboardCharts'));
+
 interface StatCardProps {
   title: string;
   value: string | number;
@@ -179,6 +178,7 @@ export default function DashboardHome({ role }: { role?: string }) {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700 pb-12">
+      {/* Header Banner */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-2">
         <div className="flex items-center gap-5">
           <div className="w-16 h-16 rounded-[1.5rem] bg-white dark:bg-slate-900 flex items-center justify-center shadow-lg border border-slate-200 dark:border-white/10 group overflow-hidden">
@@ -192,7 +192,9 @@ export default function DashboardHome({ role }: { role?: string }) {
             <h1 className="text-4xl font-black text-slate-900 dark:text-slate-100 tracking-tighter italic">
               Tickets Pro Train <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-blue to-brand-teal">Control Center</span>
             </h1>
-            <p className="seo-summary-lead text-xs sm:text-sm text-slate-600 dark:text-slate-400 mt-2 max-w-2xl leading-relaxed font-medium">Tickets Pro is a smart rail travel booking tool and live PNR tracking platform for Indian travelers. Our simple web system helps you search train seats and reserve bookings fast. You get quick journey updates right on your mobile phone or WhatsApp.</p>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-2xl leading-relaxed font-semibold">
+              Real-time IRCTC booking automation, live dynamic pricing velocity, instant WhatsApp &amp; TextBee SMS dispatch, and comprehensive platform monitoring.
+            </p>
           </div>
         </div>
         <div className="bg-white/80 dark:bg-slate-900/50 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-white/5 py-2 px-4 flex items-center gap-3 shadow-sm transition-colors">
@@ -204,6 +206,7 @@ export default function DashboardHome({ role }: { role?: string }) {
       {/* Promo / Ads Campaign Banner Slider */}
       <PromoBannerSlider />
 
+      {/* KPI Stats Grid */}
       <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         {loading ? (
           <>
@@ -249,35 +252,169 @@ export default function DashboardHome({ role }: { role?: string }) {
         )}
       </motion.div>
 
+      {/* Balanced Operations Matrix */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        <div className={`${(isSuperAdmin || isAdmin) ? 'lg:col-span-2' : 'lg:col-span-3'} card-glow p-8 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 rounded-3xl shadow-sm transition-all`}>
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Revenue Velocity</h2>
-              <p className="text-slate-500 dark:text-slate-400 text-xs mt-1 font-bold">REAL-TIME TRANSACTION FLOW OVER TIME</p>
-            </div>
-            <div className="px-3 py-1 rounded-full bg-brand-blue/10 border border-brand-blue/20 text-brand-blue text-[10px] font-black uppercase tracking-wider">Daily Trend</div>
-          </div>
-          
-          <div className={`w-full transition-all duration-500 ${chartData.length > 0 ? 'h-[340px]' : 'h-[120px] flex items-center justify-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl mt-4'}`}>
-            {chartData.length > 0 ? (
-              <Suspense fallback={<div className="h-full w-full flex items-center justify-center text-slate-400 font-medium text-xs">Loading chart module...</div>}>
-                <DashboardCharts data={chartData} />
-              </Suspense>
-            ) : (
-              <div className="text-center">
-                <TrendingUp className="w-8 h-8 mx-auto text-slate-300 dark:text-slate-600 mb-2" />
-                <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500">Awaiting Transaction Data</p>
+        {/* Left Column: Revenue Velocity + Quick Operations Nodes */}
+        <div className={`${(isSuperAdmin || isAdmin) ? 'lg:col-span-2' : 'lg:col-span-3'} space-y-8`}>
+          {/* Revenue Velocity Card */}
+          <div className="card-glow p-8 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 rounded-3xl shadow-sm transition-all">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Revenue Velocity</h2>
+                <p className="text-slate-500 dark:text-slate-400 text-xs mt-1 font-bold">REAL-TIME TRANSACTION FLOW OVER TIME</p>
               </div>
-            )}
+              <div className="px-3 py-1 rounded-full bg-brand-blue/10 border border-brand-blue/20 text-brand-blue text-[10px] font-black uppercase tracking-wider">Daily Trend</div>
+            </div>
+            
+            <div className={`w-full transition-all duration-500 ${chartData.length > 0 ? 'min-h-[280px]' : 'min-h-[200px] flex items-center justify-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl p-6'}`}>
+              {chartData.length > 0 ? (
+                <Suspense fallback={<div className="h-full w-full flex items-center justify-center text-slate-400 font-medium text-xs">Loading chart module...</div>}>
+                  <DashboardCharts data={chartData} />
+                </Suspense>
+              ) : (
+                <div className="text-center py-6">
+                  <div className="w-12 h-12 mx-auto mb-3 rounded-2xl bg-brand-blue/10 flex items-center justify-center border border-brand-blue/20">
+                    <TrendingUp className="w-6 h-6 text-brand-blue" />
+                  </div>
+                  <p className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300">Operational Pulse Synchronized</p>
+                  <p className="text-[10px] text-slate-500 font-medium mt-1">Live transactions stream dynamically into this analytics engine as bookings finalize.</p>
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Quick Operations & Gateway Nodes Terminal (Balances the Column Perfectly!) */}
+          {(isSuperAdmin || isAdmin) && (
+            <div className="card-glow p-6 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 rounded-3xl shadow-sm transition-all space-y-5">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/5">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-brand-blue/10 border border-brand-blue/20 flex items-center justify-center text-brand-blue">
+                    <Zap size={16} />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Platform Operations &amp; Command Nodes</h2>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Direct Access &amp; Gateway Dispatch</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-black uppercase tracking-wider">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Gateway Active
+                </div>
+              </div>
+
+              {/* 6 Quick Action Grid Tiles */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                <Link to="/book-ticket" className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5 hover:border-brand-blue/40 hover:bg-brand-blue/5 transition-all group">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="p-2 rounded-xl bg-brand-blue/10 text-brand-blue border border-brand-blue/20 group-hover:scale-110 transition-transform">
+                      <Plus size={16} />
+                    </div>
+                    <ArrowUpRight size={14} className="text-slate-400 group-hover:text-brand-blue group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </div>
+                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Instant Booking</h3>
+                  <p className="text-[10px] text-slate-500 font-medium mt-0.5">IRCTC Tatkal &amp; General</p>
+                </Link>
+
+                <Link to="/failed-bookings" className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5 hover:border-rose-500/40 hover:bg-rose-500/5 transition-all group">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="p-2 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/20 group-hover:scale-110 transition-transform">
+                      <AlertCircle size={16} />
+                    </div>
+                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-500 border border-rose-500/20">{stats?.failedBookingCount || 0} Pending</span>
+                  </div>
+                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Failed Bookings</h3>
+                  <p className="text-[10px] text-slate-500 font-medium mt-0.5">Urgent Intervention Terminal</p>
+                </Link>
+
+                <Link to="/inbox" className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all group">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 group-hover:scale-110 transition-transform">
+                      <Terminal size={16} />
+                    </div>
+                    <ArrowUpRight size={14} className="text-slate-400 group-hover:text-emerald-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </div>
+                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Contact Inbox</h3>
+                  <p className="text-[10px] text-slate-500 font-medium mt-0.5">WhatsApp &amp; Web Leads</p>
+                </Link>
+
+                <Link to="/price-requests" className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5 hover:border-amber-500/40 hover:bg-amber-500/5 transition-all group">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 group-hover:scale-110 transition-transform">
+                      <TrendingUp size={16} />
+                    </div>
+                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">{stats?.priceRequestCount || 0} Review</span>
+                  </div>
+                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Price Requests</h3>
+                  <p className="text-[10px] text-slate-500 font-medium mt-0.5">Dynamic Custom Pricing</p>
+                </Link>
+
+                <Link to="/corridors" className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5 hover:border-indigo-500/40 hover:bg-indigo-500/5 transition-all group">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 group-hover:scale-110 transition-transform">
+                      <ShieldCheck size={16} />
+                    </div>
+                    <ArrowUpRight size={14} className="text-slate-400 group-hover:text-indigo-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </div>
+                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Dynamic Corridors</h3>
+                  <p className="text-[10px] text-slate-500 font-medium mt-0.5">Route Margins &amp; Rules</p>
+                </Link>
+
+                <Link to="/coupons" className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5 hover:border-teal-500/40 hover:bg-teal-500/5 transition-all group">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="p-2 rounded-xl bg-teal-500/10 text-teal-500 border border-teal-500/20 group-hover:scale-110 transition-transform">
+                      <CheckCircle2 size={16} />
+                    </div>
+                    <ArrowUpRight size={14} className="text-slate-400 group-hover:text-teal-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                  </div>
+                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Manage Coupons</h3>
+                  <p className="text-[10px] text-slate-500 font-medium mt-0.5">Discounts &amp; Promos</p>
+                </Link>
+              </div>
+
+              {/* Gateway Nodes Status Pulse */}
+              <div className="pt-3 border-t border-slate-100 dark:border-white/5 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200/40 dark:border-white/5">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-black uppercase text-slate-700 dark:text-slate-300 truncate">Core Rail API</p>
+                    <p className="text-[8px] text-emerald-500 font-bold uppercase">Render Online</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200/40 dark:border-white/5">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-black uppercase text-slate-700 dark:text-slate-300 truncate">IRCTC Engine</p>
+                    <p className="text-[8px] text-emerald-500 font-bold uppercase">RailKit Active</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200/40 dark:border-white/5">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-black uppercase text-slate-700 dark:text-slate-300 truncate">WhatsApp Node</p>
+                    <p className="text-[8px] text-emerald-500 font-bold uppercase">WhatsGateway</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200/40 dark:border-white/5">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-black uppercase text-slate-700 dark:text-slate-300 truncate">TextBee SMS</p>
+                    <p className="text-[8px] text-emerald-500 font-bold uppercase">Airtel Dedicated</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
+        {/* Right Column: Wallet + Live Terminal Feed */}
         {(isSuperAdmin || isAdmin) && (
           <div className="lg:col-span-1 space-y-8">
             <WalletCard />
             
-            <div className="card-glow p-6 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 rounded-3xl shadow-sm transition-all h-full max-h-[500px] flex flex-col">
+            <div className="card-glow p-6 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 rounded-3xl shadow-sm transition-all flex flex-col min-h-[460px]">
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-sm font-black text-slate-900 dark:text-white tracking-tight uppercase flex items-center gap-2">
@@ -289,7 +426,7 @@ export default function DashboardHome({ role }: { role?: string }) {
                 <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
               </div>
 
-              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-2">
+              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-2 max-h-[360px]">
                 {loadingActivities ? (
                   Array.from({ length: 5 }).map((_, i) => (
                     <div key={i} className="h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse border border-slate-200 dark:border-white/5" />
@@ -342,179 +479,15 @@ export default function DashboardHome({ role }: { role?: string }) {
           </div>
         )}
       </div>
-            {/* Platform Knowledge & Semantic Travel Guide */}
-      <section className="bg-white/80 dark:bg-slate-900/60 backdrop-blur-xl rounded-[2.5rem] border border-slate-200 dark:border-white/5 p-8 shadow-sm">
-        <div className="max-w-4xl space-y-6">
-          <nav aria-label="breadcrumb" className="breadcrumb mb-3">
-            <ol className="flex items-center gap-2 text-xs text-slate-500">
-              <li><a href="/" className="hover:underline text-brand-blue font-medium">Home</a></li>
-              <li>/</li>
-              <li><a href="#platform-knowledge" className="hover:underline">Travel Guide</a></li>
-              <li>/</li>
-              <li className="text-slate-700 dark:text-slate-300 font-semibold">IRCTC &amp; Tatkal FAQ</li>
-            </ol>
-          </nav>
 
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2">
-              <span className="h-1.5 w-6 rounded-full bg-brand-blue" />
-              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-blue">Platform Knowledge &amp; Travel Guide</span>
-            </div>
-            <time dateTime="2026-10-29" className="text-[11px] font-semibold text-slate-400 dark:text-slate-500">Updated: October 29, 2026</time>
-          </div>
-          
-          <h2 id="platform-knowledge" className="text-2xl font-black text-slate-900 dark:text-white tracking-tight uppercase">
-            Tickets Pro Travel Intelligence &amp; FAQ
-          </h2>
-          
-          <p className="seo-summary-lead text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-medium">
-            Tickets Pro is an automated IRCTC train booking, Tatkal assistance, and live PNR tracking platform designed to streamline train travel reservations across India with instant confirmation updates.
-          </p>
-
-          <nav aria-label="Quick Table of Contents" className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200/50 dark:border-white/5 my-4">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1.5">Quick Links:</span>
-            <div className="flex flex-wrap gap-2 text-xs font-medium">
-              <a href="#what-is-ticketspro" className="px-2.5 py-1 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:text-brand-blue">What is Tickets Pro?</a>
-              <a href="#how-to-check-pnr-status" className="px-2.5 py-1 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:text-brand-blue">Check PNR Status</a>
-              <a href="#how-to-book-tatkal-tickets" className="px-2.5 py-1 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:text-brand-blue">Book Tatkal Faster</a>
-              <a href="#what-is-tatkal-automation" className="px-2.5 py-1 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:text-brand-blue">Tatkal Automation</a>
-              <a href="#what-is-chart-preparation" className="px-2.5 py-1 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:text-brand-blue">Chart Timings</a>
-              <a href="#train-cancellation-refunds" className="px-2.5 py-1 rounded-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:text-brand-blue">Refund Policy</a>
-            </div>
-          </nav>
-
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5 my-4 space-y-3">
-            <form id="pnr-search-form" toolname="checkPNRStatus" tooldescription="Check live Indian Railways IRCTC PNR confirmation status, coach allocation and seat details" className="flex flex-col sm:flex-row gap-3 items-center" onSubmit={(e) => e.preventDefault()}>
-              <input name="pnr" toolparamdescription="Ten digit Indian Railways PNR number" type="text" maxLength={10} placeholder="Enter 10-digit PNR Number" className="w-full sm:w-80 px-4 py-2 rounded-xl text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-200" />
-              <button type="button" onClick={() => window.open('/pnr-status', '_self')} className="w-full sm:w-auto px-5 py-2 rounded-xl bg-brand-blue hover:bg-brand-blue/90 text-white text-xs font-bold transition-colors">Check Live PNR Status</button>
-            </form>
-            <form id="faq-search-form" toolname="searchFAQ" tooldescription="Search train travel questions, tatkal booking tips, and railway cancellation refund answers" className="flex items-center gap-2" onSubmit={(e) => e.preventDefault()}>
-              <input name="query" toolparamdescription="Search keyword for train booking or IRCTC travel rules" type="search" placeholder="Search train travel questions..." className="w-full sm:w-80 px-3 py-1.5 rounded-lg text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-slate-200" />
-              <button type="button" className="px-3 py-1.5 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold">Search</button>
-            </form>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-            <article className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5">
-              <h3 id="what-is-ticketspro" className="text-base font-bold text-slate-900 dark:text-white mb-2">What is Tickets Pro?</h3>
-              <p className="seo-faq-answer text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
-                Tickets Pro is a smart rail travel booking tool made to help train travelers across India. The app lets you check open seats, reserve bookings fast, and track your PNR on WhatsApp. You get quick updates on your phone to make your trip simple and stress free.
-              </p>
-            </article>
-
-            <article className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5">
-              <h3 id="how-to-check-pnr-status" className="text-base font-bold text-slate-900 dark:text-white mb-2">How to Check IRCTC PNR Status?</h3>
-              <p className="seo-faq-answer text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
-                IRCTC PNR refers to the unique ten-digit booking number printed on your train ticket. You can check live PNR status on Tickets Pro by typing your number into our search tool. We show your coach code, seat number, and train chart status in just one second.
-              </p>
-              <ol className="mt-2.5 space-y-1 list-decimal list-inside text-xs text-slate-600 dark:text-slate-400">
-                <li>Step 1: Enter your ten digit IRCTC PNR number in the search input box.</li>
-                <li>Step 2: Click Check Status to connect with Indian Railways servers.</li>
-                <li>Step 3: See your confirmed coach, seat number, and live journey chart details.</li>
-              </ol>
-            </article>
-
-            <article className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5">
-              <h3 id="how-to-book-tatkal-tickets" className="text-base font-bold text-slate-900 dark:text-white mb-2">How to Book Tatkal Train Tickets Online Faster?</h3>
-              <p className="seo-faq-answer text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
-                Tatkal booking is an urgent train seat quota that opens one day before train departure. To book fast, save passenger details early in your Tickets Pro account. Open the app before the quota opens, pick your class, and pay quickly to confirm your train seats without delay.
-              </p>
-              <ol className="mt-2.5 space-y-1 list-decimal list-inside text-xs text-slate-600 dark:text-slate-400">
-                <li>Step 1: Save passenger names, ages, and berth choices in advance.</li>
-                <li>Step 2: Sign in at 09:59 AM for AC classes or 10:59 AM for sleeper class.</li>
-                <li>Step 3: Pick the Tatkal quota and pay instantly to lock in your train seats.</li>
-              </ol>
-            </article>
-
-            <article className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5">
-              <h3 id="what-is-tatkal-automation" className="text-base font-bold text-slate-900 dark:text-white mb-2">What is Tatkal Booking Automation?</h3>
-              <p className="seo-faq-answer text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
-                Tatkal booking automation is a smart digital tool that fills in passenger details for you in seconds. It helps travelers save precious time during high morning rush hours. You can avoid slow manual typing, beat server timeouts, and secure confirmed train seats with ease and peace of mind.
-              </p>
-            </article>
-
-            <article className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5">
-              <h3 id="what-is-chart-preparation" className="text-base font-bold text-slate-900 dark:text-white mb-2">What is Chart Preparation Time in Indian Railways?</h3>
-              <p className="seo-faq-answer text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
-                Chart preparation refers to the final train seat list made by railway staff four hours before departure. Waiting list travelers can see if their seats got confirmed. Any left over open seats go to current booking so travelers can book last minute tickets at railway stations or online.
-              </p>
-            </article>
-
-            <article className="p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5">
-              <h3 id="train-cancellation-refunds" className="text-base font-bold text-slate-900 dark:text-white mb-2">How Are Train Ticket Cancellations and Refunds Handled?</h3>
-              <p className="seo-faq-answer text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
-                A train refund is a return of ticket money when a traveler cancels a seat or a train stops. On Tickets Pro, refunds go back to your bank account or wallet within one to two days. All refunds follow official railway rules with no hidden fees or extra charges.
-              </p>
-            </article>
-          </div>
-
-          <div className="pt-4 border-t border-slate-200/50 dark:border-white/5">
-            <h3 id="travel-definitions" className="text-sm font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-3">Indian Railways Travel Definitions</h3>
-            <dl className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200/40 dark:border-white/5">
-                <dt className="font-bold text-slate-900 dark:text-white mb-1">PNR (Passenger Name Record)</dt>
-                <dd className="text-slate-500 dark:text-slate-400 leading-normal">PNR is a unique ten-digit number assigned to train bookings in India storing trip and passenger records.</dd>
-              </div>
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200/40 dark:border-white/5">
-                <dt className="font-bold text-slate-900 dark:text-white mb-1">Tatkal Quota</dt>
-                <dd className="text-slate-500 dark:text-slate-400 leading-normal">Tatkal quota refers to emergency train seats opened by Indian Railways one day before the journey starts.</dd>
-              </div>
-              <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200/40 dark:border-white/5">
-                <dt className="font-bold text-slate-900 dark:text-white mb-1">Chart Preparation</dt>
-                <dd className="text-slate-500 dark:text-slate-400 leading-normal">Chart preparation refers to the final passenger seat allocation made four hours before train departure time.</dd>
-              </div>
-            </dl>
-          </div>
-
-          <div className="pt-4 border-t border-slate-200/50 dark:border-white/5">
-            <h3 id="booking-quota-timings" className="text-sm font-black uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-3">IRCTC Booking Quota Timings Reference</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-600 dark:text-slate-400 border-collapse">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-white/10 text-slate-900 dark:text-white font-bold uppercase text-[10px] tracking-wider">
-                    <th className="py-2.5 px-3">Quota Type</th>
-                    <th className="py-2.5 px-3">Opening Time</th>
-                    <th className="py-2.5 px-3">Advance Window</th>
-                    <th className="py-2.5 px-3">Cancellation Eligibility</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-white/5 font-medium">
-                  <tr>
-                    <td className="py-2.5 px-3 font-bold text-slate-800 dark:text-slate-200">AC Tatkal (1A, 2A, 3A, 3E, CC)</td>
-                    <td className="py-2.5 px-3 text-emerald-500 font-bold">10:00 AM IST</td>
-                    <td className="py-2.5 px-3">1 Day Prior</td>
-                    <td className="py-2.5 px-3">Zero refund on confirmed Tatkal</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 px-3 font-bold text-slate-800 dark:text-slate-200">Non-AC Tatkal (Sleeper / 2S)</td>
-                    <td className="py-2.5 px-3 text-emerald-500 font-bold">11:00 AM IST</td>
-                    <td className="py-2.5 px-3">1 Day Prior</td>
-                    <td className="py-2.5 px-3">Zero refund on confirmed Tatkal</td>
-                  </tr>
-                  <tr>
-                    <td className="py-2.5 px-3 font-bold text-slate-800 dark:text-slate-200">General Reservation (GN)</td>
-                    <td className="py-2.5 px-3 text-brand-blue font-bold">08:00 AM IST</td>
-                    <td className="py-2.5 px-3">Up to 120 Days</td>
-                    <td className="py-2.5 px-3">Full refund minus clerkage up to 48 hrs</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-4">
-            Official reference sources: <a href="https://www.irctc.co.in" target="_blank" rel="noopener noreferrer" className="text-brand-blue hover:underline font-medium">IRCTC Official Portal</a> and <a href="https://en.wikipedia.org/wiki/Indian_Railways" target="_blank" rel="noopener noreferrer" className="text-brand-blue hover:underline font-medium">Indian Railways Information</a>.
-          </p>
-        </div>
-      </section>
-
-      {/* Semantic Footer with Site Navigation */}
+      {/* Clean Platform Footer */}
       <footer role="contentinfo" className="w-full pt-8 pb-4 border-t border-slate-200/50 dark:border-white/5 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-4">
         <p>© 2026 Tickets Pro. Smart Rail Intelligence &amp; Automated Booking.</p>
         <nav aria-label="Footer Site Links" className="flex flex-wrap items-center gap-4 text-xs font-bold uppercase tracking-wider">
           <Link to="/about" className="hover:text-primary transition-colors">About Us</Link>
           <Link to="/contact" className="hover:text-primary transition-colors">Contact Support</Link>
           <Link to="/pricing" className="hover:text-primary transition-colors">Pricing</Link>
+          <Link to="/travel-guide" className="hover:text-primary transition-colors">Travel Guide &amp; FAQ</Link>
           <Link to="/terms" className="hover:text-primary transition-colors">Terms &amp; Conditions</Link>
           <Link to="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
           <Link to="/refund-policy" className="hover:text-primary transition-colors">Refund Policy</Link>

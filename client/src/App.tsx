@@ -64,6 +64,7 @@ const AboutUs = lazy(() => import('./pages/AboutUs'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 const RefundPolicy = lazy(() => import('./pages/RefundPolicy'));
 const Pricing = lazy(() => import('./pages/Pricing'));
+const TravelGuide = lazy(() => import('./pages/TravelGuide'));
 const LatestUpdates = lazy(() => import('./pages/LatestUpdates'));
 const WalletManagement = lazy(() => import('./pages/WalletManagement'));
 const WalletDashboard = lazy(() => import('./pages/WalletDashboard'));
@@ -1164,6 +1165,8 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
                   <Route path="/privacy" element={<PrivacyPolicy />} />
                   <Route path="/refund-policy" element={<RefundPolicy />} />
                   <Route path="/pricing" element={<Pricing />} />
+                  <Route path="/travel-guide" element={<TravelGuide />} />
+                  <Route path="/faq" element={<TravelGuide />} />
                   <Route path="/audit-logs" element={<AuditLogAndroid />} />
                   <Route path="/dashboard" element={<Navigate to="/" replace />} />
                   <Route path="/login" element={<Navigate to="/" replace />} />
@@ -1177,6 +1180,7 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
               <p>© 2026 Tickets Pro. Smart Rail Intelligence &amp; Automated Booking.</p>
               <nav aria-label="Footer Navigation" className="flex flex-wrap items-center gap-4 text-xs font-bold uppercase tracking-wider">
                 <Link to="/about" className="hover:text-primary transition-colors">About Us</Link>
+                <Link to="/travel-guide" className="hover:text-primary transition-colors">Travel Guide</Link>
                 <Link to="/contact" className="hover:text-primary transition-colors">Contact</Link>
                 <Link to="/pricing" className="hover:text-primary transition-colors">Pricing</Link>
                 <Link to="/terms" className="hover:text-primary transition-colors">Terms</Link>
