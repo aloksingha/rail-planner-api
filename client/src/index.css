@@ -452,3 +452,40 @@
     background-size: 100% 4px;
   }
 }
+
+
+/* Command Node & Gateway Tiles Dark/Light Contrast Rules */
+.command-node-tile {
+  background-color: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+.dark .command-node-tile, html.dark .command-node-tile, [data-theme="dark"] .command-node-tile {
+  background-color: rgba(2, 6, 23, 0.85) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+.command-node-tile h3 {
+  color: #0f172a;
+}
+.dark .command-node-tile h3, html.dark .command-node-tile h3, [data-theme="dark"] .command-node-tile h3 {
+  color: #ffffff !important;
+}
+.command-node-tile p {
+  color: #475569;
+}
+.dark .command-node-tile p, html.dark .command-node-tile p, [data-theme="dark"] .command-node-tile p {
+  color: #94a3b8 !important;
+}
+.command-node-pill {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+.dark .command-node-pill, html.dark .command-node-pill, [data-theme="dark"] .command-node-pill {
+  background-color: rgba(2, 6, 23, 0.65) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+.command-node-pill p.pill-title {
+  color: #334155;
+}
+.dark .command-node-pill p.pill-title, html.dark .command-node-pill p.pill-title, [data-theme="dark"] .command-node-pill p.pill-title {
+  color: #cbd5e1 !important;
+}

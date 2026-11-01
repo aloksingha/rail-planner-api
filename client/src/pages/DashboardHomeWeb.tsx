@@ -304,103 +304,103 @@ export default function DashboardHome({ role }: { role?: string }) {
 
               {/* 6 Quick Action Grid Tiles */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                <Link to="/book-ticket" className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5 hover:border-brand-blue/40 hover:bg-brand-blue/5 transition-all group">
+                <Link to="/book-ticket" className="command-node-tile p-4 rounded-2xl transition-all group hover:scale-[1.02]">
                   <div className="flex items-center justify-between mb-2">
                     <div className="p-2 rounded-xl bg-brand-blue/10 text-brand-blue border border-brand-blue/20 group-hover:scale-110 transition-transform">
                       <Plus size={16} />
                     </div>
                     <ArrowUpRight size={14} className="text-slate-400 group-hover:text-brand-blue group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                   </div>
-                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Instant Booking</h3>
-                  <p className="text-[10px] text-slate-500 font-medium mt-0.5">IRCTC Tatkal &amp; General</p>
+                  <h3 className="text-xs font-black uppercase tracking-tight">Instant Booking</h3>
+                  <p className="text-[10px] font-semibold mt-0.5">IRCTC Tatkal &amp; General</p>
                 </Link>
 
-                <Link to="/failed-bookings" className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5 hover:border-rose-500/40 hover:bg-rose-500/5 transition-all group">
+                <Link to="/failed-bookings" className="command-node-tile p-4 rounded-2xl transition-all group hover:scale-[1.02]">
                   <div className="flex items-center justify-between mb-2">
                     <div className="p-2 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/20 group-hover:scale-110 transition-transform">
                       <AlertCircle size={16} />
                     </div>
                     <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-500 border border-rose-500/20">{stats?.failedBookingCount || 0} Pending</span>
                   </div>
-                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Failed Bookings</h3>
-                  <p className="text-[10px] text-slate-500 font-medium mt-0.5">Urgent Intervention Terminal</p>
+                  <h3 className="text-xs font-black uppercase tracking-tight">Failed Bookings</h3>
+                  <p className="text-[10px] font-semibold mt-0.5">Urgent Intervention Terminal</p>
                 </Link>
 
-                <Link to="/inbox" className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5 hover:border-emerald-500/40 hover:bg-emerald-500/5 transition-all group">
+                <Link to="/inbox" className="command-node-tile p-4 rounded-2xl transition-all group hover:scale-[1.02]">
                   <div className="flex items-center justify-between mb-2">
                     <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 group-hover:scale-110 transition-transform">
                       <Terminal size={16} />
                     </div>
                     <ArrowUpRight size={14} className="text-slate-400 group-hover:text-emerald-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                   </div>
-                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Contact Inbox</h3>
-                  <p className="text-[10px] text-slate-500 font-medium mt-0.5">WhatsApp &amp; Web Leads</p>
+                  <h3 className="text-xs font-black uppercase tracking-tight">Contact Inbox</h3>
+                  <p className="text-[10px] font-semibold mt-0.5">WhatsApp &amp; Web Leads</p>
                 </Link>
 
-                <Link to="/price-requests" className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5 hover:border-amber-500/40 hover:bg-amber-500/5 transition-all group">
+                <Link to="/price-requests" className="command-node-tile p-4 rounded-2xl transition-all group hover:scale-[1.02]">
                   <div className="flex items-center justify-between mb-2">
                     <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 group-hover:scale-110 transition-transform">
                       <TrendingUp size={16} />
                     </div>
                     <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">{stats?.priceRequestCount || 0} Review</span>
                   </div>
-                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Price Requests</h3>
-                  <p className="text-[10px] text-slate-500 font-medium mt-0.5">Dynamic Custom Pricing</p>
+                  <h3 className="text-xs font-black uppercase tracking-tight">Price Requests</h3>
+                  <p className="text-[10px] font-semibold mt-0.5">Dynamic Custom Pricing</p>
                 </Link>
 
-                <Link to="/corridors" className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5 hover:border-indigo-500/40 hover:bg-indigo-500/5 transition-all group">
+                <Link to="/corridors" className="command-node-tile p-4 rounded-2xl transition-all group hover:scale-[1.02]">
                   <div className="flex items-center justify-between mb-2">
                     <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 group-hover:scale-110 transition-transform">
                       <ShieldCheck size={16} />
                     </div>
                     <ArrowUpRight size={14} className="text-slate-400 group-hover:text-indigo-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                   </div>
-                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Dynamic Corridors</h3>
-                  <p className="text-[10px] text-slate-500 font-medium mt-0.5">Route Margins &amp; Rules</p>
+                  <h3 className="text-xs font-black uppercase tracking-tight">Dynamic Corridors</h3>
+                  <p className="text-[10px] font-semibold mt-0.5">Route Margins &amp; Rules</p>
                 </Link>
 
-                <Link to="/coupons" className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/60 dark:border-white/5 hover:border-teal-500/40 hover:bg-teal-500/5 transition-all group">
+                <Link to="/coupons" className="command-node-tile p-4 rounded-2xl transition-all group hover:scale-[1.02]">
                   <div className="flex items-center justify-between mb-2">
                     <div className="p-2 rounded-xl bg-teal-500/10 text-teal-500 border border-teal-500/20 group-hover:scale-110 transition-transform">
                       <CheckCircle2 size={16} />
                     </div>
                     <ArrowUpRight size={14} className="text-slate-400 group-hover:text-teal-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                   </div>
-                  <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Manage Coupons</h3>
-                  <p className="text-[10px] text-slate-500 font-medium mt-0.5">Discounts &amp; Promos</p>
+                  <h3 className="text-xs font-black uppercase tracking-tight">Manage Coupons</h3>
+                  <p className="text-[10px] font-semibold mt-0.5">Discounts &amp; Promos</p>
                 </Link>
               </div>
 
               {/* Gateway Nodes Status Pulse */}
               <div className="pt-3 border-t border-slate-100 dark:border-white/5 grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200/40 dark:border-white/5">
+                <div className="command-node-pill flex items-center gap-2 p-2 rounded-xl">
                   <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-[9px] font-black uppercase text-slate-700 dark:text-slate-300 truncate">Core Rail API</p>
+                    <p className="pill-title text-[9px] font-black uppercase truncate">Core Rail API</p>
                     <p className="text-[8px] text-emerald-500 font-bold uppercase">Render Online</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200/40 dark:border-white/5">
+                <div className="command-node-pill flex items-center gap-2 p-2 rounded-xl">
                   <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-[9px] font-black uppercase text-slate-700 dark:text-slate-300 truncate">IRCTC Engine</p>
+                    <p className="pill-title text-[9px] font-black uppercase truncate">IRCTC Engine</p>
                     <p className="text-[8px] text-emerald-500 font-bold uppercase">RailKit Active</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200/40 dark:border-white/5">
+                <div className="command-node-pill flex items-center gap-2 p-2 rounded-xl">
                   <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-[9px] font-black uppercase text-slate-700 dark:text-slate-300 truncate">WhatsApp Node</p>
+                    <p className="pill-title text-[9px] font-black uppercase truncate">WhatsApp Node</p>
                     <p className="text-[8px] text-emerald-500 font-bold uppercase">WhatsGateway</p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/30 border border-slate-200/40 dark:border-white/5">
+                <div className="command-node-pill flex items-center gap-2 p-2 rounded-xl">
                   <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-[9px] font-black uppercase text-slate-700 dark:text-slate-300 truncate">TextBee SMS</p>
+                    <p className="pill-title text-[9px] font-black uppercase truncate">TextBee SMS</p>
                     <p className="text-[8px] text-emerald-500 font-bold uppercase">Airtel Dedicated</p>
                   </div>
                 </div>
