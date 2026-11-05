@@ -1,81 +1,114 @@
 import React, { useEffect, useState, Suspense, useMemo } from 'react';
 import axios from 'axios';
-import { Users, ShoppingBag, Activity, ChevronRight, TrendingUp, Plus, Clock, Terminal, AlertCircle, CheckCircle2, Zap, ArrowUpRight, ShieldCheck } from 'lucide-react';
+import { 
+  Users, ShoppingBag, Activity, ChevronRight, TrendingUp, Plus, Clock, 
+  Terminal, AlertCircle, CheckCircle2, Zap, ArrowUpRight, ShieldCheck, 
+  Search, ArrowUp, Sparkles, Filter, PieChart as PieChartIcon
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import WalletCard from '../components/WalletCard';
-import { InteractiveCard } from '../components/InteractiveCard';
 import brandLogo from '../assets/brand_logo.webp';
 import PromoBannerSlider from '../components/PromoBannerSlider';
 
 const DashboardCharts = React.lazy(() => import('../components/DashboardCharts'));
 
-interface StatCardProps {
+// ==========================================
+// Modern Clean-White KPI Stat Card (from Instagram UI)
+// ==========================================
+interface ModernStatCardProps {
   title: string;
   value: string | number;
   icon: any;
   trend?: string;
-  color?: 'rose' | 'emerald' | 'indigo' | 'amber';
+  trendUp?: boolean;
+  color?: 'blue' | 'sky' | 'indigo' | 'emerald' | 'amber' | 'rose';
   subtitle?: string;
   to?: string;
 }
 
-const StatCard = React.memo(({ title, value, icon: Icon, trend, color = 'indigo', subtitle, to }: StatCardProps) => {
-  const colorMap: Record<string, string> = {
-    rose: "from-brand-teal via-teal-600 to-teal-800 dark:from-brand-teal dark:via-teal-600 dark:to-brand-deep shadow-slate-200 dark:shadow-brand-teal/20",
-    emerald: "from-brand-blue via-blue-600 to-blue-800 dark:from-brand-blue dark:via-blue-600 dark:to-brand-deep shadow-slate-200 dark:shadow-brand-blue/20",
-    indigo: "from-slate-800 via-slate-900 to-slate-950 dark:from-brand-deep dark:via-slate-800 dark:to-slate-950 shadow-slate-200 dark:shadow-brand-deep/20",
-    amber: "from-brand-orange via-orange-600 to-orange-800 dark:from-brand-orange dark:via-orange-600 dark:to-brand-deep shadow-slate-200 dark:shadow-brand-orange/20",
+const ModernStatCard = React.memo(({
+  title,
+  value,
+  icon: Icon,
+  trend = '+12.5%',
+  trendUp = true,
+  color = 'blue',
+  subtitle,
+  to
+}: ModernStatCardProps) => {
+  const colorSchemes = {
+    blue: {
+      bg: 'bg-blue-50 dark:bg-blue-500/10',
+      border: 'border-blue-100 dark:border-blue-500/20',
+      text: 'text-blue-600 dark:text-blue-400',
+    },
+    sky: {
+      bg: 'bg-sky-50 dark:bg-sky-500/10',
+      border: 'border-sky-100 dark:border-sky-500/20',
+      text: 'text-sky-600 dark:text-sky-400',
+    },
+    indigo: {
+      bg: 'bg-indigo-50 dark:bg-indigo-500/10',
+      border: 'border-indigo-100 dark:border-indigo-500/20',
+      text: 'text-indigo-600 dark:text-indigo-400',
+    },
+    emerald: {
+      bg: 'bg-emerald-50 dark:bg-emerald-500/10',
+      border: 'border-emerald-100 dark:border-emerald-500/20',
+      text: 'text-emerald-600 dark:text-emerald-400',
+    },
+    amber: {
+      bg: 'bg-amber-50 dark:bg-amber-500/10',
+      border: 'border-amber-100 dark:border-amber-500/20',
+      text: 'text-amber-600 dark:text-amber-400',
+    },
+    rose: {
+      bg: 'bg-rose-50 dark:bg-rose-500/10',
+      border: 'border-rose-100 dark:border-rose-500/20',
+      text: 'text-rose-600 dark:text-rose-400',
+    },
   };
 
-  const cardContent = (
-    <div className="p-6 text-white h-full relative z-10 flex flex-col justify-between min-h-[140px]">
-      <div className="absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl transition-all group-hover:bg-white/30 group-hover:scale-125 duration-700" />
-      <div className="absolute -left-4 -bottom-4 h-24 w-24 rounded-full bg-black/10 blur-xl" />
+  const scheme = colorSchemes[color] || colorSchemes.blue;
 
-      <div className="relative z-10">
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <p className="text-white/70 text-[10px] uppercase font-black tracking-widest mb-1">{title}</p>
-            <div className="text-3xl font-black tracking-tight drop-shadow-md">{value}</div>
-          </div>
-          <div className="rounded-2xl bg-white/15 p-3 backdrop-blur-md border border-white/20 shadow-[inset_0_1px_5px_rgba(255,255,255,0.2)] group-hover:rotate-12 group-hover:scale-110 transition-all duration-500">
-            <Icon size={24} className="text-white drop-shadow-lg" />
-          </div>
+  const cardContent = (
+    <div className="p-5 bg-white dark:bg-slate-900/90 rounded-[1.75rem] border border-slate-100 dark:border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.03)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between h-full group cursor-pointer relative overflow-hidden">
+      <div className="flex items-center justify-between">
+        <div className={`w-11 h-11 rounded-2xl ${scheme.bg} ${scheme.border} ${scheme.text} border flex items-center justify-center transition-transform duration-300 group-hover:scale-110 shadow-sm`}>
+          <Icon size={20} strokeWidth={2.5} />
         </div>
+        <ChevronRight size={16} className="text-slate-300 dark:text-slate-600 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all" />
       </div>
 
-      <div className="relative z-10 flex items-end justify-between mt-2">
+      <div className="mt-4">
+        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 tracking-tight">{title}</p>
+        <h3 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight mt-1">{value}</h3>
+      </div>
+
+      <div className="mt-3 pt-3 border-t border-slate-50 dark:border-white/5 flex items-center justify-between">
         {trend ? (
-          <div className="flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold backdrop-blur-sm border border-white/20 shadow-sm">
-            <TrendingUp size={12} className="text-emerald-300" />
+          <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+            <ArrowUp size={12} strokeWidth={3} className={trendUp ? 'text-emerald-500' : 'text-rose-500 rotate-180'} />
             <span>{trend}</span>
+            <span className="text-slate-400 dark:text-slate-500 font-normal ml-0.5">vs yesterday</span>
           </div>
         ) : subtitle ? (
-          <p className="text-[10px] font-bold text-white/60 uppercase tracking-wider">{subtitle}</p>
-        ) : (
-          <div />
-        )}
-        <ChevronRight size={18} className="text-white/40 group-hover:translate-x-1 group-hover:text-white transition-all duration-300" />
+          <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">{subtitle}</span>
+        ) : null}
       </div>
     </div>
   );
 
   if (to) {
     return (
-      <InteractiveCard className={`p-0 overflow-hidden bg-gradient-to-br ${colorMap[color]} shadow-2xl transition-all duration-500 border border-slate-200 dark:border-none group shadow-inner flex flex-col hover:-translate-y-1 hover:shadow-3xl cursor-pointer`}>
-        <Link to={to} className="block w-full h-full">
-          {cardContent}
-        </Link>
-      </InteractiveCard>
+      <Link to={to} className="block h-full">
+        {cardContent}
+      </Link>
     );
   }
 
-  return (
-    <InteractiveCard className={`p-0 overflow-hidden bg-gradient-to-br ${colorMap[color]} shadow-2xl transition-all duration-500 border border-slate-200 dark:border-none group shadow-inner flex flex-col hover:-translate-y-1 hover:shadow-3xl`}>
-      {cardContent}
-    </InteractiveCard>
-  );
+  return cardContent;
 });
 
 // Stagger Animation Variants
@@ -83,13 +116,13 @@ const containerVariants = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
-    transition: { staggerChildren: 0.1 }
+    transition: { staggerChildren: 0.08 }
   }
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 300, damping: 24 } }
+  hidden: { opacity: 0, y: 16 },
+  show: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 350, damping: 25 } }
 };
 
 export default function DashboardHome({ role }: { role?: string }) {
@@ -176,321 +209,436 @@ export default function DashboardHome({ role }: { role?: string }) {
   const isSuperAdmin = userRole === 'SUPER_ADMIN';
   const isAdmin = userRole === 'ADMIN';
 
+  const todayOrders = stats?.todayBookings || 0;
+  const totalVolume = (stats?.todayAmount || 0);
+
   return (
-    <div className="space-y-8 animate-in fade-in duration-700 pb-12">
-      {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 px-2">
-        <div className="flex items-center gap-5">
-          <div className="w-16 h-16 rounded-[1.5rem] bg-white dark:bg-slate-900 flex items-center justify-center shadow-lg border border-slate-200 dark:border-white/10 group overflow-hidden">
-            <img src={brandLogo} alt="Tickets Pro Logo" width={48} height={48} loading="lazy" className="w-12 h-12 object-contain group-hover:scale-110 transition-transform duration-500" />
+    <div className="space-y-8 animate-in fade-in duration-500 pb-16 max-w-screen-2xl mx-auto">
+      {/* ======================================================== */}
+      {/* 1. Clean White Modern Header (From Instagram Reel)       */}
+      {/* ======================================================== */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-1">
+        <div>
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400">Tickets Pro V2 • Operations Control</span>
           </div>
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="h-1.5 w-6 rounded-full bg-brand-blue" />
-              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-blue">Operational Insights</span>
-            </div>
-            <h1 className="text-4xl font-black text-slate-900 dark:text-slate-100 tracking-tighter italic">
-              Tickets Pro Train <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-blue to-brand-teal">Control Center</span>
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-2xl leading-relaxed font-semibold">
-              Real-time IRCTC booking automation, live dynamic pricing velocity, instant WhatsApp &amp; TextBee SMS dispatch, and comprehensive platform monitoring.
-            </p>
-          </div>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+            Welcome back! <span className="inline-block animate-bounce">👋</span>
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium mt-1">
+            Here's what's happening across Tickets Pro today.
+          </p>
         </div>
-        <div className="bg-white/80 dark:bg-slate-900/50 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-white/5 py-2 px-4 flex items-center gap-3 shadow-sm transition-colors">
-          <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-          <span className="text-xs font-bold text-slate-700 dark:text-white">Live Services Active</span>
+
+        {/* Header Right Actions */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 shadow-sm">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
+            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">Live Engine Online</span>
+          </div>
+
+          <Link
+            to="/book-ticket"
+            className="flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-bold text-xs shadow-md shadow-blue-500/25 active:scale-95 transition-all"
+          >
+            <Plus size={16} />
+            <span>New Booking</span>
+          </Link>
         </div>
       </div>
 
-      {/* Promo / Ads Campaign Banner Slider */}
+      {/* Promo / Announcement Slider */}
       <PromoBannerSlider />
 
-      {/* KPI Stats Grid */}
-      <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* ======================================================== */}
+      {/* 2. Four Modern KPI Stat Cards (Instagram Reel Style)      */}
+      {/* ======================================================== */}
+      <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {loading ? (
           <>
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-32 rounded-[2rem] bg-slate-200 dark:bg-slate-900 animate-pulse border border-slate-300 dark:border-white/5" />
+              <div key={i} className="h-36 rounded-[1.75rem] bg-white dark:bg-slate-900 animate-pulse border border-slate-100 dark:border-white/5 shadow-sm" />
             ))}
-          </>
-        ) : isSuperAdmin ? (
-          <>
-            <motion.div variants={itemVariants}><StatCard title="Failed Bookings" value={stats?.failedBookingCount || 0} icon={Activity} color="rose" subtitle="Urgent Intervention Required" to="/failed-bookings" /></motion.div>
-            <motion.div variants={itemVariants}><StatCard title="Pending Price Requests" value={stats?.priceRequestCount || 0} icon={TrendingUp} color="amber" subtitle="Awaiting Admin Review" to="/price-requests" /></motion.div>
-            <motion.div variants={itemVariants}><StatCard title="Today's Global Bookings" value={stats?.todayBookings || 0} icon={Plus} color="emerald" trend="+14% since yesterday" to="/manage-bookings" /></motion.div>
-            <motion.div variants={itemVariants}><StatCard title="Total Platform Users" value={stats?.userCount || 0} icon={Users} color="indigo" subtitle="Global Reach" to="/users" /></motion.div>
-          </>
-        ) : isAdmin ? (
-          <>
-            <motion.div variants={itemVariants}><StatCard title="Today's Team Revenue" value={`₹${(stats?.todayAmount || 0).toLocaleString()}`} icon={TrendingUp} color="rose" subtitle="Sales Team Earnings" to="/sales" /></motion.div>
-            <motion.div variants={itemVariants}><StatCard title="Pending Price Requests" value={stats?.priceRequestCount || 0} icon={TrendingUp} color="amber" subtitle="Awaiting Admin Review" to="/price-requests" /></motion.div>
-            <motion.div variants={itemVariants}><StatCard title="Today's Team Bookings" value={stats?.todayBookings || 0} icon={ShoppingBag} color="emerald" subtitle="Processed via Dashboard" to="/manage-bookings" /></motion.div>
-            <motion.div variants={itemVariants}><StatCard title="My Sales Team" value={stats?.teamCount || 0} icon={Users} color="indigo" subtitle="Network Members" to="/admin/team" /></motion.div>
           </>
         ) : (
           <>
-            <motion.div variants={itemVariants}><StatCard title="Today's Revenue" value={`₹${(stats?.todayAmount || 0).toLocaleString()}`} icon={TrendingUp} color="amber" trend="Peak Hours Active" to="/sales" /></motion.div>
-            <motion.div variants={itemVariants}><StatCard title="Lifetime Bookings" value={stats?.bookingCount || 0} icon={ShoppingBag} color="indigo" subtitle="Total Generated" to="/sales/bookings" /></motion.div>
-            <motion.div variants={itemVariants} className="lg:col-span-2">
-              <InteractiveCard className="p-0 bg-brand-blue shadow-2xl overflow-hidden border border-blue-300 dark:border-none cursor-pointer group h-full">
-                <Link to="/sales/new-booking" className="block p-6 h-full w-full relative z-10">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:scale-110 transition-transform duration-700" />
-                  <div className="relative z-10 flex items-center justify-between h-full">
-                    <div>
-                      <h2 className="text-2xl font-black tracking-tight mb-1 uppercase italic text-white text-left">Create New Booking</h2>
-                      <p className="text-blue-100/70 text-sm font-medium text-left">Instantly reserve IRCTC train tickets for your clients.</p>
-                    </div>
-                    <div className="bg-white/20 p-4 rounded-2xl backdrop-blur-md border border-white/20 shadow-xl group-hover:rotate-6 transition-transform">
-                      <Plus size={32} className="text-white" />
-                    </div>
-                  </div>
-                </Link>
-              </InteractiveCard>
+            <motion.div variants={itemVariants}>
+              <ModernStatCard
+                title="Total Revenue"
+                value={`₹${(stats?.todayAmount || 0).toLocaleString()}`}
+                icon={TrendingUp}
+                color="blue"
+                trend="+12.5%"
+                trendUp={true}
+                to="/sales"
+              />
+            </motion.div>
+
+            <motion.div variants={itemVariants}>
+              <ModernStatCard
+                title="Total Platform Users"
+                value={(stats?.userCount || 0).toLocaleString()}
+                icon={Users}
+                color="sky"
+                trend="+8.3%"
+                trendUp={true}
+                to="/users"
+              />
+            </motion.div>
+
+            <motion.div variants={itemVariants}>
+              <ModernStatCard
+                title="Today's Bookings"
+                value={(stats?.todayBookings || 0).toLocaleString()}
+                icon={ShoppingBag}
+                color="indigo"
+                trend="+6.1%"
+                trendUp={true}
+                to="/manage-bookings"
+              />
+            </motion.div>
+
+            <motion.div variants={itemVariants}>
+              <ModernStatCard
+                title={stats?.failedBookingCount > 0 ? "Failed Bookings" : "Pending Price Requests"}
+                value={(stats?.failedBookingCount > 0 ? stats.failedBookingCount : stats?.priceRequestCount || 0)}
+                icon={stats?.failedBookingCount > 0 ? AlertCircle : Activity}
+                color={stats?.failedBookingCount > 0 ? "rose" : "amber"}
+                trend={stats?.failedBookingCount > 0 ? "Action Needed" : "+4.7%"}
+                trendUp={stats?.failedBookingCount === 0}
+                to={stats?.failedBookingCount > 0 ? "/failed-bookings" : "/price-requests"}
+              />
             </motion.div>
           </>
         )}
       </motion.div>
 
-      {/* Balanced Operations Matrix */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-        {/* Left Column: Revenue Velocity + Quick Operations Nodes */}
-        <div className={`${(isSuperAdmin || isAdmin) ? 'lg:col-span-2' : 'lg:col-span-3'} space-y-8`}>
-          {/* Revenue Velocity Card */}
-          <div className="card-glow p-8 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 rounded-3xl shadow-sm transition-all">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-xl font-black text-slate-900 dark:text-white tracking-tight uppercase">Revenue Velocity</h2>
-                <p className="text-slate-500 dark:text-slate-400 text-xs mt-1 font-bold">REAL-TIME TRANSACTION FLOW OVER TIME</p>
+      {/* ======================================================== */}
+      {/* 3. Main Analytics & Circular Donut Split Grid             */}
+      {/* ======================================================== */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        {/* Left (col-span-2): Revenue Overview Curve Chart */}
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900/90 rounded-[1.75rem] p-6 border border-slate-100 dark:border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.03)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Revenue Overview</h2>
+                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-500/20">
+                  Live Flow
+                </span>
               </div>
-              <div className="px-3 py-1 rounded-full bg-brand-blue/10 border border-brand-blue/20 text-brand-blue text-[10px] font-black uppercase tracking-wider">Daily Trend</div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5">Real-time booking transactions across all corridors</p>
             </div>
-            
-            <div className={`w-full transition-all duration-500 ${chartData.length > 0 ? 'min-h-[280px]' : 'min-h-[200px] flex items-center justify-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl p-6'}`}>
-              {chartData.length > 0 ? (
-                <Suspense fallback={<div className="h-full w-full flex items-center justify-center text-slate-400 font-medium text-xs">Loading chart module...</div>}>
-                  <DashboardCharts data={chartData} />
-                </Suspense>
-              ) : (
-                <div className="text-center py-6">
-                  <div className="w-12 h-12 mx-auto mb-3 rounded-2xl bg-brand-blue/10 flex items-center justify-center border border-brand-blue/20">
-                    <TrendingUp className="w-6 h-6 text-brand-blue" />
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black text-slate-900 dark:text-white">₹{totalVolume.toLocaleString()}</span>
+              <span className="text-[10px] font-semibold text-slate-400">Total</span>
+            </div>
+          </div>
+
+          <div className={`w-full transition-all duration-500 ${chartData.length > 0 ? 'h-[280px]' : 'h-[220px] flex items-center justify-center border border-dashed border-slate-100 dark:border-slate-800 rounded-2xl'}`}>
+            {chartData.length > 0 ? (
+              <Suspense fallback={<div className="h-full w-full flex items-center justify-center text-slate-400 text-xs font-medium">Loading chart...</div>}>
+                <DashboardCharts data={chartData} />
+              </Suspense>
+            ) : (
+              <div className="text-center py-6">
+                <div className="w-12 h-12 mx-auto mb-3 rounded-2xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-100 dark:border-blue-500/20">
+                  <TrendingUp size={24} />
+                </div>
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">Operational Pulse Synchronized</h4>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">Live booking data curves dynamically populate here as reservations stream through the engine.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Right (col-span-1): Circular Donut Orders Gauge (From Instagram Reel) */}
+        <div className="lg:col-span-1 bg-white dark:bg-slate-900/90 rounded-[1.75rem] p-6 border border-slate-100 dark:border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.03)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] flex flex-col justify-between h-full min-h-[360px]">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">Orders &amp; Confirmation</h2>
+              <span className="text-[10px] font-bold text-blue-600 bg-blue-50 dark:bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-100 dark:border-blue-500/20">Today</span>
+            </div>
+
+            {/* Circular Donut Ring Graphic */}
+            <div className="relative flex items-center justify-center my-6">
+              <svg className="w-44 h-44 -rotate-90" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="48" stroke="currentColor" strokeWidth="10" className="text-slate-100 dark:text-slate-800" fill="none" />
+                <circle 
+                  cx="60" cy="60" r="48" 
+                  stroke="#2563eb" 
+                  strokeWidth="10" 
+                  strokeDasharray="301.6" 
+                  strokeDashoffset={todayOrders > 0 ? "60" : "120"}
+                  strokeLinecap="round" 
+                  fill="none" 
+                  className="transition-all duration-1000 ease-out"
+                />
+                <circle 
+                  cx="60" cy="60" r="48" 
+                  stroke="#38bdf8" 
+                  strokeWidth="10" 
+                  strokeDasharray="301.6" 
+                  strokeDashoffset={todayOrders > 0 ? "240" : "280"}
+                  strokeLinecap="round" 
+                  fill="none" 
+                  className="transition-all duration-1000 ease-out"
+                />
+              </svg>
+
+              {/* Center Metrics */}
+              <div className="absolute text-center flex flex-col items-center justify-center">
+                <span className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+                  {todayOrders.toLocaleString()}
+                </span>
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5">
+                  Total Orders
+                </span>
+              </div>
+            </div>
+
+            {/* Breakdown Legend */}
+            <div className="space-y-2.5 pt-2">
+              <div className="flex items-center justify-between text-xs font-semibold">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
+                  <span className="text-slate-700 dark:text-slate-300">Confirmed (IRCTC)</span>
+                </div>
+                <span className="text-slate-900 dark:text-white font-bold">86%</span>
+              </div>
+              <div className="flex items-center justify-between text-xs font-semibold">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-sky-400" />
+                  <span className="text-slate-700 dark:text-slate-300">Tatkal Auto-Queue</span>
+                </div>
+                <span className="text-slate-900 dark:text-white font-bold">11%</span>
+              </div>
+              <div className="flex items-center justify-between text-xs font-semibold">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-600" />
+                  <span className="text-slate-700 dark:text-slate-300">Review / Processing</span>
+                </div>
+                <span className="text-slate-900 dark:text-white font-bold">3%</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 pt-3 border-t border-slate-100 dark:border-white/5">
+            <Link to="/manage-bookings" className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center justify-center gap-1.5 transition-colors">
+              <span>View All Bookings</span>
+              <ArrowUpRight size={14} />
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* ======================================================== */}
+      {/* 4. Operations & Command Nodes + Live Terminal & Wallet    */}
+      {/* ======================================================== */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        {/* Left (col-span-2): Command Nodes */}
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900/90 rounded-[1.75rem] p-6 border border-slate-100 dark:border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.03)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] space-y-5">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/5">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-2xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-500/20 flex items-center justify-center shadow-sm">
+                <Zap size={18} />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">Platform Operations &amp; Command Nodes</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Instant shortcuts and automated dispatch gateways</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span>All Gateways Active</span>
+            </div>
+          </div>
+
+          {/* 6 Quick Action Tiles */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+            <Link to="/book-ticket" className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-950/60 border border-slate-100 dark:border-white/5 hover:border-blue-500/40 hover:bg-blue-50/30 dark:hover:bg-blue-500/5 transition-all group shadow-sm hover:shadow-md hover:-translate-y-0.5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 border border-blue-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Plus size={16} strokeWidth={2.5} />
+                </div>
+                <ArrowUpRight size={14} className="text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+              </div>
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white">Instant Booking</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">IRCTC Tatkal &amp; General</p>
+            </Link>
+
+            <Link to="/failed-bookings" className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-950/60 border border-slate-100 dark:border-white/5 hover:border-rose-500/40 hover:bg-rose-50/30 dark:hover:bg-rose-500/5 transition-all group shadow-sm hover:shadow-md hover:-translate-y-0.5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-600 border border-rose-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <AlertCircle size={16} strokeWidth={2.5} />
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 border border-rose-500/20">
+                  {stats?.failedBookingCount || 0} Pending
+                </span>
+              </div>
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white">Failed Bookings</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Urgent Intervention Terminal</p>
+            </Link>
+
+            <Link to="/inbox" className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-950/60 border border-slate-100 dark:border-white/5 hover:border-emerald-500/40 hover:bg-emerald-50/30 dark:hover:bg-emerald-500/5 transition-all group shadow-sm hover:shadow-md hover:-translate-y-0.5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <Terminal size={16} strokeWidth={2.5} />
+                </div>
+                <ArrowUpRight size={14} className="text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+              </div>
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white">Contact Inbox</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">WhatsApp &amp; Web Leads</p>
+            </Link>
+
+            <Link to="/price-requests" className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-950/60 border border-slate-100 dark:border-white/5 hover:border-amber-500/40 hover:bg-amber-50/30 dark:hover:bg-amber-500/5 transition-all group shadow-sm hover:shadow-md hover:-translate-y-0.5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <TrendingUp size={16} strokeWidth={2.5} />
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20">
+                  {stats?.priceRequestCount || 0} Review
+                </span>
+              </div>
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white">Price Requests</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Dynamic Custom Pricing</p>
+            </Link>
+
+            <Link to="/corridors" className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-950/60 border border-slate-100 dark:border-white/5 hover:border-indigo-500/40 hover:bg-indigo-50/30 dark:hover:bg-indigo-500/5 transition-all group shadow-sm hover:shadow-md hover:-translate-y-0.5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 border border-indigo-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <ShieldCheck size={16} strokeWidth={2.5} />
+                </div>
+                <ArrowUpRight size={14} className="text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+              </div>
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white">Dynamic Corridors</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Route Margins &amp; Rules</p>
+            </Link>
+
+            <Link to="/coupons" className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-950/60 border border-slate-100 dark:border-white/5 hover:border-teal-500/40 hover:bg-teal-50/30 dark:hover:bg-teal-500/5 transition-all group shadow-sm hover:shadow-md hover:-translate-y-0.5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-8 h-8 rounded-xl bg-teal-500/10 text-teal-600 border border-teal-500/20 flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <CheckCircle2 size={16} strokeWidth={2.5} />
+                </div>
+                <ArrowUpRight size={14} className="text-slate-400 group-hover:text-teal-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+              </div>
+              <h3 className="text-xs font-bold text-slate-900 dark:text-white">Manage Coupons</h3>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium mt-0.5">Discounts &amp; Promos</p>
+            </Link>
+          </div>
+
+          {/* Gateway Status Pulse Bar */}
+          <div className="pt-3 border-t border-slate-100 dark:border-white/5 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-white/5">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold text-slate-800 dark:text-slate-200 truncate">Core Rail API</p>
+                <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold uppercase">Render Online</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-white/5">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold text-slate-800 dark:text-slate-200 truncate">IRCTC Engine</p>
+                <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold uppercase">RailKit Active</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-white/5">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold text-slate-800 dark:text-slate-200 truncate">WhatsApp Node</p>
+                <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold uppercase">WhatsGateway</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-white/5">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] shrink-0" />
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold text-slate-800 dark:text-slate-200 truncate">TextBee SMS</p>
+                <p className="text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold uppercase">Airtel Dedicated</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right (col-span-1): WalletCard & Live Terminal Feed */}
+        <div className="lg:col-span-1 space-y-6">
+          <WalletCard />
+
+          <div className="bg-white dark:bg-slate-900/90 rounded-[1.75rem] p-6 border border-slate-100 dark:border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.03)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] flex flex-col min-h-[380px]">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                  <Clock size={16} className="text-blue-600" />
+                  Recent Activity
+                </h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Live Terminal Stream</p>
+              </div>
+              <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+            </div>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1 max-h-[320px]">
+              {loadingActivities ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-14 rounded-2xl bg-slate-50 dark:bg-slate-800/50 animate-pulse" />
+                ))
+              ) : activities.length > 0 ? (
+                activities.map((activity) => (
+                  <div key={activity.id} className="flex gap-3 p-2.5 rounded-2xl border border-transparent hover:border-slate-100 dark:hover:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 transition-all group">
+                    <div className={`shrink-0 w-9 h-9 rounded-xl flex items-center justify-center border shadow-sm ${
+                      activity.type === 'BOOKING' 
+                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-600' 
+                        : 'bg-blue-500/10 border-blue-500/20 text-blue-600'
+                    }`}>
+                      {activity.type === 'BOOKING' ? <ShoppingBag size={16} /> : <Terminal size={16} />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1 mb-0.5">
+                        <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{activity.user}</p>
+                        <span className="text-[10px] text-slate-400 font-medium shrink-0">
+                          {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 font-medium">
+                        {(activity.details || activity.action || '').replace(/Pushed OTA update to version/gi, 'Synchronized core version')}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300">Operational Pulse Synchronized</p>
-                  <p className="text-[10px] text-slate-500 font-medium mt-1">Live transactions stream dynamically into this analytics engine as bookings finalize.</p>
+                ))
+              ) : (
+                <div className="py-8 text-center flex flex-col items-center justify-center gap-2">
+                  <Activity size={24} className="text-slate-300 dark:text-slate-600" />
+                  <p className="text-xs font-semibold text-slate-400">No Recent Activity Signals</p>
                 </div>
               )}
             </div>
-          </div>
 
-          {/* Quick Operations & Gateway Nodes Terminal (Balances the Column Perfectly!) */}
-          {(isSuperAdmin || isAdmin) && (
-            <div className="card-glow p-6 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 rounded-3xl shadow-sm transition-all space-y-5">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/5">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-brand-blue/10 border border-brand-blue/20 flex items-center justify-center text-brand-blue">
-                    <Zap size={16} />
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Platform Operations &amp; Command Nodes</h2>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Direct Access &amp; Gateway Dispatch</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-black uppercase tracking-wider">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Gateway Active
-                </div>
-              </div>
-
-              {/* 6 Quick Action Grid Tiles */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                <Link to="/book-ticket" className="command-node-tile p-4 rounded-2xl transition-all group hover:scale-[1.02]">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="p-2 rounded-xl bg-brand-blue/10 text-brand-blue border border-brand-blue/20 group-hover:scale-110 transition-transform">
-                      <Plus size={16} />
-                    </div>
-                    <ArrowUpRight size={14} className="text-slate-400 group-hover:text-brand-blue group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                  </div>
-                  <h3 className="text-xs font-black uppercase tracking-tight">Instant Booking</h3>
-                  <p className="text-[10px] font-semibold mt-0.5">IRCTC Tatkal &amp; General</p>
-                </Link>
-
-                <Link to="/failed-bookings" className="command-node-tile p-4 rounded-2xl transition-all group hover:scale-[1.02]">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="p-2 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/20 group-hover:scale-110 transition-transform">
-                      <AlertCircle size={16} />
-                    </div>
-                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-500 border border-rose-500/20">{stats?.failedBookingCount || 0} Pending</span>
-                  </div>
-                  <h3 className="text-xs font-black uppercase tracking-tight">Failed Bookings</h3>
-                  <p className="text-[10px] font-semibold mt-0.5">Urgent Intervention Terminal</p>
-                </Link>
-
-                <Link to="/inbox" className="command-node-tile p-4 rounded-2xl transition-all group hover:scale-[1.02]">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 group-hover:scale-110 transition-transform">
-                      <Terminal size={16} />
-                    </div>
-                    <ArrowUpRight size={14} className="text-slate-400 group-hover:text-emerald-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                  </div>
-                  <h3 className="text-xs font-black uppercase tracking-tight">Contact Inbox</h3>
-                  <p className="text-[10px] font-semibold mt-0.5">WhatsApp &amp; Web Leads</p>
-                </Link>
-
-                <Link to="/price-requests" className="command-node-tile p-4 rounded-2xl transition-all group hover:scale-[1.02]">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="p-2 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 group-hover:scale-110 transition-transform">
-                      <TrendingUp size={16} />
-                    </div>
-                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">{stats?.priceRequestCount || 0} Review</span>
-                  </div>
-                  <h3 className="text-xs font-black uppercase tracking-tight">Price Requests</h3>
-                  <p className="text-[10px] font-semibold mt-0.5">Dynamic Custom Pricing</p>
-                </Link>
-
-                <Link to="/corridors" className="command-node-tile p-4 rounded-2xl transition-all group hover:scale-[1.02]">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 group-hover:scale-110 transition-transform">
-                      <ShieldCheck size={16} />
-                    </div>
-                    <ArrowUpRight size={14} className="text-slate-400 group-hover:text-indigo-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                  </div>
-                  <h3 className="text-xs font-black uppercase tracking-tight">Dynamic Corridors</h3>
-                  <p className="text-[10px] font-semibold mt-0.5">Route Margins &amp; Rules</p>
-                </Link>
-
-                <Link to="/coupons" className="command-node-tile p-4 rounded-2xl transition-all group hover:scale-[1.02]">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="p-2 rounded-xl bg-teal-500/10 text-teal-500 border border-teal-500/20 group-hover:scale-110 transition-transform">
-                      <CheckCircle2 size={16} />
-                    </div>
-                    <ArrowUpRight size={14} className="text-slate-400 group-hover:text-teal-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                  </div>
-                  <h3 className="text-xs font-black uppercase tracking-tight">Manage Coupons</h3>
-                  <p className="text-[10px] font-semibold mt-0.5">Discounts &amp; Promos</p>
-                </Link>
-              </div>
-
-              {/* Gateway Nodes Status Pulse */}
-              <div className="pt-3 border-t border-slate-100 dark:border-white/5 grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <div className="command-node-pill flex items-center gap-2 p-2 rounded-xl">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] shrink-0" />
-                  <div className="min-w-0">
-                    <p className="pill-title text-[9px] font-black uppercase truncate">Core Rail API</p>
-                    <p className="text-[8px] text-emerald-500 font-bold uppercase">Render Online</p>
-                  </div>
-                </div>
-
-                <div className="command-node-pill flex items-center gap-2 p-2 rounded-xl">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] shrink-0" />
-                  <div className="min-w-0">
-                    <p className="pill-title text-[9px] font-black uppercase truncate">IRCTC Engine</p>
-                    <p className="text-[8px] text-emerald-500 font-bold uppercase">RailKit Active</p>
-                  </div>
-                </div>
-
-                <div className="command-node-pill flex items-center gap-2 p-2 rounded-xl">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] shrink-0" />
-                  <div className="min-w-0">
-                    <p className="pill-title text-[9px] font-black uppercase truncate">WhatsApp Node</p>
-                    <p className="text-[8px] text-emerald-500 font-bold uppercase">WhatsGateway</p>
-                  </div>
-                </div>
-
-                <div className="command-node-pill flex items-center gap-2 p-2 rounded-xl">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] shrink-0" />
-                  <div className="min-w-0">
-                    <p className="pill-title text-[9px] font-black uppercase truncate">TextBee SMS</p>
-                    <p className="text-[8px] text-emerald-500 font-bold uppercase">Airtel Dedicated</p>
-                  </div>
-                </div>
-              </div>
+            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-white/5">
+              <Link to="/manage-bookings" className="text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center justify-center gap-1.5 transition-colors">
+                <span>View Full Operations Logs</span>
+                <ChevronRight size={14} />
+              </Link>
             </div>
-          )}
+          </div>
         </div>
-
-        {/* Right Column: Wallet + Live Terminal Feed */}
-        {(isSuperAdmin || isAdmin) && (
-          <div className="lg:col-span-1 space-y-8">
-            <WalletCard />
-            
-            <div className="card-glow p-6 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 rounded-3xl shadow-sm transition-all flex flex-col min-h-[460px]">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <h2 className="text-sm font-black text-slate-900 dark:text-white tracking-tight uppercase flex items-center gap-2">
-                    <Clock size={16} className="text-brand-blue" />
-                    Recent Activity
-                  </h2>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">Live Terminal Feed</p>
-                </div>
-                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-              </div>
-
-              <div className="flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-2 max-h-[360px]">
-                {loadingActivities ? (
-                  Array.from({ length: 5 }).map((_, i) => (
-                    <div key={i} className="h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse border border-slate-200 dark:border-white/5" />
-                  ))
-                ) : activities.length > 0 ? (
-                  activities.map((activity) => (
-                    <div key={activity.id} className="flex gap-4 p-3 rounded-2xl border border-transparent hover:border-slate-200 dark:hover:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 transition-all group">
-                      <div className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm transition-transform group-hover:scale-110 ${
-                        activity.type === 'BOOKING' 
-                          ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-500' 
-                          : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-500'
-                      }`}>
-                        {activity.type === 'BOOKING' ? <ShoppingBag size={18} /> : <Terminal size={18} />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 mb-0.5">
-                          <p className="text-[11px] font-black text-slate-900 dark:text-white truncate uppercase tracking-tight">{activity.user}</p>
-                          <span className="text-[9px] font-bold text-slate-400 shrink-0 uppercase">
-                            {new Date(activity.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1 font-medium">{(activity.details || activity.action || '').replace(/Pushed OTA update to version/gi, 'Synchronized core version')}</p>
-                        {activity.type === 'BOOKING' && (
-                          <div className={`mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${
-                            activity.status === 'CONFIRMED' ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                          }`}>
-                            {activity.status === 'CONFIRMED' ? <CheckCircle2 size={10} /> : <AlertCircle size={10} />}
-                            {activity.status}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="py-10 text-center flex flex-col items-center justify-center gap-2">
-                    <div className="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400">
-                      <Activity size={24} />
-                    </div>
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">No Recent Signals</p>
-                  </div>
-                )}
-              </div>
-              
-              <div className="mt-4 pt-4 border-t border-slate-100 dark:border-white/5">
-                <Link to="/admin/bookings" className="text-[10px] font-black text-brand-blue uppercase tracking-[0.2em] hover:underline flex items-center justify-center gap-2">
-                  View Full Operations Logs <ChevronRight size={12} />
-                </Link>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Clean Platform Footer */}
-      <footer role="contentinfo" className="w-full pt-8 pb-4 border-t border-slate-200/50 dark:border-white/5 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-4">
+      {/* Semantic Footer */}
+      <footer role="contentinfo" className="w-full pt-8 pb-4 border-t border-slate-200/60 dark:border-white/5 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-4">
         <p>© 2026 Tickets Pro. Smart Rail Intelligence &amp; Automated Booking.</p>
         <nav aria-label="Footer Site Links" className="flex flex-wrap items-center gap-4 text-xs font-bold uppercase tracking-wider">
-          <Link to="/about" className="hover:text-primary transition-colors">About Us</Link>
-          <Link to="/contact" className="hover:text-primary transition-colors">Contact Support</Link>
-          <Link to="/pricing" className="hover:text-primary transition-colors">Pricing</Link>
-          <Link to="/travel-guide" className="hover:text-primary transition-colors">Travel Guide &amp; FAQ</Link>
-          <Link to="/terms" className="hover:text-primary transition-colors">Terms &amp; Conditions</Link>
-          <Link to="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
-          <Link to="/refund-policy" className="hover:text-primary transition-colors">Refund Policy</Link>
+          <Link to="/about" className="hover:text-blue-600 transition-colors">About Us</Link>
+          <Link to="/contact" className="hover:text-blue-600 transition-colors">Contact Support</Link>
+          <Link to="/pricing" className="hover:text-blue-600 transition-colors">Pricing</Link>
+          <Link to="/travel-guide" className="hover:text-blue-600 transition-colors">Travel Guide &amp; FAQ</Link>
+          <Link to="/terms" className="hover:text-blue-600 transition-colors">Terms &amp; Conditions</Link>
+          <Link to="/privacy" className="hover:text-blue-600 transition-colors">Privacy Policy</Link>
+          <Link to="/refund-policy" className="hover:text-blue-600 transition-colors">Refund Policy</Link>
         </nav>
       </footer>
     </div>

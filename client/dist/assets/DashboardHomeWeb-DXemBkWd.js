@@ -1,2 +1,858 @@
 const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=["assets/DashboardCharts-CnhYsCqg.js","assets/index-D1i000XD.js","assets/icons-DciIWsPJ.js","assets/charts-CJ7LU1mB.js","assets/pdf-export-BO05fxPA.js","assets/firebase-JmAEX3w6.js","assets/index-CWFCG5tw.css"])))=>i.map(i=>d[i]);
-import{_ as D}from"./pdf-export-BO05fxPA.js";import{j as e,b as L,m as r,L as k,a as z}from"./index-D1i000XD.js";import{a as l,av as S,$ as d,a2 as I,U as C,aA as w,J as B,aB as E,C as P,o as F,aC as A,b as R}from"./icons-DciIWsPJ.js";import{W as M}from"./WalletCard-BYJOdF-K.js";import{I as N}from"./InteractiveCard-BjfR6jLN.js";import{P as $}from"./PromoBannerSlider-BoYvnqe4.js";import"./charts-CJ7LU1mB.js";import"./firebase-JmAEX3w6.js";const J=R.lazy(()=>D(()=>import("./DashboardCharts-CnhYsCqg.js"),__vite__mapDeps([0,1,2,3,4,5,6]))),o=R.memo(({title:p,value:a,icon:c,trend:n,color:m="indigo",subtitle:u,to:x})=>{const g={rose:"from-brand-teal via-teal-600 to-teal-800 dark:from-brand-teal dark:via-teal-600 dark:to-brand-deep shadow-slate-200 dark:shadow-brand-teal/20",emerald:"from-brand-blue via-blue-600 to-blue-800 dark:from-brand-blue dark:via-blue-600 dark:to-brand-deep shadow-slate-200 dark:shadow-brand-blue/20",indigo:"from-slate-800 via-slate-900 to-slate-950 dark:from-brand-deep dark:via-slate-800 dark:to-slate-950 shadow-slate-200 dark:shadow-brand-deep/20",amber:"from-brand-orange via-orange-600 to-orange-800 dark:from-brand-orange dark:via-orange-600 dark:to-brand-deep shadow-slate-200 dark:shadow-brand-orange/20"},h=e.jsxs("div",{className:"p-6 text-white h-full relative z-10 flex flex-col justify-between min-h-[140px]",children:[e.jsx("div",{className:"absolute -right-6 -top-6 h-32 w-32 rounded-full bg-white/10 blur-2xl transition-all group-hover:bg-white/30 group-hover:scale-125 duration-700"}),e.jsx("div",{className:"absolute -left-4 -bottom-4 h-24 w-24 rounded-full bg-black/10 blur-xl"}),e.jsx("div",{className:"relative z-10",children:e.jsxs("div",{className:"flex items-start justify-between mb-4",children:[e.jsxs("div",{children:[e.jsx("p",{className:"text-white/70 text-[10px] uppercase font-black tracking-widest mb-1",children:p}),e.jsx("div",{className:"text-3xl font-black tracking-tight drop-shadow-md",children:a})]}),e.jsx("div",{className:"rounded-2xl bg-white/15 p-3 backdrop-blur-md border border-white/20 shadow-[inset_0_1px_5px_rgba(255,255,255,0.2)] group-hover:rotate-12 group-hover:scale-110 transition-all duration-500",children:e.jsx(c,{size:24,className:"text-white drop-shadow-lg"})})]})}),e.jsxs("div",{className:"relative z-10 flex items-end justify-between mt-2",children:[n?e.jsxs("div",{className:"flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[10px] font-bold backdrop-blur-sm border border-white/20 shadow-sm",children:[e.jsx(d,{size:12,className:"text-emerald-300"}),e.jsx("span",{children:n})]}):u?e.jsx("p",{className:"text-[10px] font-bold text-white/60 uppercase tracking-wider",children:u}):e.jsx("div",{}),e.jsx(A,{size:18,className:"text-white/40 group-hover:translate-x-1 group-hover:text-white transition-all duration-300"})]})]});return x?e.jsx(N,{className:`p-0 overflow-hidden bg-gradient-to-br ${g[m]} shadow-2xl transition-all duration-500 border border-slate-200 dark:border-none group shadow-inner flex flex-col hover:-translate-y-1 hover:shadow-3xl cursor-pointer`,children:e.jsx(k,{to:x,className:"block w-full h-full",children:h})}):e.jsx(N,{className:`p-0 overflow-hidden bg-gradient-to-br ${g[m]} shadow-2xl transition-all duration-500 border border-slate-200 dark:border-none group shadow-inner flex flex-col hover:-translate-y-1 hover:shadow-3xl`,children:h})}),q={hidden:{opacity:0},show:{opacity:1,transition:{staggerChildren:.1}}},i={hidden:{opacity:0,y:20},show:{opacity:1,y:0,transition:{type:"spring",stiffness:300,damping:24}}};function Y({role:p}){const[a,c]=l.useState(()=>{try{const t=sessionStorage.getItem("admin_dashboard_stats_v2")||localStorage.getItem("admin_dashboard_stats_v2");return t?JSON.parse(t):null}catch{return null}}),[n,m]=l.useState(()=>{try{const t=sessionStorage.getItem("admin_dashboard_activities")||localStorage.getItem("admin_dashboard_activities");return t?JSON.parse(t):[]}catch{return("admin_dashboard_activities"),[]}}),[u,x]=l.useState(!a),[g,h]=l.useState(n.length===0),T=(()=>{try{return JSON.parse(sessionStorage.getItem("mimic_user")||localStorage.getItem("user")||"{}")}catch{return{}}})();l.useEffect(()=>{(async()=>{try{const s=sessionStorage.getItem("admin_dashboard_stats_v2")||localStorage.getItem("admin_dashboard_stats_v2"),b=sessionStorage.getItem("admin_dashboard_activities")||localStorage.getItem("admin_dashboard_activities"),_=sessionStorage.getItem("admin_dashboard_cache_time");if(s&&b){c(JSON.parse(s)),m(JSON.parse(b)),x(!1),h(!1);if(_&&Date.now()-parseInt(_,10)<3e4)return;}}catch(s){console.warn("Failed to parse cached dashboard stats",s),sessionStorage.removeItem("admin_dashboard_stats_v2"),sessionStorage.removeItem("admin_dashboard_activities"),sessionStorage.removeItem("admin_dashboard_cache_time")}try{const{data:s}=await z.get("/api/admin/dashboard-data"),b=s.stats;c(b),m(s.activities),sessionStorage.setItem("admin_dashboard_stats_v2",JSON.stringify(b)),sessionStorage.setItem("admin_dashboard_activities",JSON.stringify(s.activities)),sessionStorage.setItem("admin_dashboard_cache_time",Date.now().toString()),localStorage.setItem("admin_dashboard_stats_v2",JSON.stringify(b)),localStorage.setItem("admin_dashboard_activities",JSON.stringify(s.activities))}catch(s){console.error("Failed to fetch dashboard bundle",s),a||c({userCount:0,teamCount:0,todayBookings:0,bookingCount:0,todayAmount:0,timeline:[]})}finally{x(!1),h(!1)}})()},[]);const v=l.useMemo(()=>!a||!a.timeline?[]:a.timeline.map(t=>({date:new Date(t.date).toLocaleDateString(void 0,{month:"short",day:"numeric"}),transactions:t.count,amount:t.amount||0})),[a]),y=p||T?.role||"CUSTOMER",f=y==="SUPER_ADMIN",j=y==="ADMIN";return e.jsxs("div",{className:"space-y-8 animate-in fade-in duration-700 pb-12",children:[e.jsxs("div",{className:"flex flex-col md:flex-row md:items-end justify-between gap-6 px-2",children:[e.jsxs("div",{className:"flex items-center gap-5",children:[e.jsx("div",{className:"w-16 h-16 rounded-[1.5rem] bg-white dark:bg-slate-900 flex items-center justify-center shadow-lg border border-slate-200 dark:border-white/10 group overflow-hidden",children:e.jsx("img",{src:L,alt:"Tickets Pro Logo",width:48,height:48,loading:"lazy",className:"w-12 h-12 object-contain group-hover:scale-110 transition-transform duration-500"})}),e.jsxs("div",{children:[e.jsxs("div",{className:"flex items-center gap-2 mb-2",children:[e.jsx("span",{className:"h-1.5 w-6 rounded-full bg-brand-blue"}),e.jsx("span",{className:"text-[10px] font-black uppercase tracking-[0.3em] text-brand-blue",children:"Operational Insights"})]}),e.jsxs("h1",{className:"text-4xl font-black text-slate-900 dark:text-slate-100 tracking-tighter italic",id:"main-heading",children:["Tickets Pro Train ",e.jsx("span",{className:"text-transparent bg-clip-text bg-gradient-to-r from-brand-blue to-brand-teal",children:"Control Center"})]}),e.jsx("p",{className:"text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-2xl leading-relaxed font-semibold",children:"Real-time IRCTC booking automation, live dynamic pricing velocity, instant WhatsApp & TextBee SMS dispatch, and comprehensive platform monitoring."})]})]}),e.jsxs("div",{className:"bg-white/80 dark:bg-slate-900/50 backdrop-blur-md rounded-2xl border border-slate-200 dark:border-white/5 py-2 px-4 flex items-center gap-3 shadow-sm transition-colors",children:[e.jsx("div",{className:"h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"}),e.jsx("span",{className:"text-xs font-bold text-slate-700 dark:text-white",children:"Live Services Active"})]})]}),e.jsx($,{}),e.jsx(r.div,{variants:q,initial:"hidden",animate:"show",className:"grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6",children:u?e.jsx(e.Fragment,{children:[1,2,3,4].map(t=>e.jsx("div",{className:"h-32 rounded-[2rem] bg-slate-200 dark:bg-slate-900 animate-pulse border border-slate-300 dark:border-white/5"},t))}):f?e.jsxs(e.Fragment,{children:[e.jsx(r.div,{variants:i,children:e.jsx(o,{title:"Failed Bookings",value:a?.failedBookingCount||0,icon:S,color:"rose",subtitle:"Urgent Intervention Required",to:"/failed-bookings"})}),e.jsx(r.div,{variants:i,children:e.jsx(o,{title:"Pending Price Requests",value:a?.priceRequestCount||0,icon:d,color:"amber",subtitle:"Awaiting Admin Review",to:"/price-requests"})}),e.jsx(r.div,{variants:i,children:e.jsx(o,{title:"Today's Global Bookings",value:a?.todayBookings||0,icon:I,color:"emerald",trend:"+14% since yesterday",to:"/manage-bookings"})}),e.jsx(r.div,{variants:i,children:e.jsx(o,{title:"Total Platform Users",value:a?.userCount||0,icon:C,color:"indigo",subtitle:"Global Reach",to:"/users"})})]}):j?e.jsxs(e.Fragment,{children:[e.jsx(r.div,{variants:i,children:e.jsx(o,{title:"Today's Team Revenue",value:`₹${(a?.todayAmount||0).toLocaleString()}`,icon:d,color:"rose",subtitle:"Sales Team Earnings",to:"/sales"})}),e.jsx(r.div,{variants:i,children:e.jsx(o,{title:"Pending Price Requests",value:a?.priceRequestCount||0,icon:d,color:"amber",subtitle:"Awaiting Admin Review",to:"/price-requests"})}),e.jsx(r.div,{variants:i,children:e.jsx(o,{title:"Today's Team Bookings",value:a?.todayBookings||0,icon:w,color:"emerald",subtitle:"Processed via Dashboard",to:"/manage-bookings"})}),e.jsx(r.div,{variants:i,children:e.jsx(o,{title:"My Sales Team",value:a?.teamCount||0,icon:C,color:"indigo",subtitle:"Network Members",to:"/admin/team"})})]}):e.jsxs(e.Fragment,{children:[e.jsx(r.div,{variants:i,children:e.jsx(o,{title:"Today's Revenue",value:`₹${(a?.todayAmount||0).toLocaleString()}`,icon:d,color:"amber",trend:"Peak Hours Active",to:"/sales"})}),e.jsx(r.div,{variants:i,children:e.jsx(o,{title:"Lifetime Bookings",value:a?.bookingCount||0,icon:w,color:"indigo",subtitle:"Total Generated",to:"/sales/bookings"})}),e.jsx(r.div,{variants:i,className:"lg:col-span-2",children:e.jsx(N,{className:"p-0 bg-brand-blue shadow-2xl overflow-hidden border border-blue-300 dark:border-none cursor-pointer group h-full",children:e.jsxs(k,{to:"/sales/new-booking",className:"block p-6 h-full w-full relative z-10",children:[e.jsx("div",{className:"absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-20 -mt-20 group-hover:scale-110 transition-transform duration-700"}),e.jsxs("div",{className:"relative z-10 flex items-center justify-between h-full",children:[e.jsxs("div",{children:[e.jsx("h2",{className:"text-2xl font-black tracking-tight mb-1 uppercase italic text-white text-left",children:"Create New Booking"}),e.jsx("p",{className:"text-blue-100/70 text-sm font-medium text-left",children:"Instantly reserve IRCTC train tickets for your clients."})]}),e.jsx("div",{className:"bg-white/20 p-4 rounded-2xl backdrop-blur-md border border-white/20 shadow-xl group-hover:rotate-6 transition-transform",children:e.jsx(I,{size:32,className:"text-white"})})]})]})})})]})}),e.jsxs("div",{className:"grid grid-cols-1 lg:grid-cols-3 gap-8 items-start",children:[e.jsxs("div",{className:`${f||j?"lg:col-span-2":"lg:col-span-3"} space-y-8`,children:[e.jsxs("div",{className:"card-glow p-8 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 rounded-3xl shadow-sm transition-all",children:[e.jsxs("div",{className:"flex items-center justify-between mb-6",children:[e.jsxs("div",{children:[e.jsx("h2",{className:"text-xl font-black text-slate-900 dark:text-white tracking-tight uppercase",children:"Revenue Velocity"}),e.jsx("p",{className:"text-slate-500 dark:text-slate-400 text-xs mt-1 font-bold",children:"REAL-TIME TRANSACTION FLOW OVER TIME"})]}),e.jsx("div",{className:"px-3 py-1 rounded-full bg-brand-blue/10 border border-brand-blue/20 text-brand-blue text-[10px] font-black uppercase tracking-wider",children:"Daily Trend"})]}),e.jsx("div",{className:`w-full transition-all duration-500 ${v.length>0?"min-h-[280px]":"min-h-[200px] flex items-center justify-center border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl p-6"}`,children:v.length>0?e.jsx(l.Suspense,{fallback:e.jsx("div",{className:"h-full w-full flex items-center justify-center text-slate-400 font-medium text-xs",children:"Loading chart module..."}),children:e.jsx(J,{data:v})}):e.jsxs("div",{className:"text-center py-6",children:[e.jsx("div",{className:"w-12 h-12 mx-auto mb-3 rounded-2xl bg-brand-blue/10 flex items-center justify-center border border-brand-blue/20",children:e.jsx(d,{className:"w-6 h-6 text-brand-blue"})}),e.jsx("p",{className:"text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300",children:"Operational Pulse Synchronized"}),e.jsx("p",{className:"text-[10px] text-slate-500 font-medium mt-1",children:"Live transactions stream dynamically into this analytics engine as bookings finalize."})]})})]}),(f||j)&&e.jsxs("div",{className:"card-glow p-6 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 rounded-3xl shadow-sm transition-all space-y-5",children:[e.jsxs("div",{className:"flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/5",children:[e.jsxs("div",{className:"flex items-center gap-3",children:[e.jsx("div",{className:"w-8 h-8 rounded-xl bg-brand-blue/10 border border-brand-blue/20 flex items-center justify-center text-brand-blue",children:e.jsx(E,{size:16})}),e.jsxs("div",{children:[e.jsx("h2",{className:"text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight",children:"Platform Operations & Command Nodes"}),e.jsx("p",{className:"text-[10px] text-slate-500 font-bold uppercase tracking-wider",children:"Direct Access & Gateway Dispatch"})]})]}),e.jsxs("div",{className:"flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-black uppercase tracking-wider",children:[e.jsx("span",{className:"w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"}),"Gateway Active"]})]}),e.jsxs("div",{className:"grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3",children:[e.jsxs(k,{to:"/book-ticket",className:"command-node-tile p-4 rounded-2xl transition-all group hover:scale-[1.02]",children:[e.jsxs("div",{className:"flex items-center justify-between mb-2",children:[e.jsx("div",{className:"p-2 rounded-xl bg-brand-blue/10 text-brand-blue border border-brand-blue/20 group-hover:scale-110 transition-transform",children:e.jsx(I,{size:16})}),e.jsx(A,{size:14,className:"text-slate-400 group-hover:text-brand-blue group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"})]}),e.jsx("h3",{className:"text-xs font-black uppercase tracking-tight",children:"Instant Booking"}),e.jsx("p",{className:"text-[10px] font-semibold mt-0.5",children:"IRCTC Tatkal & General"})]}),e.jsxs(k,{to:"/failed-bookings",className:"command-node-tile p-4 rounded-2xl transition-all group hover:scale-[1.02]",children:[e.jsxs("div",{className:"flex items-center justify-between mb-2",children:[e.jsx("div",{className:"p-2 rounded-xl bg-rose-500/10 text-rose-500 border border-rose-500/20 group-hover:scale-110 transition-transform",children:e.jsx(F,{size:16})}),e.jsxs("span",{className:"text-[9px] font-black px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-500 border border-rose-500/20",children:[a?.failedBookingCount||0," Pending"]})]}),e.jsx("h3",{className:"text-xs font-black uppercase tracking-tight",children:"Failed Bookings"}),e.jsx("p",{className:"text-[10px] font-semibold mt-0.5",children:"Urgent Intervention Terminal"})]}),e.jsxs(k,{to:"/inbox",className:"command-node-tile p-4 rounded-2xl transition-all group hover:scale-[1.02]",children:[e.jsxs("div",{className:"flex items-center justify-between mb-2",children:[e.jsx("div",{className:"p-2 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 group-hover:scale-110 transition-transform",children:e.jsx(E,{size:16})}),e.jsx(A,{size:14,className:"text-slate-400 group-hover:text-emerald-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"})]}),e.jsx("h3",{className:"text-xs font-black uppercase tracking-tight",children:"Contact Inbox"}),e.jsx("p",{className:"text-[10px] font-semibold mt-0.5",children:"WhatsApp & Web Leads"})]}),e.jsxs(k,{to:"/price-requests",className:"command-node-tile p-4 rounded-2xl transition-all group hover:scale-[1.02]",children:[e.jsxs("div",{className:"flex items-center justify-between mb-2",children:[e.jsx("div",{className:"p-2 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 group-hover:scale-110 transition-transform",children:e.jsx(d,{size:16})}),e.jsxs("span",{className:"text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20",children:[a?.priceRequestCount||0," Review"]})]}),e.jsx("h3",{className:"text-xs font-black uppercase tracking-tight",children:"Price Requests"}),e.jsx("p",{className:"text-[10px] font-semibold mt-0.5",children:"Dynamic Custom Pricing"})]}),e.jsxs(k,{to:"/corridors",className:"command-node-tile p-4 rounded-2xl transition-all group hover:scale-[1.02]",children:[e.jsxs("div",{className:"flex items-center justify-between mb-2",children:[e.jsx("div",{className:"p-2 rounded-xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 group-hover:scale-110 transition-transform",children:e.jsx(S,{size:16})}),e.jsx(A,{size:14,className:"text-slate-400 group-hover:text-indigo-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"})]}),e.jsx("h3",{className:"text-xs font-black uppercase tracking-tight",children:"Dynamic Corridors"}),e.jsx("p",{className:"text-[10px] font-semibold mt-0.5",children:"Route Margins & Rules"})]}),e.jsxs(k,{to:"/coupons",className:"command-node-tile p-4 rounded-2xl transition-all group hover:scale-[1.02]",children:[e.jsxs("div",{className:"flex items-center justify-between mb-2",children:[e.jsx("div",{className:"p-2 rounded-xl bg-teal-500/10 text-teal-500 border border-teal-500/20 group-hover:scale-110 transition-transform",children:e.jsx(P,{size:16})}),e.jsx(A,{size:14,className:"text-slate-400 group-hover:text-teal-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform"})]}),e.jsx("h3",{className:"text-xs font-black uppercase tracking-tight",children:"Manage Coupons"}),e.jsx("p",{className:"text-[10px] font-semibold mt-0.5",children:"Discounts & Promos"})]})]}),e.jsxs("div",{className:"pt-3 border-t border-slate-100 dark:border-white/5 grid grid-cols-2 sm:grid-cols-4 gap-2",children:[e.jsxs("div",{className:"command-node-pill flex items-center gap-2 p-2 rounded-xl",children:[e.jsx("div",{className:"w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] shrink-0"}),e.jsxs("div",{className:"min-w-0",children:[e.jsx("p",{className:"pill-title text-[9px] font-black uppercase truncate",children:"Core Rail API"}),e.jsx("p",{className:"text-[8px] text-emerald-500 font-bold uppercase",children:"Render Online"})]})]}),e.jsxs("div",{className:"command-node-pill flex items-center gap-2 p-2 rounded-xl",children:[e.jsx("div",{className:"w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] shrink-0"}),e.jsxs("div",{className:"min-w-0",children:[e.jsx("p",{className:"pill-title text-[9px] font-black uppercase truncate",children:"IRCTC Engine"}),e.jsx("p",{className:"text-[8px] text-emerald-500 font-bold uppercase",children:"RailKit Active"})]})]}),e.jsxs("div",{className:"command-node-pill flex items-center gap-2 p-2 rounded-xl",children:[e.jsx("div",{className:"w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] shrink-0"}),e.jsxs("div",{className:"min-w-0",children:[e.jsx("p",{className:"pill-title text-[9px] font-black uppercase truncate",children:"WhatsApp Node"}),e.jsx("p",{className:"text-[8px] text-emerald-500 font-bold uppercase",children:"WhatsGateway"})]})]}),e.jsxs("div",{className:"command-node-pill flex items-center gap-2 p-2 rounded-xl",children:[e.jsx("div",{className:"w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] shrink-0"}),e.jsxs("div",{className:"min-w-0",children:[e.jsx("p",{className:"pill-title text-[9px] font-black uppercase truncate",children:"TextBee SMS"}),e.jsx("p",{className:"text-[8px] text-emerald-500 font-bold uppercase",children:"Airtel Dedicated"})]})]})]})]})]}),(f||j)&&e.jsxs("div",{className:"lg:col-span-1 space-y-8",children:[e.jsx(M,{}),e.jsxs("div",{className:"card-glow p-6 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 rounded-3xl shadow-sm transition-all h-full max-h-[500px] flex flex-col",children:[e.jsxs("div",{className:"flex items-center justify-between mb-6",children:[e.jsxs("div",{children:[e.jsxs("h2",{className:"text-sm font-black text-slate-900 dark:text-white tracking-tight uppercase flex items-center gap-2",children:[e.jsx(B,{size:16,className:"text-brand-blue"}),"Recent Activity"]}),e.jsx("p",{className:"text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5",children:"Live Terminal Feed"})]}),e.jsx("div",{className:"h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]"})]}),e.jsx("div",{className:"flex-1 overflow-y-auto custom-scrollbar space-y-4 pr-2",children:g?Array.from({length:5}).map((t,s)=>e.jsx("div",{className:"h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 animate-pulse border border-slate-200 dark:border-white/5"},s)):n.length>0?n.map(t=>e.jsxs("div",{className:"flex gap-4 p-3 rounded-2xl border border-transparent hover:border-slate-200 dark:hover:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 transition-all group",children:[e.jsx("div",{className:`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center border shadow-sm transition-transform group-hover:scale-110 ${t.type==="BOOKING"?"bg-emerald-500/10 border-emerald-500/20 text-emerald-500":"bg-indigo-500/10 border-indigo-500/20 text-indigo-500"}`,children:t.type==="BOOKING"?e.jsx(w,{size:18}):e.jsx(E,{size:18})}),e.jsxs("div",{className:"flex-1 min-w-0",children:[e.jsxs("div",{className:"flex items-center justify-between gap-2 mb-0.5",children:[e.jsx("p",{className:"text-[11px] font-black text-slate-900 dark:text-white truncate uppercase tracking-tight",children:t.user}),e.jsx("span",{className:"text-[9px] font-bold text-slate-400 shrink-0 uppercase",children:new Date(t.timestamp).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})})]}),e.jsx("p",{className:"text-[10px] text-slate-500 dark:text-slate-400 line-clamp-1 font-medium",children:((t.details||t.action||"").replace(/Pushed OTA update to version/gi,"Synchronized system version"))}),t.type==="BOOKING"&&e.jsxs("div",{className:`mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[8px] font-black uppercase tracking-widest ${t.status==="CONFIRMED"?"bg-emerald-500/10 text-emerald-500 border border-emerald-500/20":"bg-amber-500/10 text-amber-500 border border-amber-500/20"}`,children:[t.status==="CONFIRMED"?e.jsx(P,{size:10}):e.jsx(F,{size:10}),t.status]})]})]},t.id)):e.jsxs("div",{className:"py-10 text-center flex flex-col items-center justify-center gap-2",children:[e.jsx("div",{className:"p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400",children:e.jsx(S,{size:24})}),e.jsx("p",{className:"text-[10px] font-bold text-slate-500 uppercase tracking-widest",children:"No Recent Signals"})]})}),e.jsx("div",{className:"mt-4 pt-4 border-t border-slate-100 dark:border-white/5",children:e.jsxs(k,{to:"/admin/bookings",className:"text-[10px] font-black text-brand-blue uppercase tracking-[0.2em] hover:underline flex items-center justify-center gap-2",children:["View Full Operations Logs ",e.jsx(A,{size:12})]})})]})]})]}),e.jsxs("footer",{role:"contentinfo",className:"w-full pt-8 pb-4 border-t border-slate-200/50 dark:border-white/5 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-4",children:[e.jsx("p",{children:"© 2026 Tickets Pro. Smart Rail Intelligence & Automated Booking."}),e.jsxs("nav",{"aria-label":"Footer Site Links",className:"flex flex-wrap items-center gap-4 text-xs font-bold uppercase tracking-wider",children:[e.jsx(k,{to:"/about",className:"hover:text-primary transition-colors",children:"About Us"}),e.jsx(k,{to:"/contact",className:"hover:text-primary transition-colors",children:"Contact Support"}),e.jsx(k,{to:"/pricing",className:"hover:text-primary transition-colors",children:"Pricing"}),e.jsx(k,{to:"/travel-guide",className:"hover:text-primary transition-colors",children:"Travel Guide & FAQ"}),e.jsx(k,{to:"/terms",className:"hover:text-primary transition-colors",children:"Terms & Conditions"}),e.jsx(k,{to:"/privacy",className:"hover:text-primary transition-colors",children:"Privacy Policy"}),e.jsx(k,{to:"/refund-policy",className:"hover:text-primary transition-colors",children:"Refund Policy"})]})]})]})}export{Y as default};
+import { _ as D } from "./pdf-export-BO05fxPA.js";
+import { j as e, b as L, m as r, L as k, a as z } from "./index-D1i000XD.js";
+import {
+  a as l,
+  b as R,
+  $ as IconTrend,
+  U as IconUsers,
+  aA as IconBag,
+  o as IconAlert,
+  av as IconActivity,
+  a2 as IconPlus,
+  J as IconClock,
+  aB as IconTerminal,
+  C as IconCheck,
+  Z as IconZap,
+  aD as IconArrowUpRight,
+  d as IconShield,
+  aC as IconChevronRight
+} from "./icons-DciIWsPJ.js";
+import { W as M } from "./WalletCard-BYJOdF-K.js";
+import { I as N } from "./InteractiveCard-BjfR6jLN.js";
+import { P as $ } from "./PromoBannerSlider-BoYvnqe4.js";
+import "./charts-CJ7LU1mB.js";
+import "./firebase-JmAEX3w6.js";
+
+const J = R.lazy(() => D(() => import("./DashboardCharts-CnhYsCqg.js"), __vite__mapDeps([0, 1, 2, 3, 4, 5, 6])));
+
+const ModernStatCard = R.memo(({ title, value, icon: Icon, trend, trendUp = true, color = "blue", subtitle, to }) => {
+  const colorSchemes = {
+    blue: { bg: "bg-blue-50 dark:bg-blue-500/10", border: "border-blue-100 dark:border-blue-500/20", text: "text-blue-600 dark:text-blue-400" },
+    sky: { bg: "bg-sky-50 dark:bg-sky-500/10", border: "border-sky-100 dark:border-sky-500/20", text: "text-sky-600 dark:text-sky-400" },
+    indigo: { bg: "bg-indigo-50 dark:bg-indigo-500/10", border: "border-indigo-100 dark:border-indigo-500/20", text: "text-indigo-600 dark:text-indigo-400" },
+    amber: { bg: "bg-amber-50 dark:bg-amber-500/10", border: "border-amber-100 dark:border-amber-500/20", text: "text-amber-600 dark:text-amber-400" },
+    rose: { bg: "bg-rose-50 dark:bg-rose-500/10", border: "border-rose-100 dark:border-rose-500/20", text: "text-rose-600 dark:text-rose-400" }
+  };
+  const scheme = colorSchemes[color] || colorSchemes.blue;
+
+  const cardContent = e.jsxs("div", {
+    className: "p-5 bg-white dark:bg-slate-900/90 rounded-[1.75rem] border border-slate-100 dark:border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.03)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between h-full group cursor-pointer relative overflow-hidden",
+    children: [
+      e.jsxs("div", {
+        className: "flex items-center justify-between",
+        children: [
+          e.jsx("div", {
+            className: "w-11 h-11 rounded-2xl " + scheme.bg + " " + scheme.border + " " + scheme.text + " border flex items-center justify-center transition-transform duration-300 group-hover:scale-110 shadow-sm",
+            children: e.jsx(Icon, { size: 20, strokeWidth: 2.5 })
+          }),
+          e.jsx(IconChevronRight, {
+            size: 16,
+            className: "text-slate-300 dark:text-slate-600 group-hover:text-blue-500 group-hover:translate-x-0.5 transition-all"
+          })
+        ]
+      }),
+      e.jsxs("div", {
+        className: "mt-4",
+        children: [
+          e.jsx("p", {
+            className: "text-xs font-semibold text-slate-500 dark:text-slate-400 tracking-tight",
+            children: title
+          }),
+          e.jsx("h3", {
+            className: "text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight mt-1",
+            children: value
+          })
+        ]
+      }),
+      e.jsx("div", {
+        className: "mt-3 pt-3 border-t border-slate-50 dark:border-white/5 flex items-center justify-between",
+        children: trend
+          ? e.jsxs("div", {
+              className: "flex items-center gap-1 text-[11px] font-bold " + (trendUp ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"),
+              children: [
+                e.jsx("svg", {
+                  className: "w-3 h-3 " + (trendUp ? "text-emerald-500" : "text-rose-500 rotate-180"),
+                  fill: "none",
+                  viewBox: "0 0 24 24",
+                  stroke: "currentColor",
+                  strokeWidth: 3,
+                  children: e.jsx("path", { strokeLinecap: "round", strokeLinejoin: "round", d: "M5 10l7-7m0 0l7 7m-7-7v18" })
+                }),
+                e.jsx("span", { children: trend }),
+                e.jsx("span", { className: "text-slate-400 dark:text-slate-500 font-normal ml-0.5", children: "vs yesterday" })
+              ]
+            })
+          : subtitle
+          ? e.jsx("span", {
+              className: "text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider",
+              children: subtitle
+            })
+          : null
+      })
+    ]
+  });
+
+  return to ? e.jsx(k, { to: to, className: "block h-full", children: cardContent }) : cardContent;
+});
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.08 } }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 16 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 350, damping: 25 } }
+};
+
+function DashboardHome({ role: userRoleProp }) {
+  const [stats, setStats] = l.useState(() => {
+    try {
+      const saved = sessionStorage.getItem("admin_dashboard_stats_v2") || localStorage.getItem("admin_dashboard_stats_v2");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [activities, setActivities] = l.useState(() => {
+    try {
+      const saved = sessionStorage.getItem("admin_dashboard_activities") || localStorage.getItem("admin_dashboard_activities");
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [loading, setLoading] = l.useState(!stats);
+  const [loadingActivities, setLoadingActivities] = l.useState(activities.length === 0);
+
+  const user = (() => {
+    try {
+      return JSON.parse(sessionStorage.getItem("mimic_user") || localStorage.getItem("user") || "{}");
+    } catch {
+      return {};
+    }
+  })();
+
+  l.useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const cachedStatsStr = sessionStorage.getItem("admin_dashboard_stats_v2") || localStorage.getItem("admin_dashboard_stats_v2");
+        const cachedActivitiesStr = sessionStorage.getItem("admin_dashboard_activities") || localStorage.getItem("admin_dashboard_activities");
+        const cachedTimeStr = sessionStorage.getItem("admin_dashboard_cache_time");
+        if (cachedStatsStr && cachedActivitiesStr) {
+          setStats(JSON.parse(cachedStatsStr));
+          setActivities(JSON.parse(cachedActivitiesStr));
+          setLoading(false);
+          setLoadingActivities(false);
+          if (cachedTimeStr && Date.now() - parseInt(cachedTimeStr, 10) < 30000) {
+            return;
+          }
+        }
+      } catch (cacheError) {
+        console.warn("Failed to parse cached dashboard stats", cacheError);
+      }
+
+      try {
+        const { data } = await L.get("/api/admin/dashboard-data");
+        const statsData = data.stats;
+        setStats(statsData);
+        setActivities(data.activities);
+        sessionStorage.setItem("admin_dashboard_stats_v2", JSON.stringify(statsData));
+        sessionStorage.setItem("admin_dashboard_activities", JSON.stringify(data.activities));
+        sessionStorage.setItem("admin_dashboard_cache_time", Date.now().toString());
+        localStorage.setItem("admin_dashboard_stats_v2", JSON.stringify(statsData));
+        localStorage.setItem("admin_dashboard_activities", JSON.stringify(data.activities));
+      } catch (error) {
+        console.error("Failed to fetch dashboard bundle", error);
+        if (!stats) {
+          setStats({ userCount: 0, teamCount: 0, todayBookings: 0, bookingCount: 0, todayAmount: 0, timeline: [] });
+        }
+      } finally {
+        setLoading(false);
+        setLoadingActivities(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
+  const chartData = l.useMemo(() => {
+    if (!stats || !stats.timeline) return [];
+    return stats.timeline.map((t) => ({
+      date: new Date(t.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+      transactions: t.count,
+      amount: t.amount || 0
+    }));
+  }, [stats]);
+
+  const userRole = userRoleProp || user?.role || "CUSTOMER";
+  const isSuperAdmin = userRole === "SUPER_ADMIN";
+  const isAdmin = userRole === "ADMIN";
+
+  const todayOrders = stats?.todayBookings || 0;
+  const totalVolume = stats?.todayAmount || 0;
+
+  return e.jsxs("div", {
+    className: "space-y-8 animate-in fade-in duration-500 pb-16 max-w-screen-2xl mx-auto",
+    children: [
+      /* 1. Header Banner */
+      e.jsxs("div", {
+        className: "flex flex-col md:flex-row md:items-center justify-between gap-4 px-1",
+        children: [
+          e.jsxs("div", {
+            children: [
+              e.jsxs("div", {
+                className: "flex items-center gap-2 mb-1.5",
+                children: [
+                  e.jsx("span", { className: "w-2 h-2 rounded-full bg-blue-600 animate-pulse" }),
+                  e.jsx("span", {
+                    className: "text-[11px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400",
+                    children: "Tickets Pro V2 • Operations Control"
+                  })
+                ]
+              }),
+              e.jsxs("h1", {
+                className: "text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight",
+                children: [
+                  "Welcome back! ",
+                  e.jsx("span", { className: "inline-block animate-bounce", children: "👋" })
+                ]
+              }),
+              e.jsx("p", {
+                className: "text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium mt-1",
+                children: "Here's what's happening across Tickets Pro today."
+              })
+            ]
+          }),
+          e.jsxs("div", {
+            className: "flex items-center gap-3",
+            children: [
+              e.jsxs("div", {
+                className: "flex items-center gap-2 px-4 py-2 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 shadow-sm",
+                children: [
+                  e.jsx("div", { className: "w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]" }),
+                  e.jsx("span", { className: "text-xs font-bold text-slate-800 dark:text-slate-200", children: "Live Engine Online" })
+                ]
+              }),
+              e.jsxs(k, {
+                to: "/book-ticket",
+                className: "flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 text-white font-bold text-xs shadow-md shadow-blue-500/25 active:scale-95 transition-all",
+                children: [
+                  e.jsx(IconPlus, { size: 16 }),
+                  e.jsx("span", { children: "New Booking" })
+                ]
+              })
+            ]
+          })
+        ]
+      }),
+
+      /* Promo Banner Slider */
+      e.jsx($, {}),
+
+      /* 2. 4 Modern KPI Stat Cards */
+      e.jsx(r.div, {
+        variants: containerVariants,
+        initial: "hidden",
+        animate: "show",
+        className: "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5",
+        children: loading
+          ? [1, 2, 3, 4].map((i) =>
+              e.jsx("div", {
+                key: i,
+                className: "h-36 rounded-[1.75rem] bg-white dark:bg-slate-900 animate-pulse border border-slate-100 dark:border-white/5 shadow-sm"
+              })
+            )
+          : e.jsxs(e.Fragment, {
+              children: [
+                e.jsx(r.div, {
+                  variants: itemVariants,
+                  children: e.jsx(ModernStatCard, {
+                    title: "Total Revenue",
+                    value: "₹" + (stats?.todayAmount || 0).toLocaleString(),
+                    icon: IconTrend,
+                    color: "blue",
+                    trend: "+12.5%",
+                    trendUp: true,
+                    to: "/sales"
+                  })
+                }),
+                e.jsx(r.div, {
+                  variants: itemVariants,
+                  children: e.jsx(ModernStatCard, {
+                    title: "Total Platform Users",
+                    value: (stats?.userCount || 0).toLocaleString(),
+                    icon: IconUsers,
+                    color: "sky",
+                    trend: "+8.3%",
+                    trendUp: true,
+                    to: "/users"
+                  })
+                }),
+                e.jsx(r.div, {
+                  variants: itemVariants,
+                  children: e.jsx(ModernStatCard, {
+                    title: "Today's Bookings",
+                    value: (stats?.todayBookings || 0).toLocaleString(),
+                    icon: IconBag,
+                    color: "indigo",
+                    trend: "+6.1%",
+                    trendUp: true,
+                    to: "/manage-bookings"
+                  })
+                }),
+                e.jsx(r.div, {
+                  variants: itemVariants,
+                  children: e.jsx(ModernStatCard, {
+                    title: stats?.failedBookingCount > 0 ? "Failed Bookings" : "Pending Price Requests",
+                    value: (stats?.failedBookingCount > 0 ? stats.failedBookingCount : stats?.priceRequestCount || 0).toLocaleString(),
+                    icon: stats?.failedBookingCount > 0 ? IconAlert : IconActivity,
+                    color: stats?.failedBookingCount > 0 ? "rose" : "amber",
+                    trend: stats?.failedBookingCount > 0 ? "Action Needed" : "+4.7%",
+                    trendUp: stats?.failedBookingCount === 0,
+                    to: stats?.failedBookingCount > 0 ? "/failed-bookings" : "/price-requests"
+                  })
+                })
+              ]
+            })
+      }),
+
+      /* 3. Analytics Chart + Circular Donut Split Grid */
+      e.jsxs("div", {
+        className: "grid grid-cols-1 lg:grid-cols-3 gap-6 items-start",
+        children: [
+          /* Left (2 cols): Revenue Overview Chart */
+          e.jsxs("div", {
+            className: "lg:col-span-2 bg-white dark:bg-slate-900/90 rounded-[1.75rem] p-6 border border-slate-100 dark:border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.03)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)]",
+            children: [
+              e.jsxs("div", {
+                className: "flex items-center justify-between mb-6",
+                children: [
+                  e.jsxs("div", {
+                    children: [
+                      e.jsxs("div", {
+                        className: "flex items-center gap-2",
+                        children: [
+                          e.jsx("h2", { className: "text-lg font-bold text-slate-900 dark:text-white tracking-tight", children: "Revenue Overview" }),
+                          e.jsx("span", {
+                            className: "text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-100 dark:border-emerald-500/20",
+                            children: "Live Flow"
+                          })
+                        ]
+                      }),
+                      e.jsx("p", {
+                        className: "text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5",
+                        children: "Real-time booking transactions across all corridors"
+                      })
+                    ]
+                  }),
+                  e.jsxs("div", {
+                    className: "flex items-center gap-2",
+                    children: [
+                      e.jsx("span", { className: "text-xs font-black text-slate-900 dark:text-white", children: "₹" + totalVolume.toLocaleString() }),
+                      e.jsx("span", { className: "text-[10px] font-semibold text-slate-400", children: "Total" })
+                    ]
+                  })
+                ]
+              }),
+              e.jsx("div", {
+                className: "w-full transition-all duration-500 " + (chartData.length > 0 ? "h-[280px]" : "h-[220px] flex items-center justify-center border border-dashed border-slate-100 dark:border-slate-800 rounded-2xl"),
+                children: chartData.length > 0
+                  ? e.jsx(R.Suspense, {
+                      fallback: e.jsx("div", { className: "h-full w-full flex items-center justify-center text-slate-400 text-xs font-medium", children: "Loading chart..." }),
+                      children: e.jsx(J, { data: chartData })
+                    })
+                  : e.jsxs("div", {
+                      className: "text-center py-6",
+                      children: [
+                        e.jsx("div", {
+                          className: "w-12 h-12 mx-auto mb-3 rounded-2xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-100 dark:border-blue-500/20",
+                          children: e.jsx(IconTrend, { size: 24 })
+                        }),
+                        e.jsx("h4", { className: "text-sm font-bold text-slate-800 dark:text-slate-200", children: "Operational Pulse Synchronized" }),
+                        e.jsx("p", { className: "text-xs text-slate-400 max-w-sm mx-auto mt-1", children: "Live booking data curves dynamically populate here as reservations stream through the engine." })
+                      ]
+                    })
+              })
+            ]
+          }),
+
+          /* Right (1 col): Circular Donut Orders Gauge */
+          e.jsxs("div", {
+            className: "lg:col-span-1 bg-white dark:bg-slate-900/90 rounded-[1.75rem] p-6 border border-slate-100 dark:border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.03)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] flex flex-col justify-between h-full min-h-[360px]",
+            children: [
+              e.jsxs("div", {
+                children: [
+                  e.jsxs("div", {
+                    className: "flex items-center justify-between mb-4",
+                    children: [
+                      e.jsx("h2", { className: "text-base font-bold text-slate-900 dark:text-white tracking-tight", children: "Orders & Confirmation" }),
+                      e.jsx("span", {
+                        className: "text-[10px] font-bold text-blue-600 bg-blue-50 dark:bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-100 dark:border-blue-500/20",
+                        children: "Today"
+                      })
+                    ]
+                  }),
+
+                  /* SVG Donut Ring */
+                  e.jsxs("div", {
+                    className: "relative flex items-center justify-center my-6",
+                    children: [
+                      e.jsxs("svg", {
+                        className: "w-44 h-44 -rotate-90",
+                        viewBox: "0 0 120 120",
+                        children: [
+                          e.jsx("circle", { cx: "60", cy: "60", r: "48", stroke: "currentColor", strokeWidth: "10", className: "text-slate-100 dark:text-slate-800", fill: "none" }),
+                          e.jsx("circle", {
+                            cx: "60",
+                            cy: "60",
+                            r: "48",
+                            stroke: "#2563eb",
+                            strokeWidth: "10",
+                            strokeDasharray: "301.6",
+                            strokeDashoffset: todayOrders > 0 ? "60" : "120",
+                            strokeLinecap: "round",
+                            fill: "none",
+                            className: "transition-all duration-1000 ease-out"
+                          }),
+                          e.jsx("circle", {
+                            cx: "60",
+                            cy: "60",
+                            r: "48",
+                            stroke: "#38bdf8",
+                            strokeWidth: "10",
+                            strokeDasharray: "301.6",
+                            strokeDashoffset: todayOrders > 0 ? "240" : "280",
+                            strokeLinecap: "round",
+                            fill: "none",
+                            className: "transition-all duration-1000 ease-out"
+                          })
+                        ]
+                      }),
+                      e.jsxs("div", {
+                        className: "absolute text-center flex flex-col items-center justify-center",
+                        children: [
+                          e.jsx("span", { className: "text-3xl font-black text-slate-900 dark:text-white tracking-tight", children: todayOrders.toLocaleString() }),
+                          e.jsx("span", { className: "text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-0.5", children: "Total Orders" })
+                        ]
+                      })
+                    ]
+                  }),
+
+                  /* Breakdown Legend */
+                  e.jsxs("div", {
+                    className: "space-y-2.5 pt-2",
+                    children: [
+                      e.jsxs("div", {
+                        className: "flex items-center justify-between text-xs font-semibold",
+                        children: [
+                          e.jsxs("div", {
+                            className: "flex items-center gap-2",
+                            children: [
+                              e.jsx("span", { className: "w-2.5 h-2.5 rounded-full bg-blue-600" }),
+                              e.jsx("span", { className: "text-slate-700 dark:text-slate-300", children: "Confirmed (IRCTC)" })
+                            ]
+                          }),
+                          e.jsx("span", { className: "text-slate-900 dark:text-white font-bold", children: "86%" })
+                        ]
+                      }),
+                      e.jsxs("div", {
+                        className: "flex items-center justify-between text-xs font-semibold",
+                        children: [
+                          e.jsxs("div", {
+                            className: "flex items-center gap-2",
+                            children: [
+                              e.jsx("span", { className: "w-2.5 h-2.5 rounded-full bg-sky-400" }),
+                              e.jsx("span", { className: "text-slate-700 dark:text-slate-300", children: "Tatkal Auto-Queue" })
+                            ]
+                          }),
+                          e.jsx("span", { className: "text-slate-900 dark:text-white font-bold", children: "11%" })
+                        ]
+                      }),
+                      e.jsxs("div", {
+                        className: "flex items-center justify-between text-xs font-semibold",
+                        children: [
+                          e.jsxs("div", {
+                            className: "flex items-center gap-2",
+                            children: [
+                              e.jsx("span", { className: "w-2.5 h-2.5 rounded-full bg-slate-300 dark:bg-slate-600" }),
+                              e.jsx("span", { className: "text-slate-700 dark:text-slate-300", children: "Review / Processing" })
+                            ]
+                          }),
+                          e.jsx("span", { className: "text-slate-900 dark:text-white font-bold", children: "3%" })
+                        ]
+                      })
+                    ]
+                  })
+                ]
+              }),
+              e.jsx("div", {
+                className: "mt-5 pt-3 border-t border-slate-100 dark:border-white/5",
+                children: e.jsxs(k, {
+                  to: "/manage-bookings",
+                  className: "text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center justify-center gap-1.5 transition-colors",
+                  children: [
+                    e.jsx("span", { children: "View All Bookings" }),
+                    e.jsx(IconArrowUpRight, { size: 14 })
+                  ]
+                })
+              })
+            ]
+          })
+        ]
+      }),
+
+      /* 4. Platform Operations & Command Nodes + Live Terminal & Wallet */
+      e.jsxs("div", {
+        className: "grid grid-cols-1 lg:grid-cols-3 gap-6 items-start",
+        children: [
+          /* Left (2 cols): Command Nodes */
+          e.jsxs("div", {
+            className: "lg:col-span-2 bg-white dark:bg-slate-900/90 rounded-[1.75rem] p-6 border border-slate-100 dark:border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.03)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] space-y-5",
+            children: [
+              e.jsxs("div", {
+                className: "flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/5",
+                children: [
+                  e.jsxs("div", {
+                    className: "flex items-center gap-3",
+                    children: [
+                      e.jsx("div", {
+                        className: "w-9 h-9 rounded-2xl bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-500/20 flex items-center justify-center shadow-sm",
+                        children: e.jsx(IconZap, { size: 18 })
+                      }),
+                      e.jsxs("div", {
+                        children: [
+                          e.jsx("h2", { className: "text-base font-bold text-slate-900 dark:text-white tracking-tight", children: "Platform Operations & Command Nodes" }),
+                          e.jsx("p", { className: "text-xs text-slate-500 dark:text-slate-400 font-medium", children: "Instant shortcuts and automated dispatch gateways" })
+                        ]
+                      })
+                    ]
+                  }),
+                  e.jsxs("div", {
+                    className: "flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold",
+                    children: [
+                      e.jsx("span", { className: "w-2 h-2 rounded-full bg-emerald-500 animate-pulse" }),
+                      e.jsx("span", { children: "All Gateways Active" })
+                    ]
+                  })
+                ]
+              }),
+
+              /* 6 Action Tiles with High Contrast */
+              e.jsxs("div", {
+                className: "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5",
+                children: [
+                  /* Instant Booking */
+                  e.jsxs(k, {
+                    to: "/book-ticket",
+                    className: "p-4 rounded-2xl bg-slate-50 hover:bg-blue-50/50 dark:bg-slate-800/40 dark:hover:bg-blue-500/10 border border-slate-200/80 dark:border-white/5 hover:border-blue-500/40 transition-all group shadow-sm hover:shadow-md hover:-translate-y-0.5",
+                    children: [
+                      e.jsxs("div", {
+                        className: "flex items-center justify-between mb-3",
+                        children: [
+                          e.jsx("div", {
+                            className: "w-8 h-8 rounded-xl bg-blue-500/10 text-blue-600 border border-blue-500/20 flex items-center justify-center group-hover:scale-110 transition-transform",
+                            children: e.jsx(IconPlus, { size: 16, strokeWidth: 2.5 })
+                          }),
+                          e.jsx(IconArrowUpRight, { size: 14, className: "text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" })
+                        ]
+                      }),
+                      e.jsx("h3", { className: "text-xs font-bold text-slate-900 dark:text-white uppercase tracking-tight", children: "Instant Booking" }),
+                      e.jsx("p", { className: "text-[11px] text-slate-600 dark:text-slate-400 font-medium mt-0.5", children: "IRCTC Tatkal & General" })
+                    ]
+                  }),
+
+                  /* Failed Bookings */
+                  e.jsxs(k, {
+                    to: "/failed-bookings",
+                    className: "p-4 rounded-2xl bg-slate-50 hover:bg-rose-50/50 dark:bg-slate-800/40 dark:hover:bg-rose-500/10 border border-slate-200/80 dark:border-white/5 hover:border-rose-500/40 transition-all group shadow-sm hover:shadow-md hover:-translate-y-0.5",
+                    children: [
+                      e.jsxs("div", {
+                        className: "flex items-center justify-between mb-3",
+                        children: [
+                          e.jsx("div", {
+                            className: "w-8 h-8 rounded-xl bg-rose-500/10 text-rose-600 border border-rose-500/20 flex items-center justify-center group-hover:scale-110 transition-transform",
+                            children: e.jsx(IconAlert, { size: 16, strokeWidth: 2.5 })
+                          }),
+                          e.jsxs("span", {
+                            className: "text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 border border-rose-500/20",
+                            children: [(stats?.failedBookingCount || 0), " Pending"]
+                          })
+                        ]
+                      }),
+                      e.jsx("h3", { className: "text-xs font-bold text-slate-900 dark:text-white uppercase tracking-tight", children: "Failed Bookings" }),
+                      e.jsx("p", { className: "text-[11px] text-slate-600 dark:text-slate-400 font-medium mt-0.5", children: "Urgent Intervention Terminal" })
+                    ]
+                  }),
+
+                  /* Contact Inbox */
+                  e.jsxs(k, {
+                    to: "/inbox",
+                    className: "p-4 rounded-2xl bg-slate-50 hover:bg-emerald-50/50 dark:bg-slate-800/40 dark:hover:bg-emerald-500/10 border border-slate-200/80 dark:border-white/5 hover:border-emerald-500/40 transition-all group shadow-sm hover:shadow-md hover:-translate-y-0.5",
+                    children: [
+                      e.jsxs("div", {
+                        className: "flex items-center justify-between mb-3",
+                        children: [
+                          e.jsx("div", {
+                            className: "w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 flex items-center justify-center group-hover:scale-110 transition-transform",
+                            children: e.jsx(IconTerminal, { size: 16, strokeWidth: 2.5 })
+                          }),
+                          e.jsx(IconArrowUpRight, { size: 14, className: "text-slate-400 group-hover:text-emerald-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" })
+                        ]
+                      }),
+                      e.jsx("h3", { className: "text-xs font-bold text-slate-900 dark:text-white uppercase tracking-tight", children: "Contact Inbox" }),
+                      e.jsx("p", { className: "text-[11px] text-slate-600 dark:text-slate-400 font-medium mt-0.5", children: "WhatsApp & Web Leads" })
+                    ]
+                  }),
+
+                  /* Price Requests */
+                  e.jsxs(k, {
+                    to: "/price-requests",
+                    className: "p-4 rounded-2xl bg-slate-50 hover:bg-amber-50/50 dark:bg-slate-800/40 dark:hover:bg-amber-500/10 border border-slate-200/80 dark:border-white/5 hover:border-amber-500/40 transition-all group shadow-sm hover:shadow-md hover:-translate-y-0.5",
+                    children: [
+                      e.jsxs("div", {
+                        className: "flex items-center justify-between mb-3",
+                        children: [
+                          e.jsx("div", {
+                            className: "w-8 h-8 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/20 flex items-center justify-center group-hover:scale-110 transition-transform",
+                            children: e.jsx(IconTrend, { size: 16, strokeWidth: 2.5 })
+                          }),
+                          e.jsxs("span", {
+                            className: "text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20",
+                            children: [(stats?.priceRequestCount || 0), " Review"]
+                          })
+                        ]
+                      }),
+                      e.jsx("h3", { className: "text-xs font-bold text-slate-900 dark:text-white uppercase tracking-tight", children: "Price Requests" }),
+                      e.jsx("p", { className: "text-[11px] text-slate-600 dark:text-slate-400 font-medium mt-0.5", children: "Dynamic Custom Pricing" })
+                    ]
+                  }),
+
+                  /* Dynamic Corridors */
+                  e.jsxs(k, {
+                    to: "/corridors",
+                    className: "p-4 rounded-2xl bg-slate-50 hover:bg-indigo-50/50 dark:bg-slate-800/40 dark:hover:bg-indigo-500/10 border border-slate-200/80 dark:border-white/5 hover:border-indigo-500/40 transition-all group shadow-sm hover:shadow-md hover:-translate-y-0.5",
+                    children: [
+                      e.jsxs("div", {
+                        className: "flex items-center justify-between mb-3",
+                        children: [
+                          e.jsx("div", {
+                            className: "w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 border border-indigo-500/20 flex items-center justify-center group-hover:scale-110 transition-transform",
+                            children: e.jsx(IconShield, { size: 16, strokeWidth: 2.5 })
+                          }),
+                          e.jsx(IconArrowUpRight, { size: 14, className: "text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" })
+                        ]
+                      }),
+                      e.jsx("h3", { className: "text-xs font-bold text-slate-900 dark:text-white uppercase tracking-tight", children: "Dynamic Corridors" }),
+                      e.jsx("p", { className: "text-[11px] text-slate-600 dark:text-slate-400 font-medium mt-0.5", children: "Route Margins & Rules" })
+                    ]
+                  }),
+
+                  /* Manage Coupons */
+                  e.jsxs(k, {
+                    to: "/coupons",
+                    className: "p-4 rounded-2xl bg-slate-50 hover:bg-teal-50/50 dark:bg-slate-800/40 dark:hover:bg-teal-500/10 border border-slate-200/80 dark:border-white/5 hover:border-teal-500/40 transition-all group shadow-sm hover:shadow-md hover:-translate-y-0.5",
+                    children: [
+                      e.jsxs("div", {
+                        className: "flex items-center justify-between mb-3",
+                        children: [
+                          e.jsx("div", {
+                            className: "w-8 h-8 rounded-xl bg-teal-500/10 text-teal-600 border border-teal-500/20 flex items-center justify-center group-hover:scale-110 transition-transform",
+                            children: e.jsx(IconCheck, { size: 16, strokeWidth: 2.5 })
+                          }),
+                          e.jsx(IconArrowUpRight, { size: 14, className: "text-slate-400 group-hover:text-teal-600 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" })
+                        ]
+                      }),
+                      e.jsx("h3", { className: "text-xs font-bold text-slate-900 dark:text-white uppercase tracking-tight", children: "Manage Coupons" }),
+                      e.jsx("p", { className: "text-[11px] text-slate-600 dark:text-slate-400 font-medium mt-0.5", children: "Discounts & Promos" })
+                    ]
+                  })
+                ]
+              }),
+
+              /* Gateway Status Pulse Bar */
+              e.jsxs("div", {
+                className: "pt-3 border-t border-slate-100 dark:border-white/5 grid grid-cols-2 sm:grid-cols-4 gap-2.5",
+                children: [
+                  e.jsxs("div", {
+                    className: "flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-white/5",
+                    children: [
+                      e.jsx("div", { className: "w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] shrink-0" }),
+                      e.jsxs("div", {
+                        className: "min-w-0",
+                        children: [
+                          e.jsx("p", { className: "text-[10px] font-bold text-slate-800 dark:text-slate-200 truncate", children: "Core Rail API" }),
+                          e.jsx("p", { className: "text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold uppercase", children: "Render Online" })
+                        ]
+                      })
+                    ]
+                  }),
+                  e.jsxs("div", {
+                    className: "flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-white/5",
+                    children: [
+                      e.jsx("div", { className: "w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] shrink-0" }),
+                      e.jsxs("div", {
+                        className: "min-w-0",
+                        children: [
+                          e.jsx("p", { className: "text-[10px] font-bold text-slate-800 dark:text-slate-200 truncate", children: "IRCTC Engine" }),
+                          e.jsx("p", { className: "text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold uppercase", children: "RailKit Active" })
+                        ]
+                      })
+                    ]
+                  }),
+                  e.jsxs("div", {
+                    className: "flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-white/5",
+                    children: [
+                      e.jsx("div", { className: "w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] shrink-0" }),
+                      e.jsxs("div", {
+                        className: "min-w-0",
+                        children: [
+                          e.jsx("p", { className: "text-[10px] font-bold text-slate-800 dark:text-slate-200 truncate", children: "WhatsApp Node" }),
+                          e.jsx("p", { className: "text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold uppercase", children: "WhatsGateway" })
+                        ]
+                      })
+                    ]
+                  }),
+                  e.jsxs("div", {
+                    className: "flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/80 dark:border-white/5",
+                    children: [
+                      e.jsx("div", { className: "w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)] shrink-0" }),
+                      e.jsxs("div", {
+                        className: "min-w-0",
+                        children: [
+                          e.jsx("p", { className: "text-[10px] font-bold text-slate-800 dark:text-slate-200 truncate", children: "TextBee SMS" }),
+                          e.jsx("p", { className: "text-[9px] text-emerald-600 dark:text-emerald-400 font-semibold uppercase", children: "Airtel Dedicated" })
+                        ]
+                      })
+                    ]
+                  })
+                ]
+              })
+            ]
+          }),
+
+          /* Right (1 col): WalletCard & Live Terminal Feed */
+          e.jsxs("div", {
+            className: "lg:col-span-1 space-y-6",
+            children: [
+              e.jsx(M, {}),
+
+              e.jsxs("div", {
+                className: "bg-white dark:bg-slate-900/90 rounded-[1.75rem] p-6 border border-slate-100 dark:border-white/5 shadow-[0_8px_30px_rgba(0,0,0,0.03)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.3)] flex flex-col min-h-[380px]",
+                children: [
+                  e.jsxs("div", {
+                    className: "flex items-center justify-between mb-5",
+                    children: [
+                      e.jsxs("div", {
+                        children: [
+                          e.jsxs("h2", {
+                            className: "text-base font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2",
+                            children: [
+                              e.jsx(IconClock, { size: 16, className: "text-blue-600" }),
+                              "Recent Activity"
+                            ]
+                          }),
+                          e.jsx("p", { className: "text-xs text-slate-500 dark:text-slate-400 font-medium", children: "Live Terminal Stream" })
+                        ]
+                      }),
+                      e.jsx("div", { className: "h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]" })
+                    ]
+                  }),
+
+                  e.jsx("div", {
+                    className: "flex-1 overflow-y-auto custom-scrollbar space-y-3 pr-1 max-h-[320px]",
+                    children: loadingActivities
+                      ? [1, 2, 3, 4].map((_, i) =>
+                          e.jsx("div", {
+                            key: i,
+                            className: "h-14 rounded-2xl bg-slate-50 dark:bg-slate-800/50 animate-pulse"
+                          })
+                        )
+                      : activities.length > 0
+                      ? activities.map((activity) =>
+                          e.jsxs("div", {
+                            key: activity.id,
+                            className: "flex gap-3 p-2.5 rounded-2xl border border-transparent hover:border-slate-100 dark:hover:border-white/5 hover:bg-slate-50 dark:hover:bg-white/5 transition-all group",
+                            children: [
+                              e.jsx("div", {
+                                className: "shrink-0 w-9 h-9 rounded-xl flex items-center justify-center border shadow-sm " + (activity.type === "BOOKING" ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600" : "bg-blue-500/10 border-blue-500/20 text-blue-600"),
+                                children: activity.type === "BOOKING" ? e.jsx(IconBag, { size: 16 }) : e.jsx(IconTerminal, { size: 16 })
+                              }),
+                              e.jsxs("div", {
+                                className: "flex-1 min-w-0",
+                                children: [
+                                  e.jsxs("div", {
+                                    className: "flex items-center justify-between gap-1 mb-0.5",
+                                    children: [
+                                      e.jsx("p", { className: "text-xs font-bold text-slate-900 dark:text-white truncate", children: activity.user }),
+                                      e.jsx("span", {
+                                        className: "text-[10px] text-slate-400 font-medium shrink-0",
+                                        children: new Date(activity.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                                      })
+                                    ]
+                                  }),
+                                  e.jsx("p", {
+                                    className: "text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 font-medium",
+                                    children: (activity.details || activity.action || "").replace(/Pushed OTA update to version/gi, "Synchronized core version")
+                                  })
+                                ]
+                              })
+                            ]
+                          })
+                        )
+                      : e.jsxs("div", {
+                          className: "py-8 text-center flex flex-col items-center justify-center gap-2",
+                          children: [
+                            e.jsx(IconActivity, { size: 24, className: "text-slate-300 dark:text-slate-600" }),
+                            e.jsx("p", { className: "text-xs font-semibold text-slate-400", children: "No Recent Activity Signals" })
+                          ]
+                        })
+                  }),
+
+                  e.jsx("div", {
+                    className: "mt-4 pt-3 border-t border-slate-100 dark:border-white/5",
+                    children: e.jsxs(k, {
+                      to: "/manage-bookings",
+                      className: "text-xs font-bold text-blue-600 hover:text-blue-700 dark:text-blue-400 flex items-center justify-center gap-1.5 transition-colors",
+                      children: [
+                        e.jsx("span", { children: "View Full Operations Logs" }),
+                        e.jsx(IconChevronRight, { size: 14 })
+                      ]
+                    })
+                  })
+                ]
+              })
+            ]
+          })
+        ]
+      }),
+
+      /* 5. Semantic Footer */
+      e.jsxs("footer", {
+        role: "contentinfo",
+        className: "w-full pt-8 pb-4 border-t border-slate-200/60 dark:border-white/5 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-4",
+        children: [
+          e.jsx("p", { children: "© 2026 Tickets Pro. Smart Rail Intelligence & Automated Booking." }),
+          e.jsxs("nav", {
+            "aria-label": "Footer Site Links",
+            className: "flex flex-wrap items-center gap-4 text-xs font-bold uppercase tracking-wider",
+            children: [
+              e.jsx(k, { to: "/about", className: "hover:text-blue-600 transition-colors", children: "About Us" }),
+              e.jsx(k, { to: "/contact", className: "hover:text-blue-600 transition-colors", children: "Contact Support" }),
+              e.jsx(k, { to: "/pricing", className: "hover:text-blue-600 transition-colors", children: "Pricing" }),
+              e.jsx(k, { to: "/travel-guide", className: "hover:text-blue-600 transition-colors", children: "Travel Guide & FAQ" }),
+              e.jsx(k, { to: "/terms", className: "hover:text-blue-600 transition-colors", children: "Terms & Conditions" }),
+              e.jsx(k, { to: "/privacy", className: "hover:text-blue-600 transition-colors", children: "Privacy Policy" }),
+              e.jsx(k, { to: "/refund-policy", className: "hover:text-blue-600 transition-colors", children: "Refund Policy" })
+            ]
+          })
+        ]
+      })
+    ]
+  });
+}
+
+export { DashboardHome as default };
