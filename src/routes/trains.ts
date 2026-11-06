@@ -691,10 +691,17 @@ router.get('/schedule/:trainNo', async (req: Request, res: Response) => {
         const { trainNo } = req.params;
 
         const cacheKey = `schedule:${trainNo}`;
-        const cached = await CacheService.get(cacheKey);
+        const cached = req.query.fresh ? null : await CacheService.get(cacheKey);
         if (cached) {
-            console.log(`[ScheduleCache] HIT for ${trainNo}`);
-            return res.json({ success: true, data: JSON.parse(cached) });
+            try {
+                const parsed = JSON.parse(cached);
+                if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].stationName) {
+                    console.log(`[ScheduleCache] HIT for ${trainNo} (${parsed.length} stops)`);
+                    return res.json({ success: true, data: parsed });
+                }
+            } catch {
+                // Invalidate stale cache
+            }
         }
 
         let scheduleData: any = [];
@@ -732,17 +739,23 @@ router.get('/schedule/:trainNo', async (req: Request, res: Response) => {
                     const route = rkData?.route || rkData?.stations || [];
                     if (Array.isArray(route) && route.length > 0) {
                         console.log(`[ScheduleEngine] RailKit Primary HIT for ${trainNo} schedule (${route.length} stops)`);
-                        scheduleData = route.map((st: any) => ({
-                            station: {
-                                code: st.station_code || st.code || st.stationCode,
-                                name: st.station_name || st.name || st.stationName
-                            },
-                            arrival: st.arrival_time === 'Source' ? '--:--' : (st.arrival_time || st.arrival || '--:--'),
-                            departure: st.departure_time === 'Destination' ? '--:--' : (st.departure_time || st.departure || '--:--'),
-                            distance: st.distance !== undefined ? st.distance : (st.distanceFromSourceKm || 0),
-                            arrivalDay: st.day || 1,
-                            isHalt: st.isHalt !== undefined ? st.isHalt : (st.halt_minutes !== undefined ? st.halt_minutes > 0 : true)
-                        }));
+                        scheduleData = route.map((st: any) => {
+                            const stationCode = st.stnCode || st.station_code || st.code || st.stationCode || st.station?.code || '';
+                            const stationName = st.stnName || st.station_name || st.name || st.stationName || st.station?.name || '';
+                            return {
+                                station: {
+                                    code: stationCode,
+                                    name: stationName
+                                },
+                                stationCode,
+                                stationName,
+                                arrival: st.arrival === '--' ? '--:--' : (st.arrival_time === 'Source' ? '--:--' : (st.arrival_time || st.arrival || '--:--')),
+                                departure: st.departure === '--' ? '--:--' : (st.departure_time === 'Destination' ? '--:--' : (st.departure_time || st.departure || '--:--')),
+                                distance: st.distance !== undefined ? st.distance : (st.distanceFromSourceKm || 0),
+                                arrivalDay: st.day || 1,
+                                isHalt: st.isHalt !== undefined ? st.isHalt : (st.haltMinutes !== undefined ? st.haltMinutes > 0 : (st.halt_minutes !== undefined ? st.halt_minutes > 0 : true))
+                            };
+                        });
                     }
                 }
             }
@@ -786,15 +799,19 @@ router.get('/schedule/:trainNo', async (req: Request, res: Response) => {
             throw lastError;
         }
 
-        const adaptedSchedule = scheduleData.map((stop: any, index: number) => ({
-            stationCode: stop.station?.code || stop.stationCode,
-            stationName: stop.station?.name || stop.stationName,
-            arrivalTime: stop.arrival || (stop.arrivalMinutes ? formatTime(stop.arrivalMinutes) : (index === 0 ? '--:--' : '--:--')),
-            departureTime: stop.departure || (stop.departureMinutes ? formatTime(stop.departureMinutes) : (index === scheduleData.length - 1 ? '--:--' : '--:--')),
-            distance: stop.distance !== undefined ? stop.distance : stop.distanceFromSourceKm,
-            day: stop.arrivalDay || stop.departureDay || stop.day,
-            isHalt: stop.isHalt
-        })).filter((stop: any, idx: number, arr: any[]) => {
+        const adaptedSchedule = scheduleData.map((stop: any, index: number) => {
+            const stationCode = stop.stationCode || stop.station?.code || stop.stnCode || stop.code || '';
+            const stationName = stop.stationName || stop.station?.name || stop.stnName || stop.name || '';
+            return {
+                stationCode,
+                stationName,
+                arrivalTime: stop.arrival || (stop.arrivalMinutes ? formatTime(stop.arrivalMinutes) : (index === 0 ? '--:--' : '--:--')),
+                departureTime: stop.departure || (stop.departureMinutes ? formatTime(stop.departureMinutes) : (index === scheduleData.length - 1 ? '--:--' : '--:--')),
+                distance: stop.distance !== undefined ? stop.distance : (stop.distanceFromSourceKm || 0),
+                day: stop.arrivalDay || stop.departureDay || stop.day || 1,
+                isHalt: stop.isHalt !== undefined ? stop.isHalt : true
+            };
+        }).filter((stop: any, idx: number, arr: any[]) => {
             // Keep first and last stations always
             if (idx === 0 || idx === arr.length - 1) return true;
             // Remove stations where train doesn't halt (arrival == departure or isHalt is explicitly false)

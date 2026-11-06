@@ -1935,8 +1935,8 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                                             <div className="flex-1 bg-white dark:bg-slate-800 border border-slate-100 dark:border-white/5 rounded-2xl p-5 shadow-sm group-hover:border-primary/20 group-hover:shadow-md transition-all">
                                                 <div className="flex items-center justify-between mb-3">
                                                     <span className="font-black text-slate-900 dark:text-white text-sm flex items-center gap-2">
-                                                        {stop.stationName} 
-                                                        <span className="text-[10px] bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-primary border border-slate-200 dark:border-white/10">{stop.stationCode}</span>
+                                                        {stop.stationName || stop.station?.name || stop.stnName || 'Station'} 
+                                                        <span className="text-[10px] bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded text-primary border border-slate-200 dark:border-white/10">{stop.stationCode || stop.station?.code || stop.stnCode || ''}</span>
                                                     </span>
                                                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest bg-slate-50 dark:bg-slate-900 px-2 py-1 rounded-lg">Day {stop.day} • {stop.distance} KM</span>
                                                 </div>
