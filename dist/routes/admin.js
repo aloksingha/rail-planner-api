@@ -14,11 +14,13 @@ const path_1 = __importDefault(require("path"));
 const users_1 = __importDefault(require("./admin/users"));
 const refunds_1 = __importDefault(require("./admin/refunds"));
 const bookings_1 = __importDefault(require("./admin/bookings"));
+const gst_1 = __importDefault(require("./admin/gst"));
 const cache_1 = require("../utils/cache");
 const router = (0, express_1.Router)();
 router.use('/', users_1.default);
 router.use('/', refunds_1.default);
 router.use('/', bookings_1.default);
+router.use('/', gst_1.default);
 // Configure multer for PDF uploads
 const storage = multer_1.default.diskStorage({
     destination: (req, file, cb) => cb(null, path_1.default.join(__dirname, '..', '..', 'uploads')),

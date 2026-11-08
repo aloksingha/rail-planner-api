@@ -14,6 +14,7 @@ import {
   Bell,
   ShieldAlert,
   Percent,
+  FileSpreadsheet,
   Loader2, Sparkles, CheckCircle2, X
 } from 'lucide-react';
 
@@ -70,6 +71,7 @@ const WalletManagement = lazy(() => import('./pages/WalletManagement'));
 const WalletDashboard = lazy(() => import('./pages/WalletDashboard'));
 const AuditLogAndroid = lazy(() => import('./pages/AuditLogAndroid'));
 const ManagePromotions = lazy(() => import('./pages/ManagePromotions'));
+const GstTaxReports = lazy(() => import('./pages/GstTaxReports'));
 
 
 
@@ -947,6 +949,7 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
 
                 <SidebarSection label="Internal Finance" />
                 <NavLink to="/sales/transactions" icon={ReceiptText}>Platform Ledger</NavLink>
+                <NavLink to="/admin/gst-reports" icon={FileSpreadsheet}>GST Tax Returns</NavLink>
                 <NavLink to="/admin/wallet-management" icon={Wallet}>
                   Manage Global Wallet
                   {pulseData?.withdrawalRequestCount > 0 && (
@@ -1137,6 +1140,8 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
                   <Route path="/roles" element={<RoleManagement />} />
                   <Route path="/sales" element={<SalesOptions />} />
                   <Route path="/sales/transactions" element={<SalesTransactions />} />
+                  <Route path="/admin/gst-reports" element={<GstTaxReports />} />
+                  <Route path="/sales/gst-reports" element={<GstTaxReports />} />
                   <Route path="/wallet" element={<WalletDashboard />} />
                   <Route path="/sales/new-booking" element={<TicketBookingForm />} />
                   <Route path="/sales/bookings" element={<SalesBookings />} />

@@ -15,12 +15,14 @@ import fs from 'fs';
 import usersRouter from './admin/users';
 import refundsRouter from './admin/refunds';
 import bookingsRouter from './admin/bookings';
+import gstRouter from './admin/gst';
 import { CacheService } from '../utils/cache';
 
 const router = Router();
 router.use('/', usersRouter);
 router.use('/', refundsRouter);
 router.use('/', bookingsRouter);
+router.use('/', gstRouter);
 
 // Configure multer for PDF uploads
 const storage = multer.diskStorage({
