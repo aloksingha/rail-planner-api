@@ -129,6 +129,7 @@ async function generateGSTInvoice(data) {
         console.warn('[InvoiceService] Failed to fetch settings, using fallback');
     }
     const supplierName = 'Tickets Pro';
+    const legalEntityName = 'Pradip Enterprises';
     const supplierGstin = settings?.gstNo || '19BOOPA3821C1Z9';
     const supplierAddress = 'MACHHOL, ALTAPUR, WEST BENGAL - 733215';
     const supplierPhone = '+91 73188 15790';
@@ -216,7 +217,7 @@ async function generateGSTInvoice(data) {
         doc.fillColor('#ffffff').fontSize(18).font('Helvetica-Bold').text('TAX INVOICE', 50, 48);
         doc.fontSize(8).font('Helvetica').fillColor('#94a3b8').text('ORIGINAL FOR RECIPIENT | ISSUED UNDER SECTION 31 OF CGST ACT, 2017', 50, 68);
         doc.fillColor('#38bdf8').fontSize(14).font('Helvetica-Bold').text(supplierName, 360, 46, { align: 'right', width: 185 });
-        doc.fillColor('#94a3b8').fontSize(8).font('Helvetica').text('Smart Rail & Travel Intelligence', 360, 64, { align: 'right', width: 185 });
+        doc.fillColor('#94a3b8').fontSize(8).font('Helvetica').text(`${legalEntityName} | Rail Services`, 360, 64, { align: 'right', width: 185 });
         // ── Supplier & Customer Columns (Boxes) ──
         const topY = 96;
         const colWidth = 256;
@@ -225,7 +226,7 @@ async function generateGSTInvoice(data) {
         doc.rect(36, topY, colWidth, colHeight).strokeColor('#e2e8f0').lineWidth(1).stroke();
         doc.rect(36, topY, colWidth, 18).fill('#f8fafc');
         doc.fillColor('#334155').fontSize(8).font('Helvetica-Bold').text('SUPPLIER (ISSUED BY)', 44, topY + 5);
-        doc.fillColor('#0f172a').fontSize(9).font('Helvetica-Bold').text(supplierName, 44, topY + 24);
+        doc.fillColor('#0f172a').fontSize(9).font('Helvetica-Bold').text(`${supplierName} (${legalEntityName})`, 44, topY + 24);
         doc.fillColor('#475569').fontSize(7.5).font('Helvetica')
             .text(`GSTIN: ${supplierGstin}`, 44, topY + 37)
             .text(`Address: ${supplierAddress}`, 44, topY + 49, { width: 240 })
@@ -367,7 +368,7 @@ async function generateGSTInvoice(data) {
             .text('3. This is a computer generated invoice issued under Section 31 of CGST Act and does not require physical signature.', 36, decY + 32);
         // Stamp / Signatory Box (Right)
         doc.rect(390, decY, 169, 52).strokeColor('#e2e8f0').lineWidth(1).stroke();
-        doc.fillColor('#475569').fontSize(7).font('Helvetica-Bold').text(`For ${supplierName}`, 398, decY + 6);
+        doc.fillColor('#475569').fontSize(7).font('Helvetica-Bold').text(`For ${legalEntityName} (${supplierName})`, 398, decY + 6);
         doc.fillColor('#0284c7').fontSize(8).font('Helvetica-Bold').text('Tickets Pro Desk', 398, decY + 24);
         doc.fillColor('#94a3b8').fontSize(6.5).font('Helvetica').text('Authorized Signatory', 398, decY + 38);
         // ── Footer ──

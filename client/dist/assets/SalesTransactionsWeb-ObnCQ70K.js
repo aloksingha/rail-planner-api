@@ -5,7 +5,7 @@ import{j as e,a as o}from"./index-D1i000XD.js";import{a,c as u,h as b,W as g,i a
     e.jsxs("div",{className:"p-6 rounded-2xl bg-gradient-to-r from-slate-900 to-indigo-950 border border-white/10 flex flex-wrap items-center justify-between gap-4",children:[
       e.jsxs("div", {children:[
         e.jsxs("div",{className:"flex items-center gap-2 mb-2",children:[
-          e.jsx("span",{className:"px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",children:"GSTIN: 19BOOPA3821C1Z9"}),
+          e.jsx("span",{className:"px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20",children:"GSTIN: 19BOOPA3821C1Z9 · Tickets Pro (Pradip Enterprises)"}),
           e.jsx("span",{className:"px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20",children:"SAC: 996411 (Railways)"})
         ]}),
         e.jsx("h3",{className:"text-xl font-black text-white",children:"GST Outward Supplies & Return Summary"}),

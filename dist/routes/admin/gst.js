@@ -154,7 +154,7 @@ router.get('/gst-report', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_AD
         return res.json({
             success: true,
             supplierInfo: {
-                legalName: 'Singha Enterprise',
+                legalName: 'Pradip Enterprises',
                 tradeName: 'Tickets Pro',
                 gstin: '19BOOPA3821C1Z9',
                 address: 'Machhol, Altapur, West Bengal - 733215',
