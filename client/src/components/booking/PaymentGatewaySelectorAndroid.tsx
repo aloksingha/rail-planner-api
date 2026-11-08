@@ -101,8 +101,8 @@ const PaymentGatewaySelectorAndroid: React.FC<PaymentGatewaySelectorAndroidProps
                     </button>
                 )}
 
-                {/* Offline Option (Admin Only) */}
-                {(userRole === 'SUPER_ADMIN' || userRole === 'ADMIN') && (
+                {/* Offline Option (Admin & Sales Manager) */}
+                {(userRole === 'SUPER_ADMIN' || userRole === 'ADMIN' || userRole === 'SALES_MANAGER') && (
                     <button
                         type="button"
                         onClick={() => setPaymentMethod('OFFLINE')}

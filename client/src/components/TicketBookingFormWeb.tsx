@@ -682,10 +682,10 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
             return;
         }
 
-        const ct = availableTrains?.find(t => t.train_base.train_no === trainNo);
+        const ct = availableTrains?.find(t => t.train_base?.train_no === trainNo);
         const shouldExcludeGst = paymentMethod === 'OFFLINE' || user?.specialPermissions?.includes('TEST_WALLET');
         const isAc = ['1A', '2A', '3A', '3E', 'CC', 'EC', 'EV', 'FC'].includes(trainClass.toUpperCase());
-        const baseUnitPrice = getTicketPrice(source, destination, trainClass, selectedTrainName, ct?.train_base.travel_time, ct?.train_base.prices, customPrices, dynamicCorridors, true);
+        const baseUnitPrice = getTicketPrice(source, destination, trainClass, selectedTrainName, ct?.train_base?.travel_time, ct?.train_base?.prices, customPrices, dynamicCorridors, true);
         const finalUnitPrice = !shouldExcludeGst ? Math.round(baseUnitPrice * 1.05) : baseUnitPrice;
         let baseTotalAmount = passengers.length * finalUnitPrice;
         if (appliedCoupon) baseTotalAmount -= appliedCoupon.discount;
@@ -693,7 +693,7 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
         const walletAmountUsed = useWalletBalance ? Math.min(baseTotalAmount, walletBalance) : 0;
         const amountToPayViaGateway = Math.max(0, baseTotalAmount - walletAmountUsed);
 
-        const effectivePaymentMethod = (amountToPayViaGateway === 0) ? 'WALLET' : paymentMethod;
+        const effectivePaymentMethod = (amountToPayViaGateway === 0 && paymentMethod !== 'OFFLINE') ? 'WALLET' : paymentMethod;
 
         // --- WALLET PAYMENT BRANCH ---
         if (effectivePaymentMethod === 'WALLET') {
@@ -1243,7 +1243,7 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                             </button>
                         ) : (
                             <>
-                                {paymentMethod === 'OFFLINE' && (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') && (() => {
+                                {paymentMethod === 'OFFLINE' && (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' || user.role === 'SALES_MANAGER') && (() => {
                                     const currentTrain = availableTrains?.find(t => t.train_base?.train_no === trainNo);
                                     const shouldExcludeGst = paymentMethod === 'OFFLINE' || user?.specialPermissions?.includes('TEST_WALLET');
                                       const isAc = ['1A', '2A', '3A', '3E', 'CC', 'EC', 'EV', 'FC'].includes(trainClass.toUpperCase());

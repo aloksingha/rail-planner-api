@@ -694,7 +694,7 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
         const walletAmountUsed = useWalletBalance ? Math.min(baseTotalAmount, walletBalance) : 0;
         const amountToPayViaGateway = Math.max(0, baseTotalAmount - walletAmountUsed);
 
-        const effectivePaymentMethod = (amountToPayViaGateway === 0) ? 'WALLET' : paymentMethod;
+        const effectivePaymentMethod = (amountToPayViaGateway === 0 && paymentMethod !== 'OFFLINE') ? 'WALLET' : paymentMethod;
 
         const bookingData = {
             walletAmountUsed,
@@ -1119,7 +1119,7 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                             </button>
                         ) : (
                             <>
-                                {paymentMethod === 'OFFLINE' && (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN') && (() => {
+                                {paymentMethod === 'OFFLINE' && (user.role === 'SUPER_ADMIN' || user.role === 'ADMIN' || user.role === 'SALES_MANAGER') && (() => {
                                         return (
                                         <button onClick={handleFinalConfirm} disabled={isProcessing} className="bg-rose-500 text-white font-black tracking-widest uppercase text-sm py-4 rounded-xl shadow-xl active:scale-95 disabled:opacity-50 transition-all flex items-center justify-center gap-2">
                                             {isProcessing ? <><span className="material-symbols-outlined animate-spin text-sm">refresh</span> Processing...</> : (amountToPayViaGateway === 0 ? `Pay ₹${baseTotalAmount.toLocaleString()} via Wallet` : `Record ₹${amountToPayViaGateway.toLocaleString()} Offline Payment`)}

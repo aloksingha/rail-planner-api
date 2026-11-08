@@ -99,8 +99,8 @@ const PaymentGatewaySelector: React.FC<PaymentGatewaySelectorProps> = memo(({
                     </button>
                 )}
 
-                {/* Offline Option (Admin Only) */}
-                {(userRole === 'SUPER_ADMIN' || userRole === 'ADMIN') && (
+                {/* Offline Option (Admin & Sales Manager) */}
+                {(userRole === 'SUPER_ADMIN' || userRole === 'ADMIN' || userRole === 'SALES_MANAGER') && (
                     <button
                         type="button"
                         onClick={() => setPaymentMethod('OFFLINE')}
@@ -115,8 +115,8 @@ const PaymentGatewaySelector: React.FC<PaymentGatewaySelectorProps> = memo(({
                                 <AlertTriangle size={18} />
                             </div>
                             <div className="text-left">
-                                <p className="text-slate-900 dark:text-white font-bold text-sm tracking-tight">Offline (Test)</p>
-                                <p className="text-slate-500 dark:text-slate-400 text-[9px] font-black uppercase tracking-widest">Admin Testing Only</p>
+                                <p className="text-slate-900 dark:text-white font-bold text-sm tracking-tight">Offline Payment</p>
+                                <p className="text-slate-500 dark:text-slate-400 text-[9px] font-black uppercase tracking-widest">Manual / Direct Booking</p>
                             </div>
                         </div>
                         {paymentMethod === 'OFFLINE' && <CheckCircle2 size={16} className="text-rose-500" />}
