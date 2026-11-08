@@ -15,7 +15,8 @@ export default function BookingDetailsModal({ isOpen, onClose, booking, onRefres
     const [invoiceNotice, setInvoiceNotice] = useState<string | null>(null);
 
     const handleDownloadInvoice = () => {
-        window.open(`/api/invoices/${booking.id}?view=true`, '_blank');
+        const apiBase = import.meta.env.VITE_API_URL || 'https://rail-planner-api.onrender.com';
+        window.open(`${apiBase}/api/invoices/${booking.id}?view=true`, '_blank');
     };
 
     const handleSendInvoice = async () => {

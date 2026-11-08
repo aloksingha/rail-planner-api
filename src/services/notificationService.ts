@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
 import axios from 'axios';
-import { generateGSTInvoice } from './invoiceService';
+import { generateGSTInvoice, formatINR } from './invoiceService';
 
 // ─── Resend SMTP Configuration ──────────────────────────────────────────────────
 const isEmailConfigured = !!process.env.RESEND_API_KEY;
@@ -551,30 +551,30 @@ export const notifyBookingConfirmed = async (
               <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;">
                 <tr>
                   <td style="color:#94a3b8;padding:5px 0;">Taxable Amount</td>
-                  <td align="right" style="color:#f1f5f9;font-weight:600;">₹${invoiceInfo.taxableAmount.toFixed(2)}</td>
+                  <td align="right" style="color:#f1f5f9;font-weight:600;">Rs. ${formatINR(invoiceInfo.taxableAmount)}</td>
                 </tr>
                 ${invoiceInfo.isInterState ? `
                 <tr>
                   <td style="color:#94a3b8;padding:5px 0;">Integrated GST (IGST ${invoiceInfo.gstRate}%)</td>
-                  <td align="right" style="color:#f1f5f9;font-weight:600;">₹${invoiceInfo.igst.toFixed(2)}</td>
+                  <td align="right" style="color:#f1f5f9;font-weight:600;">Rs. ${formatINR(invoiceInfo.igst)}</td>
                 </tr>
                 ` : `
                 <tr>
                   <td style="color:#94a3b8;padding:5px 0;">Central GST (CGST ${(invoiceInfo.gstRate / 2).toFixed(1)}%)</td>
-                  <td align="right" style="color:#f1f5f9;font-weight:600;">₹${invoiceInfo.cgst.toFixed(2)}</td>
+                  <td align="right" style="color:#f1f5f9;font-weight:600;">Rs. ${formatINR(invoiceInfo.cgst)}</td>
                 </tr>
                 <tr>
                   <td style="color:#94a3b8;padding:5px 0;">State GST (SGST ${(invoiceInfo.gstRate / 2).toFixed(1)}%)</td>
-                  <td align="right" style="color:#f1f5f9;font-weight:600;">₹${invoiceInfo.sgst.toFixed(2)}</td>
+                  <td align="right" style="color:#f1f5f9;font-weight:600;">Rs. ${formatINR(invoiceInfo.sgst)}</td>
                 </tr>
                 `}
                 <tr style="border-top:1px solid #334155;">
                   <td style="color:#fff;font-weight:800;padding:8px 0 0;">Total Paid (Incl. GST)</td>
-                  <td align="right" style="color:#10b981;font-size:15px;font-weight:800;padding:8px 0 0;">₹${invoiceInfo.totalAmount.toFixed(2)}</td>
+                  <td align="right" style="color:#10b981;font-size:15px;font-weight:800;padding:8px 0 0;">Rs. ${formatINR(invoiceInfo.totalAmount)}</td>
                 </tr>
               </table>
               <div style="margin-top:16px;text-align:center;">
-                <a href="https://ticketspro.in${invoiceInfo.pdfUrl}" style="background:#0f172a;border:1px solid #38bdf8;color:#38bdf8;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:700;font-size:12px;display:inline-block;">
+                <a href="https://rail-planner-api.onrender.com/api/invoices/${details?.bookingId || details?.transactionId}?download=true" style="background:#0f172a;border:1px solid #38bdf8;color:#38bdf8;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:700;font-size:12px;display:inline-block;">
                   📄 Download Official GST Tax Invoice (PDF)
                 </a>
               </div>
@@ -681,18 +681,18 @@ export const notifyBookingConfirmed = async (
 
             const waTaxLine = invoiceInfo
                 ? (invoiceInfo.isInterState
-                    ? `• IGST (${invoiceInfo.gstRate}%): ₹${invoiceInfo.igst.toFixed(2)}`
-                    : `• CGST (${invoiceInfo.gstRate / 2}%): ₹${invoiceInfo.cgst.toFixed(2)}\n   • SGST (${invoiceInfo.gstRate / 2}%): ₹${invoiceInfo.sgst.toFixed(2)}`)
+                    ? `• IGST (${invoiceInfo.gstRate}%): Rs. ${formatINR(invoiceInfo.igst)}`
+                    : `• CGST (${(invoiceInfo.gstRate / 2).toFixed(1)}%): Rs. ${formatINR(invoiceInfo.cgst)}\n   • SGST (${(invoiceInfo.gstRate / 2).toFixed(1)}%): Rs. ${formatINR(invoiceInfo.sgst)}`)
                 : '';
 
             const waInvoiceText = invoiceInfo ? 
 `\n🧾 *GST Tax Invoice (${invoiceInfo.invoiceNumber}):*
-   • Taxable Fare: ₹${invoiceInfo.taxableAmount.toFixed(2)}
+   • Taxable Fare: Rs. ${formatINR(invoiceInfo.taxableAmount)}
    ${waTaxLine}
-   • *Total Paid:* ₹${invoiceInfo.totalAmount.toFixed(2)}
+   • *Total Paid:* Rs. ${formatINR(invoiceInfo.totalAmount)}
 
 📄 *Download Official GST Tax Invoice (PDF):*
-https://ticketspro.in${invoiceInfo.pdfUrl}\n` : '';
+https://rail-planner-api.onrender.com/api/invoices/${details?.bookingId || details?.transactionId}?download=true\n` : '';
 
             const waMessage = 
 `🎫 *Tickets Pro — Booking Confirmed!*

@@ -73,6 +73,15 @@ const ManagePromotions = lazy(() => import('./pages/ManagePromotions'));
 
 
 
+// Redirect invoice / upload download URLs directly to API backend on Render
+if (typeof window !== 'undefined') {
+  const p = window.location.pathname;
+  if (p.startsWith('/api/invoices') || p.startsWith('/uploads/invoices')) {
+    const apiHost = import.meta.env.VITE_API_URL || 'https://rail-planner-api.onrender.com';
+    window.location.replace(`${apiHost}${p}${window.location.search}`);
+  }
+}
+
 axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 axios.interceptors.request.use((config) => {
   // ✅ TAB-ISOLATED AUTH: Prioritize sessionStorage (Mimic) over localStorage (Owner)

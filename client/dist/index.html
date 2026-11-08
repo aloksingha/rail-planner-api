@@ -16,6 +16,11 @@
     <link rel="canonical" href="https://ticketspro.in/" />
     <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
     <meta name="theme-color" content="#0b1120" />
+    <script>
+      if (location.pathname.startsWith('/api/invoices') || location.pathname.startsWith('/uploads/invoices')) {
+        location.replace('https://rail-planner-api.onrender.com' + location.pathname + location.search);
+      }
+    </script>
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
