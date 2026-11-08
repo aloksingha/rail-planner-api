@@ -1,17 +1,22 @@
 import nodemailer from 'nodemailer';
 import axios from 'axios';
+import { generateGSTInvoice } from './invoiceService';
 
 // ─── Resend SMTP Configuration ──────────────────────────────────────────────────
 const isEmailConfigured = !!process.env.RESEND_API_KEY;
 
 const transporter = {
     sendMail: async (options: any) => {
-        return axios.post('https://api.resend.com/emails', {
+        const payload: any = {
             from: options.from,
             to: options.to,
             subject: options.subject,
             html: options.html
-        }, {
+        };
+        if (options.attachments && options.attachments.length > 0) {
+            payload.attachments = options.attachments;
+        }
+        return axios.post('https://api.resend.com/emails', payload, {
             headers: {
                 'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
                 'Content-Type': 'application/json'
@@ -459,8 +464,34 @@ export const notifyBookingConfirmed = async (
         transactionId?: string;
         amount?: string | number;
         trainClass?: string;
+        bookingId?: string;
+        clientGstin?: string;
+        clientCompanyName?: string;
+        clientState?: string;
     }
 ) => {
+    // Auto-generate official GST Tax Invoice PDF
+    let invoiceInfo: any = null;
+    try {
+        const parsedAmt = Number(details?.amount) || 0;
+        invoiceInfo = await generateGSTInvoice({
+            bookingId: details?.bookingId || details?.transactionId || `BK_${Date.now()}`,
+            amount: parsedAmt,
+            trainName: eventName.split('(')[0]?.trim(),
+            trainNo: (eventName.match(/\(([^)]+)\)/) || [])[1] || '',
+            journeyDate: details?.journeyDate,
+            trainClass: details?.trainClass,
+            passengerList: details?.passengerDetails,
+            paymentId: details?.transactionId,
+            customerEmail: email,
+            customerMobile: mobile,
+            clientGstin: details?.clientGstin,
+            clientCompanyName: details?.clientCompanyName,
+            clientState: details?.clientState
+        });
+    } catch (invErr) {
+        console.warn('[Invoice] Auto GST invoice generation failed (non-fatal):', invErr);
+    }
     const formattedClass = formatTrainClass(details?.trainClass);
 
     // 1. Send Email via Resend
@@ -509,10 +540,57 @@ export const notifyBookingConfirmed = async (
             </div>
         ` : '';
 
+        const gstTaxHtml = invoiceInfo ? `
+            <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:12px;">
+                <tr>
+                  <td><p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0;">GST Tax Breakdown (SAC: 996411)</p></td>
+                  <td align="right"><span style="color:#38bdf8;font-size:11px;font-weight:700;">${invoiceInfo.invoiceNumber}</span></td>
+                </tr>
+              </table>
+              <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;">
+                <tr>
+                  <td style="color:#94a3b8;padding:5px 0;">Taxable Amount</td>
+                  <td align="right" style="color:#f1f5f9;font-weight:600;">₹${invoiceInfo.taxableAmount.toFixed(2)}</td>
+                </tr>
+                ${invoiceInfo.isInterState ? `
+                <tr>
+                  <td style="color:#94a3b8;padding:5px 0;">Integrated GST (IGST ${invoiceInfo.gstRate}%)</td>
+                  <td align="right" style="color:#f1f5f9;font-weight:600;">₹${invoiceInfo.igst.toFixed(2)}</td>
+                </tr>
+                ` : `
+                <tr>
+                  <td style="color:#94a3b8;padding:5px 0;">Central GST (CGST ${(invoiceInfo.gstRate / 2).toFixed(1)}%)</td>
+                  <td align="right" style="color:#f1f5f9;font-weight:600;">₹${invoiceInfo.cgst.toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td style="color:#94a3b8;padding:5px 0;">State GST (SGST ${(invoiceInfo.gstRate / 2).toFixed(1)}%)</td>
+                  <td align="right" style="color:#f1f5f9;font-weight:600;">₹${invoiceInfo.sgst.toFixed(2)}</td>
+                </tr>
+                `}
+                <tr style="border-top:1px solid #334155;">
+                  <td style="color:#fff;font-weight:800;padding:8px 0 0;">Total Paid (Incl. GST)</td>
+                  <td align="right" style="color:#10b981;font-size:15px;font-weight:800;padding:8px 0 0;">₹${invoiceInfo.totalAmount.toFixed(2)}</td>
+                </tr>
+              </table>
+              <div style="margin-top:16px;text-align:center;">
+                <a href="https://ticketspro.in${invoiceInfo.pdfUrl}" style="background:#0f172a;border:1px solid #38bdf8;color:#38bdf8;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:700;font-size:12px;display:inline-block;">
+                  📄 Download Official GST Tax Invoice (PDF)
+                </a>
+              </div>
+            </div>
+        ` : '';
+
         transporter.sendMail({
             from: FROM,
             to: email,
-            subject: '✅ Booking Confirmed — Tickets Pro',
+            subject: `✅ Booking Confirmed & GST Invoice ${invoiceInfo ? '(' + invoiceInfo.invoiceNumber + ') ' : ''}— Tickets Pro`,
+            attachments: invoiceInfo?.pdfBuffer ? [
+                {
+                    filename: `TicketsPro_${invoiceInfo.invoiceNumber}.pdf`,
+                    content: invoiceInfo.pdfBuffer.toString('base64')
+                }
+            ] : undefined,
             html: `
     <!DOCTYPE html>
     <html>
@@ -525,7 +603,7 @@ export const notifyBookingConfirmed = async (
               <td style="background:linear-gradient(135deg,#0d9488,#0ea5e9);padding:32px;text-align:center;">
                 <div style="font-size:32px;">🎫</div>
                 <h1 style="color:#fff;margin:8px 0 0;font-size:24px;font-weight:900;letter-spacing:-0.5px;">Booking Confirmed!</h1>
-                <p style="color:rgba(255,255,255,0.8);margin:6px 0 0;font-size:14px;">Your train ticket is booked successfully.</p>
+                <p style="color:rgba(255,255,255,0.8);margin:6px 0 0;font-size:14px;">Your train ticket & GST Tax Invoice are ready.</p>
               </td>
             </tr>
             <!-- Body -->
@@ -539,6 +617,7 @@ export const notifyBookingConfirmed = async (
                 ${journeyDateAndClassHtml}
                 ${passengerHtml}
                 ${paymentHtml}
+                ${gstTaxHtml}
 
                 <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 24px;">
                   Your booking has been confirmed and payment processed successfully. 
@@ -600,6 +679,21 @@ export const notifyBookingConfirmed = async (
                 ? details.passengerDetails.replace(/<br\s*\/?>/gi, '\n   ') 
                 : '';
 
+            const waTaxLine = invoiceInfo
+                ? (invoiceInfo.isInterState
+                    ? `• IGST (${invoiceInfo.gstRate}%): ₹${invoiceInfo.igst.toFixed(2)}`
+                    : `• CGST (${invoiceInfo.gstRate / 2}%): ₹${invoiceInfo.cgst.toFixed(2)}\n   • SGST (${invoiceInfo.gstRate / 2}%): ₹${invoiceInfo.sgst.toFixed(2)}`)
+                : '';
+
+            const waInvoiceText = invoiceInfo ? 
+`\n🧾 *GST Tax Invoice (${invoiceInfo.invoiceNumber}):*
+   • Taxable Fare: ₹${invoiceInfo.taxableAmount.toFixed(2)}
+   ${waTaxLine}
+   • *Total Paid:* ₹${invoiceInfo.totalAmount.toFixed(2)}
+
+📄 *Download Official GST Tax Invoice (PDF):*
+https://ticketspro.in${invoiceInfo.pdfUrl}\n` : '';
+
             const waMessage = 
 `🎫 *Tickets Pro — Booking Confirmed!*
 
@@ -607,7 +701,7 @@ Dear Passenger,
 Your train ticket has been booked successfully!
 
 🚆 *Journey:* ${eventName}
-${formattedClass ? `💺 *Class:* ${formattedClass}\n` : ''}${details?.journeyDate ? `📅 *Date:* ${details.journeyDate}\n` : ''}${waPassengers ? `👥 *Passengers:*\n   ${waPassengers}\n` : ''}${details?.amount ? `💰 *Total Fare:* ₹${details.amount}\n` : ''}${details?.transactionId ? `💳 *Txn ID:* ${details.transactionId}\n` : ''}
+${formattedClass ? `💺 *Class:* ${formattedClass}\n` : ''}${details?.journeyDate ? `📅 *Date:* ${details.journeyDate}\n` : ''}${waPassengers ? `👥 *Passengers:*\n   ${waPassengers}\n` : ''}${details?.amount ? `💰 *Total Fare:* ₹${details.amount}\n` : ''}${details?.transactionId ? `💳 *Txn ID:* ${details.transactionId}\n` : ''}${waInvoiceText}
 📲 *View & Download E-Ticket:*
 https://ticketspro.in/bookings
 

@@ -3,10 +3,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const notificationService_1 = require("../services/notificationService");
 const express_1 = __importDefault(require("express"));
 const prisma_1 = require("../prisma");
 const auth_1 = require("../middleware/auth");
-const notificationService_1 = require("../services/notificationService");
 const router = express_1.default.Router();
 // Public: Submit a contact message
 router.post('/', async (req, res) => {
@@ -18,17 +18,28 @@ router.post('/', async (req, res) => {
         const msg = await prisma_1.prisma.contactMessage.create({
             data: { name, email, subject, message, status: 'UNREAD' }
         });
+        // Trigger High-Priority WhatsApp notification to Admin Mobile
         (async () => {
             try {
                 const settings = await prisma_1.prisma.globalSettings.findUnique({ where: { id: 'singleton' } });
-                const adminPhone = (settings === null || settings === void 0 ? void 0 : settings.phone) || '7318815790';
+                const adminPhone = settings?.phone || '7318815790';
                 if (adminPhone) {
-                    const waText = `🚨 *TicketsPro High Priority Alert: New Contact Inquiry!*\n\n👤 *Name:* ${name}\n📧 *Email:* ${email}\n📋 *Subject:* ${subject}\n💬 *Message:*\n"${message}"\n\n👉 *Manage in Contact Inbox:*\nhttps://ticketspro.in/inbox`;
+                    const waText = `🚨 *TicketsPro High Priority Alert: New Contact Inquiry!*
+
+👤 *Name:* ${name}
+📧 *Email:* ${email}
+📋 *Subject:* ${subject}
+💬 *Message:*
+"${message}"
+
+👉 *Manage in Contact Inbox:*
+https://ticketspro.in/inbox`;
                     await (0, notificationService_1.sendWhatsApp)(adminPhone, waText);
                     console.log(`✅ Admin alerted via WhatsApp for contact inquiry (${adminPhone})`);
                 }
-            } catch (notifyErr) {
-                console.error('⚠️ Failed to dispatch WhatsApp admin alert for contact message:', (notifyErr === null || notifyErr === void 0 ? void 0 : notifyErr.message) || notifyErr);
+            }
+            catch (notifyErr) {
+                console.error('⚠️ Failed to dispatch WhatsApp admin alert for contact message:', notifyErr?.message || notifyErr);
             }
         })();
         return res.json({ success: true, id: msg.id });

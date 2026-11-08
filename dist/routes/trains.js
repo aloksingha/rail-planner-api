@@ -80,7 +80,7 @@ router.get('/getTrainOn', async (req, res) => {
         const cached = await cache_1.CacheService.get(cacheKey);
         if (cached) {
             console.log(`[TrainCache] HIT for ${cacheKey}`);
-            return res.json({ success: true, data: JSON.parse(cached) });
+            return res.json({ success: true, data: JSON.parse(cached), provider: 'RailKit API (Live IRCTC)' });
         }
         // Fast cached pricing context (0 DB queries on warm cache)
         const pricingContext = await getCachedPricingContext();
@@ -625,10 +625,18 @@ router.get('/schedule/:trainNo', async (req, res) => {
     try {
         const { trainNo } = req.params;
         const cacheKey = `schedule:${trainNo}`;
-        const cached = await cache_1.CacheService.get(cacheKey);
+        const cached = req.query.fresh ? null : await cache_1.CacheService.get(cacheKey);
         if (cached) {
-            console.log(`[ScheduleCache] HIT for ${trainNo}`);
-            return res.json({ success: true, data: JSON.parse(cached) });
+            try {
+                const parsed = JSON.parse(cached);
+                if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].stationName) {
+                    console.log(`[ScheduleCache] HIT for ${trainNo} (${parsed.length} stops)`);
+                    return res.json({ success: true, data: parsed });
+                }
+            }
+            catch {
+                // Invalidate stale cache
+            }
         }
         let scheduleData = [];
         let lastError = null;
@@ -667,17 +675,23 @@ router.get('/schedule/:trainNo', async (req, res) => {
                     const route = rkData?.route || rkData?.stations || [];
                     if (Array.isArray(route) && route.length > 0) {
                         console.log(`[ScheduleEngine] RailKit Primary HIT for ${trainNo} schedule (${route.length} stops)`);
-                        scheduleData = route.map((st) => ({
-                            station: {
-                                code: st.station_code || st.code || st.stationCode,
-                                name: st.station_name || st.name || st.stationName
-                            },
-                            arrival: st.arrival_time === 'Source' ? '--:--' : (st.arrival_time || st.arrival || '--:--'),
-                            departure: st.departure_time === 'Destination' ? '--:--' : (st.departure_time || st.departure || '--:--'),
-                            distance: st.distance !== undefined ? st.distance : (st.distanceFromSourceKm || 0),
-                            arrivalDay: st.day || 1,
-                            isHalt: st.isHalt !== undefined ? st.isHalt : (st.halt_minutes !== undefined ? st.halt_minutes > 0 : true)
-                        }));
+                        scheduleData = route.map((st) => {
+                            const stationCode = st.stnCode || st.station_code || st.code || st.stationCode || st.station?.code || '';
+                            const stationName = st.stnName || st.station_name || st.name || st.stationName || st.station?.name || '';
+                            return {
+                                station: {
+                                    code: stationCode,
+                                    name: stationName
+                                },
+                                stationCode,
+                                stationName,
+                                arrival: st.arrival === '--' ? '--:--' : (st.arrival_time === 'Source' ? '--:--' : (st.arrival_time || st.arrival || '--:--')),
+                                departure: st.departure === '--' ? '--:--' : (st.departure_time === 'Destination' ? '--:--' : (st.departure_time || st.departure || '--:--')),
+                                distance: st.distance !== undefined ? st.distance : (st.distanceFromSourceKm || 0),
+                                arrivalDay: st.day || 1,
+                                isHalt: st.isHalt !== undefined ? st.isHalt : (st.haltMinutes !== undefined ? st.haltMinutes > 0 : (st.halt_minutes !== undefined ? st.halt_minutes > 0 : true))
+                            };
+                        });
                     }
                 }
             }
@@ -719,15 +733,19 @@ router.get('/schedule/:trainNo', async (req, res) => {
         if (lastError && scheduleData.length === 0) {
             throw lastError;
         }
-        const adaptedSchedule = scheduleData.map((stop, index) => ({
-            stationCode: stop.station?.code || stop.stationCode,
-            stationName: stop.station?.name || stop.stationName,
-            arrivalTime: stop.arrival || (stop.arrivalMinutes ? formatTime(stop.arrivalMinutes) : (index === 0 ? '--:--' : '--:--')),
-            departureTime: stop.departure || (stop.departureMinutes ? formatTime(stop.departureMinutes) : (index === scheduleData.length - 1 ? '--:--' : '--:--')),
-            distance: stop.distance !== undefined ? stop.distance : stop.distanceFromSourceKm,
-            day: stop.arrivalDay || stop.departureDay || stop.day,
-            isHalt: stop.isHalt
-        })).filter((stop, idx, arr) => {
+        const adaptedSchedule = scheduleData.map((stop, index) => {
+            const stationCode = stop.stationCode || stop.station?.code || stop.stnCode || stop.code || '';
+            const stationName = stop.stationName || stop.station?.name || stop.stnName || stop.name || '';
+            return {
+                stationCode,
+                stationName,
+                arrivalTime: stop.arrival || (stop.arrivalMinutes ? formatTime(stop.arrivalMinutes) : (index === 0 ? '--:--' : '--:--')),
+                departureTime: stop.departure || (stop.departureMinutes ? formatTime(stop.departureMinutes) : (index === scheduleData.length - 1 ? '--:--' : '--:--')),
+                distance: stop.distance !== undefined ? stop.distance : (stop.distanceFromSourceKm || 0),
+                day: stop.arrivalDay || stop.departureDay || stop.day || 1,
+                isHalt: stop.isHalt !== undefined ? stop.isHalt : true
+            };
+        }).filter((stop, idx, arr) => {
             // Keep first and last stations always
             if (idx === 0 || idx === arr.length - 1)
                 return true;
@@ -751,7 +769,6 @@ router.get('/schedule/:trainNo', async (req, res) => {
         });
     }
 });
-
 // Live IRCTC PNR Status Check
 router.get('/pnr/:pnr', async (req, res) => {
     const rawPnr = req.params.pnr;
@@ -759,7 +776,6 @@ router.get('/pnr/:pnr', async (req, res) => {
     if (!pnr || pnr.length !== 10) {
         return res.status(400).json({ success: false, error: 'Please provide a valid 10-digit PNR number' });
     }
-
     try {
         const railkitKey = process.env.RAILKIT_API_KEY || 'railkit_cb0204e7cffc3b5cfaf811f6ca709344cae8f86899fd845a';
         let railkit;
@@ -767,33 +783,33 @@ router.get('/pnr/:pnr', async (req, res) => {
         try {
             const mod = await importDynamic('railkit');
             railkit = mod.railkit || mod.default || mod;
-        } catch {
+        }
+        catch {
             try {
                 const mod = await importDynamic('railkit/index.obfuscated.js');
                 railkit = mod.railkit || mod.default || mod;
-            } catch {
+            }
+            catch {
                 const pathToFileURL = require('url').pathToFileURL;
                 const resolved = require.resolve('railkit');
                 const mod = await importDynamic(pathToFileURL(resolved).href);
                 railkit = mod.railkit || mod.default || mod;
             }
         }
-
-        if (typeof (railkit === null || railkit === void 0 ? void 0 : railkit.configure) === 'function') {
+        if (typeof railkit?.configure === 'function') {
             railkit.configure(railkitKey);
         }
-
-        if (typeof (railkit === null || railkit === void 0 ? void 0 : railkit.checkPNRStatus) === 'function') {
+        if (typeof railkit?.checkPNRStatus === 'function') {
             const result = await railkit.checkPNRStatus(pnr);
             return res.json(result);
-        } else {
+        }
+        else {
             return res.status(500).json({ success: false, error: 'PNR service unavailable' });
         }
-    } catch (error) {
-        console.error('[PNR API] Error:', (error === null || error === void 0 ? void 0 : error.message) || error);
-        return res.status(500).json({ success: false, error: (error === null || error === void 0 ? void 0 : error.message) || 'Failed to check PNR status' });
+    }
+    catch (error) {
+        console.error('[PNR API] Error:', error?.message || error);
+        return res.status(500).json({ success: false, error: error?.message || 'Failed to check PNR status' });
     }
 });
-
 exports.default = router;
-

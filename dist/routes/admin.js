@@ -7,6 +7,7 @@ const express_1 = require("express");
 const auth_1 = require("../middleware/auth");
 const prisma_1 = require("../prisma");
 const validation_1 = require("../utils/validation");
+const notificationService_1 = require("../services/notificationService");
 const auditService_1 = require("../services/auditService");
 const multer_1 = __importDefault(require("multer"));
 const path_1 = __importDefault(require("path"));
@@ -159,6 +160,12 @@ router.get('/stats', auth_1.requireAuth, async (req, res) => {
                 prisma_1.prisma.paymentRecord.aggregate({
                     where: {
                         ...paymentWhere,
+                        AND: [
+                            { paymentId: { not: { startsWith: 'OFF_' } } },
+                            { paymentId: { not: { startsWith: 'MOFF_' } } },
+                            { orderId: { not: { startsWith: 'ORD_OFF_' } } },
+                            { orderId: { not: { startsWith: 'MANUAL_' } } }
+                        ],
                         status: 'CAPTURED',
                         createdAt: { gte: todayStart }
                     },
@@ -478,19 +485,19 @@ router.get('/dashboard-data', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPE
             prisma_1.prisma.booking.count({ where: { ...bookingWhere, createdAt: { gte: todayStart } } }),
             prisma_1.prisma.booking.count({ where: bookingWhere }),
             prisma_1.prisma.paymentRecord.aggregate({
-                    where: { 
-                        ...paymentWhere, 
-                        AND: [
-                            { paymentId: { not: { startsWith: 'OFF_' } } },
-                            { paymentId: { not: { startsWith: 'MOFF_' } } },
-                            { orderId: { not: { startsWith: 'ORD_OFF_' } } },
-                            { orderId: { not: { startsWith: 'MANUAL_' } } }
-                        ],
-                        status: 'CAPTURED', 
-                        createdAt: { gte: todayStart } 
-                    },
-                    _sum: { amount: true }
-                }),
+                where: {
+                    ...paymentWhere,
+                    AND: [
+                        { paymentId: { not: { startsWith: 'OFF_' } } },
+                        { paymentId: { not: { startsWith: 'MOFF_' } } },
+                        { orderId: { not: { startsWith: 'ORD_OFF_' } } },
+                        { orderId: { not: { startsWith: 'MANUAL_' } } }
+                    ],
+                    status: 'CAPTURED',
+                    createdAt: { gte: todayStart }
+                },
+                _sum: { amount: true }
+            }),
             isSuperAdmin ? prisma_1.prisma.failedBooking.count({ where: { status: 'PENDING' } }) : Promise.resolve(0),
             prisma_1.prisma.priceRequest.count({ where: { status: 'PENDING' } }),
             prisma_1.prisma.auditLog.findMany({
@@ -794,5 +801,50 @@ router.get('/audit-logs', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_AD
         console.error('Fetch audit logs error:', error);
         return res.status(500).json({ error: 'Internal Server Error' });
     }
+});
+// Super Admin / Admin: Test SMS Gateway
+router.post('/test-sms', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+    try {
+        const { mobile, message, templateId } = req.body;
+        if (!mobile) {
+            return res.status(400).json({ success: false, error: 'Mobile number is required' });
+        }
+        const msgText = message || 'TicketsPro: SMS Gateway test message. Service is operational.';
+        const result = await (0, notificationService_1.sendSMS)(mobile, templateId, { event_name: 'Test Booking', status: 'Operational' }, undefined, msgText);
+        return res.json(result);
+    }
+    catch (err) {
+        console.error('Test SMS error:', err);
+        return res.status(500).json({ success: false, error: err.message || 'Internal Server Error' });
+    }
+});
+// TextBee Device and Status Routes
+router.get('/textbee/stats', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+    const stats = await (0, notificationService_1.getTextBeeStats)();
+    return res.json(stats);
+});
+router.get('/textbee/devices', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+    const devices = await (0, notificationService_1.getTextBeeDevices)();
+    return res.json(devices);
+});
+// TextBee Messages (History & Received messages)
+router.get('/textbee/messages', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+    const result = await (0, notificationService_1.getTextBeeMessages)({
+        direction: req.query.direction,
+        page: req.query.page,
+        limit: req.query.limit,
+        smsBatchId: req.query.smsBatchId,
+        status: req.query.status
+    });
+    return res.json(result);
+});
+// TextBee Bulk SMS dispatch
+router.post('/textbee/send-bulk', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+    const { messages, deviceId } = req.body;
+    if (!Array.isArray(messages) || messages.length === 0) {
+        return res.status(400).json({ success: false, error: 'messages array is required' });
+    }
+    const result = await (0, notificationService_1.sendTextBeeBulkSMS)(messages, deviceId);
+    return res.json(result);
 });
 exports.default = router;

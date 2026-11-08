@@ -39,7 +39,7 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
     }
 
     try {
-        await prisma.$transaction(async (tx) => {
+        const createdBookingId = await prisma.$transaction(async (tx) => {
             // 1. Check & Deduct Balance
             const user = await tx.user.findUnique({
                 where: { id: req.user!.userId },
@@ -123,6 +123,7 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
                     details: `Paid ₹${amount} via wallet for Train ${trainNo}. New balance: ₹${user.walletBalance - amount}`
                 }
             });
+            return booking.id;
         });
 
         // Trigger notifications (non-blocking)
@@ -145,14 +146,15 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
                     passengerDetails: pDesc,
                     transactionId: 'WALLET_PAYMENT',
                     amount: amount,
-                    trainClass: trainClass
+                    trainClass: trainClass,
+                    bookingId: createdBookingId
                 };
 
                 notifyBookingConfirmed(targetEmail, eventName, targetMobile, emailDetails).catch(err => console.error('Wallet notification background error:', err));
             }
         } catch (notifErr) { console.error('Notification error:', notifErr); }
 
-        return res.json({ success: true, message: 'Payment successful via Wallet' });
+        return res.json({ success: true, bookingId: createdBookingId, message: 'Payment successful via Wallet' });
     } catch (error: any) {
         console.error('Wallet payment error:', error);
         return res.status(500).json({ error: error.message || 'Payment failed' });

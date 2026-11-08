@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { X, User, Calendar, MapPin, CreditCard, Clock, Clipboard, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, User, Calendar, MapPin, CreditCard, Clock, Clipboard, CheckCircle2, AlertCircle, FileText, Send } from 'lucide-react';
 
 interface BookingDetailsModalProps {
     isOpen: boolean;
@@ -11,6 +11,27 @@ interface BookingDetailsModalProps {
 
 export default function BookingDetailsModal({ isOpen, onClose, booking, onRefresh }: BookingDetailsModalProps) {
     const [actionProcessing, setActionProcessing] = useState(false);
+    const [isSendingInvoice, setIsSendingInvoice] = useState(false);
+    const [invoiceNotice, setInvoiceNotice] = useState<string | null>(null);
+
+    const handleDownloadInvoice = () => {
+        window.open(`/api/invoices/${booking.id}?view=true`, '_blank');
+    };
+
+    const handleSendInvoice = async () => {
+        setIsSendingInvoice(true);
+        setInvoiceNotice(null);
+        try {
+            await axios.post(`/api/invoices/${booking.id}/send`);
+            setInvoiceNotice('✅ Sent to WhatsApp & Email!');
+            setTimeout(() => setInvoiceNotice(null), 4000);
+        } catch (e: any) {
+            setInvoiceNotice(e.response?.data?.error || 'Failed to dispatch invoice.');
+            setTimeout(() => setInvoiceNotice(null), 4000);
+        } finally {
+            setIsSendingInvoice(false);
+        }
+    };
 
     const isCancellationAllowed = (dateString: string) => {
         if (!dateString) return false;

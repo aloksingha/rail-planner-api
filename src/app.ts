@@ -24,6 +24,7 @@ import walletRoutes from './routes/wallet';
 import notificationRoutes from './routes/notifications';
 import promotionsRoutes from './routes/promotions';
 import testDiagnosticsRoutes from './routes/testDiagnostics';
+import invoiceRoutes from './routes/invoice';
 
 import compression from 'compression';
 import { prisma } from './prisma';
@@ -96,6 +97,7 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/promotions', promotionsRoutes);
 app.use('/api/test', testDiagnosticsRoutes);
+app.use('/api/invoices', invoiceRoutes);
 
 // --- PRODUCTION STATIC SERVING ---
 if (process.env.NODE_ENV === 'production') {

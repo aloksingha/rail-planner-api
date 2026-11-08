@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Ticket, Calendar, Download, RefreshCw, Info, CheckCircle2, IndianRupee, Clock, ArrowRight, Train } from 'lucide-react';
+import { Ticket, Calendar, Download, RefreshCw, Info, CheckCircle2, IndianRupee, Clock, ArrowRight, Train, FileText } from 'lucide-react';
 import ReportExport from '../components/ReportExport';
 import BookingDetailsModal from '../components/BookingDetailsModal';
 

@@ -27,6 +27,7 @@ const wallet_1 = __importDefault(require("./routes/wallet"));
 const notifications_1 = __importDefault(require("./routes/notifications"));
 const promotions_1 = __importDefault(require("./routes/promotions"));
 const testDiagnostics_1 = __importDefault(require("./routes/testDiagnostics"));
+const invoice_1 = __importDefault(require("./routes/invoice"));
 const compression_1 = __importDefault(require("compression"));
 const prisma_1 = require("./prisma");
 const app = (0, express_1.default)();
@@ -93,6 +94,7 @@ app.use('/api/wallet', wallet_1.default);
 app.use('/api/notifications', notifications_1.default);
 app.use('/api/promotions', promotions_1.default);
 app.use('/api/test', testDiagnostics_1.default);
+app.use('/api/invoices', invoice_1.default);
 // --- PRODUCTION STATIC SERVING ---
 if (process.env.NODE_ENV === 'production') {
     // Correctly resolve client/dist from the compiled dist/ directory

@@ -3,18 +3,23 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.notifyPaymentReceived = exports.notifyBookingCancelled = exports.notifyBookingConfirmed = exports.formatTrainClass = exports.sendSMS = exports.sendWhatsApp = void 0;
+exports.notifyPaymentReceived = exports.notifyBookingCancelled = exports.notifyBookingConfirmed = exports.formatTrainClass = exports.getTextBeeMessages = exports.sendTextBeeBulkSMS = exports.getTextBeeDevices = exports.getTextBeeStats = exports.sendSMS = exports.sendWhatsApp = void 0;
 const axios_1 = __importDefault(require("axios"));
+const invoiceService_1 = require("./invoiceService");
 // ─── Resend SMTP Configuration ──────────────────────────────────────────────────
 const isEmailConfigured = !!process.env.RESEND_API_KEY;
 const transporter = {
     sendMail: async (options) => {
-        return axios_1.default.post('https://api.resend.com/emails', {
+        const payload = {
             from: options.from,
             to: options.to,
             subject: options.subject,
             html: options.html
-        }, {
+        };
+        if (options.attachments && options.attachments.length > 0) {
+            payload.attachments = options.attachments;
+        }
+        return axios_1.default.post('https://api.resend.com/emails', payload, {
             headers: {
                 'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
                 'Content-Type': 'application/json'
@@ -62,44 +67,324 @@ const sendWhatsApp = async (mobile, text) => {
     }
 };
 exports.sendWhatsApp = sendWhatsApp;
-// ─── Infozy SMS Utility ────────────────────────────────────────────────────────
-/**
- * Generic SMS sender using Infozy SMS API
- */
-const sendSMS = async (mobile, templateId, params, dltTemplateId) => {
-    const apiKey = process.env.INFOZY_API_KEY;
-    if (!apiKey) {
-        console.warn('⚠️ Infozy API Key not found. SMS skipped.');
-        return;
+const sendSMS = async (mobile, templateId, params = {}, dltTemplateId, messageText) => {
+    if (!mobile) {
+        return { success: false, error: 'Mobile number is required' };
     }
-    try {
-        let cleanMobile = mobile.replace(/\D/g, '');
-        if (cleanMobile.length === 10) {
-            cleanMobile = '91' + cleanMobile;
-        }
-        const payload = {
-            template: templateId,
-            mobileNumber: cleanMobile,
-            variables: params
-        };
-        const response = await axios_1.default.post('https://infozysms.in/api/sms/send', payload, {
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
-            }
-        });
-        if (response.data && response.data.message === 'Message sent successfully') {
-            console.log(`✅ SMS successfully triggered for ${cleanMobile} via Infozy template ${templateId}. Campaign ID: ${response.data.campaignId}`);
+    const cleanDigits = mobile.replace(/\D/g, '');
+    const mobile10 = cleanDigits.length >= 10 ? cleanDigits.slice(-10) : cleanDigits;
+    const mobile91 = '91' + mobile10;
+    // Determine configured SMS provider - Default to TEXTBEE (Airtel SIM)
+    const configuredProvider = (process.env.SMS_PROVIDER || 'TEXTBEE').toUpperCase();
+    // 1. TextBee SMS Gateway (Android SIM Gateway - https://api.textbee.dev/api/v1)
+    if (configuredProvider === 'TEXTBEE') {
+        const apiKey = process.env.TEXTBEE_API_KEY || 'txb_1AE95IkIqnRRdJ8oShseooWs4uXeatDM';
+        const deviceId = process.env.TEXTBEE_DEVICE_ID || '6ae35654c1ee0a8decf5a45c';
+        const simSubId = parseInt(process.env.TEXTBEE_SIM_SUBSCRIPTION_ID || '3');
+        if (!apiKey) {
+            console.warn('⚠️ TextBee API Key not configured.');
         }
         else {
-            console.log(`✅ SMS successfully triggered for ${cleanMobile} via Infozy template ${templateId}:`, response.data);
+            try {
+                const baseUrl = (process.env.TEXTBEE_BASE_URL || 'https://api.textbee.dev/api/v1').replace(/\/+$/, '');
+                const e164Recipient = cleanDigits.startsWith('91') ? `+${cleanDigits}` : `+91${mobile10}`;
+                const textToSend = messageText || (params.event_name ? `TicketsPro: Booking for ${params.event_name} is ${params.status || 'Confirmed'}. Check status: https://ticketspro.in` :
+                    params.amount ? `TicketsPro: Payment of Rs.${params.amount} received for order ${params.order_id}. Thank you!` :
+                        params.reason ? `TicketsPro: Booking cancelled. Reason: ${params.reason}. Refund initiated.` :
+                            'TicketsPro: Notification update.');
+                const payload = {
+                    recipients: [e164Recipient],
+                    message: textToSend,
+                    deviceId: deviceId,
+                    simSubscriptionId: isNaN(simSubId) ? 3 : simSubId // Force Airtel (3), never Jio (1)
+                };
+                const response = await axios_1.default.post(`${baseUrl}/gateway/send-sms`, payload, {
+                    headers: {
+                        'x-api-key': apiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 10000
+                });
+                if (response.data && (response.status === 200 || response.status === 201 || response.data.success || response.data.data)) {
+                    console.log(`✅ [TextBee] SMS dispatched to ${e164Recipient} via TextBee Gateway (Airtel SIM ${payload.simSubscriptionId})`);
+                    return { success: true, provider: 'TextBee', raw: response.data };
+                }
+                else {
+                    console.warn(`⚠️ [TextBee] Gateway response for ${e164Recipient}:`, response.data);
+                    return { success: false, provider: 'TextBee', error: response.data?.message || 'TextBee delivery unconfirmed', raw: response.data };
+                }
+            }
+            catch (err) {
+                console.error('❌ TextBee API Error:', err?.response?.data || err.message);
+                return { success: false, provider: 'TextBee', error: err?.response?.data?.message || err.message };
+            }
         }
     }
-    catch (error) {
-        console.error('❌ Infozy SMS API Error:', error?.response?.data || error.message);
+    // 2. Fast2SMS (Recommended for Quick Transactional/OTP in India without DLT blockers)
+    if (configuredProvider === 'FAST2SMS' || (!configuredProvider && process.env.FAST2SMS_API_KEY)) {
+        const apiKey = process.env.FAST2SMS_API_KEY;
+        if (!apiKey) {
+            console.warn('⚠️ Fast2SMS API Key not found in environment.');
+        }
+        else {
+            try {
+                const route = process.env.FAST2SMS_ROUTE || 'q'; // 'q' = quick, 'dlt' = dlt, 'otp' = otp
+                const textToSend = messageText || (params.event_name ? `TicketsPro: Booking for ${params.event_name} is ${params.status || 'Confirmed'}. Check status: https://ticketspro.in` :
+                    params.amount ? `TicketsPro: Payment of Rs.${params.amount} received for order ${params.order_id}. Thank you!` :
+                        params.reason ? `TicketsPro: Booking cancelled. Reason: ${params.reason}. Refund initiated.` :
+                            'TicketsPro: Notification update.');
+                const fast2smsPayload = {
+                    route,
+                    language: 'english',
+                    flash: 0,
+                    numbers: mobile10
+                };
+                if (route === 'dlt') {
+                    fast2smsPayload.sender_id = process.env.FAST2SMS_SENDER_ID || 'TKTSPR';
+                    fast2smsPayload.message = dltTemplateId || templateId || '';
+                    fast2smsPayload.variables_values = Object.values(params).join('|');
+                }
+                else {
+                    fast2smsPayload.message = textToSend;
+                }
+                const response = await axios_1.default.post('https://www.fast2sms.com/dev/bulkV2', fast2smsPayload, {
+                    headers: {
+                        'authorization': apiKey,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 10000
+                });
+                if (response.data && (response.data.return === true || response.data.status_code === 200)) {
+                    console.log(`✅ [Fast2SMS] SMS sent to ${mobile10} (Route: ${route}, Request ID: ${response.data.request_id})`);
+                    return { success: true, provider: 'Fast2SMS', campaignId: response.data.request_id, raw: response.data };
+                }
+                else {
+                    console.warn(`⚠️ [Fast2SMS] Gateway response for ${mobile10}:`, response.data);
+                    return { success: false, provider: 'Fast2SMS', error: response.data?.message || 'Fast2SMS delivery unsuccessful', raw: response.data };
+                }
+            }
+            catch (err) {
+                console.error('❌ Fast2SMS API Error:', err?.response?.data || err.message);
+                return { success: false, provider: 'Fast2SMS', error: err?.response?.data?.message || err.message };
+            }
+        }
     }
+    // 3. Infozy SMS (Only used if explicitly set as SMS_PROVIDER="INFOZY")
+    if (configuredProvider === 'INFOZY') {
+        const apiKey = process.env.INFOZY_API_KEY;
+        const targetTemplate = templateId || process.env.INFOZY_TEMPLATE_ID_CONFIRMED;
+        if (!apiKey) {
+            console.warn('⚠️ Infozy API Key not found. SMS skipped.');
+        }
+        else if (!targetTemplate) {
+            console.warn('⚠️ Infozy Template ID not specified. SMS skipped.');
+        }
+        else {
+            try {
+                const payload = {
+                    template: targetTemplate,
+                    mobileNumber: mobile91,
+                    variables: params
+                };
+                const response = await axios_1.default.post('https://infozysms.in/api/sms/send', payload, {
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 10000
+                });
+                if (response.data && (response.data.message === 'Message sent successfully' || response.data.status === 'success' || response.data.campaignId)) {
+                    console.log(`✅ [Infozy] SMS successfully triggered for ${mobile91} via template ${targetTemplate}. Campaign ID: ${response.data.campaignId}`);
+                    return { success: true, provider: 'Infozy', campaignId: response.data.campaignId, raw: response.data };
+                }
+                else {
+                    console.log(`⚠️ [Infozy] SMS response for ${mobile91}:`, response.data);
+                    return { success: false, provider: 'Infozy', error: response.data?.message || 'Infozy delivery unsuccessful', raw: response.data };
+                }
+            }
+            catch (error) {
+                console.error('❌ Infozy SMS API Error:', error?.response?.data || error.message);
+                return { success: false, provider: 'Infozy', error: error?.response?.data?.message || error.message };
+            }
+        }
+    }
+    // 3. Msg91 Flow API
+    if (configuredProvider === 'MSG91' || (!configuredProvider && process.env.MSG91_AUTH_KEY)) {
+        const authKey = process.env.MSG91_AUTH_KEY;
+        const targetTemplate = templateId || process.env.MSG91_TEMPLATE_ID_CONFIRMED;
+        if (!authKey) {
+            console.warn('⚠️ Msg91 Auth Key not found.');
+        }
+        else if (!targetTemplate) {
+            console.warn('⚠️ Msg91 Template/Flow ID not found.');
+        }
+        else {
+            try {
+                const response = await axios_1.default.post('https://api.msg91.com/api/v5/flow/', {
+                    template_id: targetTemplate,
+                    sender: process.env.MSG91_SENDER_ID || 'TKTSPR',
+                    short_url: '1',
+                    recipients: [{ mobiles: mobile91, ...params }]
+                }, {
+                    headers: {
+                        'authkey': authKey,
+                        'content-type': 'application/json'
+                    },
+                    timeout: 10000
+                });
+                if (response.data?.type === 'success') {
+                    console.log(`✅ [Msg91] SMS triggered for ${mobile91} via Flow ${targetTemplate}`);
+                    return { success: true, provider: 'Msg91', raw: response.data };
+                }
+                else {
+                    console.warn(`⚠️ [Msg91] Trigger failed for ${mobile91}:`, response.data);
+                    return { success: false, provider: 'Msg91', error: response.data?.message || 'Msg91 failed', raw: response.data };
+                }
+            }
+            catch (err) {
+                console.error('❌ Msg91 API Error:', err?.response?.data || err.message);
+                return { success: false, provider: 'Msg91', error: err?.response?.data?.message || err.message };
+            }
+        }
+    }
+    // 4. Twilio SMS
+    if (configuredProvider === 'TWILIO' || (!configuredProvider && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN)) {
+        const accountSid = process.env.TWILIO_ACCOUNT_SID;
+        const authToken = process.env.TWILIO_AUTH_TOKEN;
+        const fromNumber = process.env.TWILIO_FROM_NUMBER;
+        if (!accountSid || !authToken || !fromNumber) {
+            console.warn('⚠️ Twilio credentials incomplete.');
+        }
+        else {
+            try {
+                const toFormatted = '+' + (cleanDigits.startsWith('91') ? cleanDigits : '91' + mobile10);
+                const textToSend = messageText || (params.event_name ? `TicketsPro: Booking for ${params.event_name} is ${params.status || 'Confirmed'}.` :
+                    'TicketsPro: Notification update.');
+                const auth = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+                const paramsData = new URLSearchParams();
+                paramsData.append('To', toFormatted);
+                paramsData.append('From', fromNumber);
+                paramsData.append('Body', textToSend);
+                const response = await axios_1.default.post(`https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`, paramsData.toString(), {
+                    headers: {
+                        'Authorization': `Basic ${auth}`,
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    timeout: 10000
+                });
+                if (response.data?.sid) {
+                    console.log(`✅ [Twilio] SMS sent to ${toFormatted}. SID: ${response.data.sid}`);
+                    return { success: true, provider: 'Twilio', campaignId: response.data.sid, raw: response.data };
+                }
+            }
+            catch (err) {
+                console.error('❌ Twilio SMS Error:', err?.response?.data || err.message);
+                return { success: false, provider: 'Twilio', error: err?.response?.data?.message || err.message };
+            }
+        }
+    }
+    return {
+        success: false,
+        error: 'No active SMS provider configured. Please configure TEXTBEE_API_KEY, FAST2SMS_API_KEY, INFOZY_API_KEY, MSG91_AUTH_KEY, or TWILIO_ACCOUNT_SID in environment variables.'
+    };
 };
 exports.sendSMS = sendSMS;
+const getTextBeeStats = async () => {
+    const apiKey = process.env.TEXTBEE_API_KEY || 'txb_1AE95IkIqnRRdJ8oShseooWs4uXeatDM';
+    if (!apiKey)
+        return { success: false, error: 'TEXTBEE_API_KEY not configured' };
+    const baseUrl = (process.env.TEXTBEE_BASE_URL || 'https://api.textbee.dev/api/v1').replace(/\/+$/, '');
+    try {
+        const response = await axios_1.default.get(`${baseUrl}/gateway/stats`, {
+            headers: { 'x-api-key': apiKey },
+            timeout: 8000
+        });
+        return { success: true, data: response.data };
+    }
+    catch (e) {
+        return { success: false, error: e?.response?.data || e.message };
+    }
+};
+exports.getTextBeeStats = getTextBeeStats;
+const getTextBeeDevices = async () => {
+    const apiKey = process.env.TEXTBEE_API_KEY || 'txb_1AE95IkIqnRRdJ8oShseooWs4uXeatDM';
+    if (!apiKey)
+        return { success: false, error: 'TEXTBEE_API_KEY not configured' };
+    const baseUrl = (process.env.TEXTBEE_BASE_URL || 'https://api.textbee.dev/api/v1').replace(/\/+$/, '');
+    try {
+        const response = await axios_1.default.get(`${baseUrl}/gateway/devices`, {
+            headers: { 'x-api-key': apiKey },
+            timeout: 8000
+        });
+        return { success: true, data: response.data };
+    }
+    catch (e) {
+        return { success: false, error: e?.response?.data || e.message };
+    }
+};
+exports.getTextBeeDevices = getTextBeeDevices;
+const sendTextBeeBulkSMS = async (messages, deviceId) => {
+    const apiKey = process.env.TEXTBEE_API_KEY || 'txb_1AE95IkIqnRRdJ8oShseooWs4uXeatDM';
+    if (!apiKey)
+        return { success: false, error: 'TEXTBEE_API_KEY not configured' };
+    const baseUrl = (process.env.TEXTBEE_BASE_URL || 'https://api.textbee.dev/api/v1').replace(/\/+$/, '');
+    const targetDeviceId = deviceId || process.env.TEXTBEE_DEVICE_ID || '6ae35654c1ee0a8decf5a45c';
+    try {
+        const simSubId = parseInt(process.env.TEXTBEE_SIM_SUBSCRIPTION_ID || '3');
+        const payload = {
+            deviceId: targetDeviceId,
+            messages: messages.map(m => ({
+                recipients: m.recipients.map(r => {
+                    const clean = r.replace(/\D/g, '');
+                    return clean.startsWith('91') ? `+${clean}` : (clean.length === 10 ? `+91${clean}` : `+${clean}`);
+                }),
+                message: m.message,
+                simSubscriptionId: simSubId
+            }))
+        };
+        const response = await axios_1.default.post(`${baseUrl}/gateway/send-bulk-sms`, payload, {
+            headers: {
+                'x-api-key': apiKey,
+                'Content-Type': 'application/json'
+            },
+            timeout: 15000
+        });
+        return { success: true, data: response.data };
+    }
+    catch (e) {
+        return { success: false, error: e?.response?.data || e.message };
+    }
+};
+exports.sendTextBeeBulkSMS = sendTextBeeBulkSMS;
+const getTextBeeMessages = async (query = {}) => {
+    const apiKey = process.env.TEXTBEE_API_KEY || 'txb_1AE95IkIqnRRdJ8oShseooWs4uXeatDM';
+    if (!apiKey)
+        return { success: false, error: 'TEXTBEE_API_KEY not configured' };
+    const baseUrl = (process.env.TEXTBEE_BASE_URL || 'https://api.textbee.dev/api/v1').replace(/\/+$/, '');
+    try {
+        const params = new URLSearchParams();
+        if (query.direction)
+            params.append('direction', query.direction);
+        if (query.page)
+            params.append('page', query.page.toString());
+        if (query.limit)
+            params.append('limit', query.limit.toString());
+        if (query.smsBatchId)
+            params.append('smsBatchId', query.smsBatchId);
+        if (query.status)
+            params.append('status', query.status);
+        const url = `${baseUrl}/gateway/messages${params.toString() ? '?' + params.toString() : ''}`;
+        const response = await axios_1.default.get(url, {
+            headers: { 'x-api-key': apiKey },
+            timeout: 10000
+        });
+        return { success: true, data: response.data };
+    }
+    catch (e) {
+        return { success: false, error: e?.response?.data || e.message };
+    }
+};
+exports.getTextBeeMessages = getTextBeeMessages;
 // ─── Booking Confirmed ────────────────────────────────────────────────────────
 const CLASS_LABELS = {
     'SL': 'Sleeper (SL)',
@@ -123,6 +408,29 @@ const formatTrainClass = (rawClass) => {
 };
 exports.formatTrainClass = formatTrainClass;
 const notifyBookingConfirmed = async (email, eventName, mobile, details) => {
+    // Auto-generate official GST Tax Invoice PDF
+    let invoiceInfo = null;
+    try {
+        const parsedAmt = Number(details?.amount) || 0;
+        invoiceInfo = await (0, invoiceService_1.generateGSTInvoice)({
+            bookingId: details?.bookingId || details?.transactionId || `BK_${Date.now()}`,
+            amount: parsedAmt,
+            trainName: eventName.split('(')[0]?.trim(),
+            trainNo: (eventName.match(/\(([^)]+)\)/) || [])[1] || '',
+            journeyDate: details?.journeyDate,
+            trainClass: details?.trainClass,
+            passengerList: details?.passengerDetails,
+            paymentId: details?.transactionId,
+            customerEmail: email,
+            customerMobile: mobile,
+            clientGstin: details?.clientGstin,
+            clientCompanyName: details?.clientCompanyName,
+            clientState: details?.clientState
+        });
+    }
+    catch (invErr) {
+        console.warn('[Invoice] Auto GST invoice generation failed (non-fatal):', invErr);
+    }
     const formattedClass = (0, exports.formatTrainClass)(details?.trainClass);
     // 1. Send Email via Resend
     if (isEmailConfigured) {
@@ -167,10 +475,56 @@ const notifyBookingConfirmed = async (email, eventName, mobile, details) => {
               </table>
             </div>
         ` : '';
+        const gstTaxHtml = invoiceInfo ? `
+            <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:24px;">
+              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:12px;">
+                <tr>
+                  <td><p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0;">GST Tax Breakdown (SAC: 996411)</p></td>
+                  <td align="right"><span style="color:#38bdf8;font-size:11px;font-weight:700;">${invoiceInfo.invoiceNumber}</span></td>
+                </tr>
+              </table>
+              <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;">
+                <tr>
+                  <td style="color:#94a3b8;padding:5px 0;">Taxable Amount</td>
+                  <td align="right" style="color:#f1f5f9;font-weight:600;">₹${invoiceInfo.taxableAmount.toFixed(2)}</td>
+                </tr>
+                ${invoiceInfo.isInterState ? `
+                <tr>
+                  <td style="color:#94a3b8;padding:5px 0;">Integrated GST (IGST ${invoiceInfo.gstRate}%)</td>
+                  <td align="right" style="color:#f1f5f9;font-weight:600;">₹${invoiceInfo.igst.toFixed(2)}</td>
+                </tr>
+                ` : `
+                <tr>
+                  <td style="color:#94a3b8;padding:5px 0;">Central GST (CGST ${(invoiceInfo.gstRate / 2).toFixed(1)}%)</td>
+                  <td align="right" style="color:#f1f5f9;font-weight:600;">₹${invoiceInfo.cgst.toFixed(2)}</td>
+                </tr>
+                <tr>
+                  <td style="color:#94a3b8;padding:5px 0;">State GST (SGST ${(invoiceInfo.gstRate / 2).toFixed(1)}%)</td>
+                  <td align="right" style="color:#f1f5f9;font-weight:600;">₹${invoiceInfo.sgst.toFixed(2)}</td>
+                </tr>
+                `}
+                <tr style="border-top:1px solid #334155;">
+                  <td style="color:#fff;font-weight:800;padding:8px 0 0;">Total Paid (Incl. GST)</td>
+                  <td align="right" style="color:#10b981;font-size:15px;font-weight:800;padding:8px 0 0;">₹${invoiceInfo.totalAmount.toFixed(2)}</td>
+                </tr>
+              </table>
+              <div style="margin-top:16px;text-align:center;">
+                <a href="https://ticketspro.in${invoiceInfo.pdfUrl}" style="background:#0f172a;border:1px solid #38bdf8;color:#38bdf8;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:700;font-size:12px;display:inline-block;">
+                  📄 Download Official GST Tax Invoice (PDF)
+                </a>
+              </div>
+            </div>
+        ` : '';
         transporter.sendMail({
             from: FROM,
             to: email,
-            subject: '✅ Booking Confirmed — Tickets Pro',
+            subject: `✅ Booking Confirmed & GST Invoice ${invoiceInfo ? '(' + invoiceInfo.invoiceNumber + ') ' : ''}— Tickets Pro`,
+            attachments: invoiceInfo?.pdfBuffer ? [
+                {
+                    filename: `TicketsPro_${invoiceInfo.invoiceNumber}.pdf`,
+                    content: invoiceInfo.pdfBuffer.toString('base64')
+                }
+            ] : undefined,
             html: `
     <!DOCTYPE html>
     <html>
@@ -183,7 +537,7 @@ const notifyBookingConfirmed = async (email, eventName, mobile, details) => {
               <td style="background:linear-gradient(135deg,#0d9488,#0ea5e9);padding:32px;text-align:center;">
                 <div style="font-size:32px;">🎫</div>
                 <h1 style="color:#fff;margin:8px 0 0;font-size:24px;font-weight:900;letter-spacing:-0.5px;">Booking Confirmed!</h1>
-                <p style="color:rgba(255,255,255,0.8);margin:6px 0 0;font-size:14px;">Your train ticket is booked successfully.</p>
+                <p style="color:rgba(255,255,255,0.8);margin:6px 0 0;font-size:14px;">Your train ticket & GST Tax Invoice are ready.</p>
               </td>
             </tr>
             <!-- Body -->
@@ -197,6 +551,7 @@ const notifyBookingConfirmed = async (email, eventName, mobile, details) => {
                 ${journeyDateAndClassHtml}
                 ${passengerHtml}
                 ${paymentHtml}
+                ${gstTaxHtml}
 
                 <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 24px;">
                   Your booking has been confirmed and payment processed successfully. 
@@ -229,14 +584,16 @@ const notifyBookingConfirmed = async (email, eventName, mobile, details) => {
             console.error('❌ Email send failed (non-fatal):', e?.message || e);
         });
     }
-    // 2. Send SMS via Infozy
+    // 2. Send SMS via Active Provider (Fast2SMS / Infozy / Msg91 / Twilio)
     try {
-        const template = process.env.INFOZY_TEMPLATE_ID_CONFIRMED;
-        if (mobile && template) {
+        if (mobile) {
+            const template = process.env.INFOZY_TEMPLATE_ID_CONFIRMED || process.env.MSG91_TEMPLATE_ID_CONFIRMED;
+            const txnText = details?.transactionId ? ` Ref: ${details.transactionId}.` : '';
+            const msgText = `TicketsPro: Booking CONFIRMED for ${eventName}.${txnText} Manage: https://ticketspro.in`;
             await (0, exports.sendSMS)(mobile, template, {
                 event_name: eventName,
                 status: 'Confirmed'
-            });
+            }, undefined, msgText);
         }
     }
     catch (e) {
@@ -248,13 +605,26 @@ const notifyBookingConfirmed = async (email, eventName, mobile, details) => {
             const waPassengers = details?.passengerDetails
                 ? details.passengerDetails.replace(/<br\s*\/?>/gi, '\n   ')
                 : '';
+            const waTaxLine = invoiceInfo
+                ? (invoiceInfo.isInterState
+                    ? `• IGST (${invoiceInfo.gstRate}%): ₹${invoiceInfo.igst.toFixed(2)}`
+                    : `• CGST (${invoiceInfo.gstRate / 2}%): ₹${invoiceInfo.cgst.toFixed(2)}\n   • SGST (${invoiceInfo.gstRate / 2}%): ₹${invoiceInfo.sgst.toFixed(2)}`)
+                : '';
+            const waInvoiceText = invoiceInfo ?
+                `\n🧾 *GST Tax Invoice (${invoiceInfo.invoiceNumber}):*
+   • Taxable Fare: ₹${invoiceInfo.taxableAmount.toFixed(2)}
+   ${waTaxLine}
+   • *Total Paid:* ₹${invoiceInfo.totalAmount.toFixed(2)}
+
+📄 *Download Official GST Tax Invoice (PDF):*
+https://ticketspro.in${invoiceInfo.pdfUrl}\n` : '';
             const waMessage = `🎫 *Tickets Pro — Booking Confirmed!*
 
 Dear Passenger,
 Your train ticket has been booked successfully!
 
 🚆 *Journey:* ${eventName}
-${formattedClass ? `💺 *Class:* ${formattedClass}\n` : ''}${details?.journeyDate ? `📅 *Date:* ${details.journeyDate}\n` : ''}${waPassengers ? `👥 *Passengers:*\n   ${waPassengers}\n` : ''}${details?.amount ? `💰 *Total Fare:* ₹${details.amount}\n` : ''}${details?.transactionId ? `💳 *Txn ID:* ${details.transactionId}\n` : ''}
+${formattedClass ? `💺 *Class:* ${formattedClass}\n` : ''}${details?.journeyDate ? `📅 *Date:* ${details.journeyDate}\n` : ''}${waPassengers ? `👥 *Passengers:*\n   ${waPassengers}\n` : ''}${details?.amount ? `💰 *Total Fare:* ₹${details.amount}\n` : ''}${details?.transactionId ? `💳 *Txn ID:* ${details.transactionId}\n` : ''}${waInvoiceText}
 📲 *View & Download E-Ticket:*
 https://ticketspro.in/bookings
 
@@ -330,13 +700,14 @@ const notifyBookingCancelled = async (email, reason, mobile) => {
             console.error('❌ Email send failed (non-fatal):', e?.message || e);
         });
     }
-    // 2. Send SMS via Infozy
+    // 2. Send SMS via Active Provider (Fast2SMS / Infozy / Msg91 / Twilio)
     try {
-        const template = process.env.INFOZY_TEMPLATE_ID_CANCELLED;
-        if (mobile && template) {
+        if (mobile) {
+            const template = process.env.INFOZY_TEMPLATE_ID_CANCELLED || process.env.MSG91_TEMPLATE_ID_CANCELLED;
+            const msgText = `TicketsPro: Booking has been CANCELLED. Reason: ${reason || 'Per customer request'}. Refund initiated as per policy. Team TicketsPro`;
             await (0, exports.sendSMS)(mobile, template, {
                 reason: reason || 'Cancelled per request'
-            });
+            }, undefined, msgText);
         }
     }
     catch (e) {
@@ -365,14 +736,15 @@ For assistance, please visit https://ticketspro.in or reply to this chat.`;
 exports.notifyBookingCancelled = notifyBookingCancelled;
 // ─── Payment Received (Initial Receipt) ───────────────────────────────────────
 const notifyPaymentReceived = async (mobile, amount, orderId) => {
-    // 1. Send SMS via Infozy
+    // 1. Send SMS via Active Provider (Fast2SMS / Infozy / Msg91 / Twilio)
     try {
-        const template = process.env.INFOZY_TEMPLATE_ID_PAYMENT;
-        if (mobile && template) {
+        if (mobile) {
+            const template = process.env.INFOZY_TEMPLATE_ID_PAYMENT || process.env.MSG91_TEMPLATE_ID_PAYMENT;
+            const msgText = `TicketsPro: Payment of Rs.${amount} received successfully for Order ${orderId}. Thank you for choosing TicketsPro!`;
             await (0, exports.sendSMS)(mobile, template, {
                 amount: amount.toString(),
                 order_id: orderId
-            });
+            }, undefined, msgText);
         }
     }
     catch (e) {

@@ -26,7 +26,7 @@ router.post('/wallet-pay', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_A
         return res.status(400).json({ error: 'Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9.' });
     }
     try {
-        await prisma_1.prisma.$transaction(async (tx) => {
+        const createdBookingId = await prisma_1.prisma.$transaction(async (tx) => {
             // 1. Check & Deduct Balance
             const user = await tx.user.findUnique({
                 where: { id: req.user.userId },
@@ -99,6 +99,7 @@ router.post('/wallet-pay', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_A
                     details: `Paid ₹${amount} via wallet for Train ${trainNo}. New balance: ₹${user.walletBalance - amount}`
                 }
             });
+            return booking.id;
         });
         // Trigger notifications (non-blocking)
         try {
@@ -118,7 +119,8 @@ router.post('/wallet-pay', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_A
                     passengerDetails: pDesc,
                     transactionId: 'WALLET_PAYMENT',
                     amount: amount,
-                    trainClass: trainClass
+                    trainClass: trainClass,
+                    bookingId: createdBookingId
                 };
                 (0, notificationService_1.notifyBookingConfirmed)(targetEmail, eventName, targetMobile, emailDetails).catch(err => console.error('Wallet notification background error:', err));
             }
@@ -126,7 +128,7 @@ router.post('/wallet-pay', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_A
         catch (notifErr) {
             console.error('Notification error:', notifErr);
         }
-        return res.json({ success: true, message: 'Payment successful via Wallet' });
+        return res.json({ success: true, bookingId: createdBookingId, message: 'Payment successful via Wallet' });
     }
     catch (error) {
         console.error('Wallet payment error:', error);
