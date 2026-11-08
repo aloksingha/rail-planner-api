@@ -94,6 +94,7 @@ router.post('/skydo-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CUS
                     : `Passengers: ${passengers}`;
                     
                 const emailDetails = {
+                    bookingId: result.booking.id,
                     journeyDate: journeyDate ? new Date(journeyDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '',
                     passengerDetails: pDesc,
                     transactionId: result.booking.paymentId || 'SKYDO_TRANSFER',

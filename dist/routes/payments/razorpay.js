@@ -118,6 +118,7 @@ router.post('/verify', auth_1.requireAuth, async (req, res) => {
                     ? passengerList.map((p, i) => `0${i + 1} ${p.name} (Age: ${p.age}, Gender: ${p.gender})`).join('<br/>')
                     : `Passengers: ${passengers}`;
                 const emailDetails = {
+                    bookingId: result.booking.id,
                     journeyDate: journeyDate ? new Date(journeyDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '',
                     passengerDetails: pDesc,
                     transactionId: result.booking.paymentId || razorpay_payment_id,

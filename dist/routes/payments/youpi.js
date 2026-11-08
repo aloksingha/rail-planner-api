@@ -255,6 +255,7 @@ async function fulfillYouPiOrder(orderData, utr) {
                 ? orderData.passengerList.map((p, i) => `0${i + 1} ${p.name} (Age: ${p.age}, Gender: ${p.gender})`).join('<br/>')
                 : `Passengers: ${orderData.passengers}`;
             const emailDetails = {
+                bookingId: result.booking.id,
                 journeyDate: orderData.journeyDate ? new Date(orderData.journeyDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '',
                 passengerDetails: pDesc,
                 transactionId: utr || orderId,

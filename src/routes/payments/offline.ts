@@ -112,6 +112,7 @@ router.post('/offline-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'S
                     : `Passengers: ${passengers || 1}`;
                     
                 const emailDetails = {
+                    bookingId: result.booking.id,
                     journeyDate: validJourneyDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
                     passengerDetails: pDesc,
                     transactionId: result.booking.paymentId || 'OFFLINE',

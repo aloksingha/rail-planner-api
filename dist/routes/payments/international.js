@@ -71,6 +71,7 @@ router.post('/skydo-pay', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_AD
                     ? passengerList.map((p, i) => `0${i + 1} ${p.name} (Age: ${p.age}, Gender: ${p.gender})`).join('<br/>')
                     : `Passengers: ${passengers}`;
                 const emailDetails = {
+                    bookingId: result.booking.id,
                     journeyDate: journeyDate ? new Date(journeyDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '',
                     passengerDetails: pDesc,
                     transactionId: result.booking.paymentId || 'SKYDO_TRANSFER',
