@@ -4,7 +4,7 @@ async function testLiveStats() {
     try {
         const loginRes = await axios.post('https://rail-planner-api.onrender.com/api/auth/bypass', {
             email: 'admin@ticketspro.in',
-            password: 'admin@733215'
+            password: 'Machhol@733215'
         });
         const token = loginRes.data.token;
         console.log('Got live token:', token.substring(0, 20) + '...');

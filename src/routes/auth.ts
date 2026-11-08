@@ -17,7 +17,7 @@ router.post('/bypass', async (req, res) => {
 
     const isNormalTest = email === TEST_EMAIL && password === 'test1234';
     const isAdminTest = email === TEST_ADMIN_EMAIL && password === 'admin1234';
-    const isCustomAdminTest = email === 'admin@ticketspro.in' && password === 'admin@733215';
+    const isCustomAdminTest = email === 'admin@ticketspro.in' && (password === 'Machhol@733215' || password === 'admin@733215');
 
     if (!isNormalTest && !isAdminTest && !isCustomAdminTest) {
         return res.status(403).json({ error: 'Invalid test credentials' });
