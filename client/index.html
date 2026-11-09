@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/webp" href="/src/assets/brand_logo.webp" />
+    <link rel="icon" type="image/webp" href="/assets/brand_logo-YKjiARpF.webp" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     
     <!-- Primary SEO Meta Tags (Optimized 50-160 Chars) -->
@@ -16,6 +16,11 @@
     <link rel="canonical" href="https://ticketspro.in/" />
     <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
     <meta name="theme-color" content="#0b1120" />
+    <script>
+      if (location.pathname.startsWith('/api/invoices') || location.pathname.startsWith('/uploads/invoices')) {
+        location.replace('https://rail-planner-api.onrender.com' + location.pathname + location.search);
+      }
+    </script>
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
@@ -402,7 +407,7 @@
             if (root && (!root.children || root.children.length === 0)) {
               root.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;padding:24px;text-align:center;color:white;font-family:sans-serif;">' +
                 '<div style="font-size:40px;margin-bottom:12px;">🚆</div>' +
-                '<h2 style="font-size:22px;font-weight:900;margin-bottom:8px;letter-spacing:-0.5px;">Tickets Pro Update</h2>' +
+                '<h2 id="tp-update-heading" style="font-size:22px;font-weight:900;margin-bottom:8px;letter-spacing:-0.5px;">Tickets Pro Update</h2>' +
                 '<p style="color:#94a3b8;font-size:13px;max-width:320px;margin-bottom:24px;line-height:1.5;">Click below to initialize your fresh session.</p>' +
                 '<button onclick="localStorage.clear();caches.keys().then(function(k){Promise.all(k.map(function(n){caches.delete(n);})).then(function(){window.location.href=\'/\';});});" style="background:#0ea5e9;color:white;padding:12px 28px;border-radius:14px;border:none;font-weight:bold;cursor:pointer;font-size:14px;box-shadow:0 10px 25px rgba(14,165,233,0.3);">Launch App</button>' +
                 '</div>';
@@ -411,19 +416,26 @@
         }
       }, 7500);
     </script>
-    <script type="module" src="/src/main.tsx"></script>
+    <script type="module" crossorigin src="/assets/index-D1i000XD.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/icons-DciIWsPJ.js">
+    <link rel="modulepreload" crossorigin href="/assets/charts-CJ7LU1mB.js">
+    <link rel="modulepreload" crossorigin href="/assets/pdf-export-BO05fxPA.js">
+    <link rel="modulepreload" crossorigin href="/assets/firebase-JmAEX3w6.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-CWFCG5tw.css">
   </head>
   <body>
     <!-- Skip Link for Screen Readers and Agent Navigation -->
     <a href="#main-content" class="sr-only">Skip to main content</a>
 
     <div id="boot-splash">
-        <img src="/src/assets/brand_logo.webp" width="80" height="80" alt="Tickets Pro Logo" loading="eager" />
+        <img src="/assets/brand_logo-YKjiARpF.webp" width="80" height="80" alt="Tickets Pro Logo" loading="eager" />
         <div class="spinner"></div>
     </div>
     
-    <div id="root">
-      <!-- Semantic crawlable HTML hydrated seamlessly by React -->
+    <div id="root"></div>
+
+    <!-- Permanent Machine-Readable Semantic Knowledge & AEO Architecture (Immune to Client-Side React Hydration/DOM clears) -->
+    <div id="seo-knowledge-base" class="seo-knowledge-base" role="region" aria-label="Tickets Pro Railway Guide and FAQ">
       <header role="banner">
         <nav aria-label="Main Navigation">
           <a href="/">Home</a>
@@ -518,7 +530,7 @@
             <p>Tickets Pro provides Indian Railways passengers with an all-in-one digital companion for journey planning, seat booking, and live train updates. Our smart platform simplifies the train reservation journey by offering fast Tatkal booking workflows, live PNR confirmation monitoring, and automatic status alerts via WhatsApp. Whether you are traveling for work, family visits, or vacation, Tickets Pro ensures your train journey is smooth, verified, and completely stress-free from departure to arrival.</p>
           </section>
 
-          <section>
+          <section id="travel-definitions-section">
             <h3 id="travel-definitions">Indian Railways Travel Definitions</h3>
             <dl>
               <dt>PNR (Passenger Name Record)</dt>
@@ -530,7 +542,7 @@
             </dl>
           </section>
 
-          <section>
+          <section id="booking-quota-timings-section">
             <h3 id="booking-quota-timings">IRCTC Booking Quota Timings Reference</h3>
             <table>
               <thead>
@@ -584,7 +596,7 @@
     <!-- Noscript Fallback for Search Engines and Offline Crawlers -->
     <noscript>
       <div style="padding: 24px; color: white; background-color: #0b1120; font-family: sans-serif;">
-        <h2>Tickets Pro JavaScript Notice</h2>
+        <h2 id="tp-noscript-heading">Tickets Pro JavaScript Notice</h2>
         <p>Please enable JavaScript to enjoy full interactive train search and Tatkal booking capabilities. You can still reach us via WhatsApp at +91 73188 15790 for manual booking assistance and live PNR status checks.</p>
       </div>
     </noscript>
