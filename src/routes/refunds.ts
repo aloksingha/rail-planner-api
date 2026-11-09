@@ -8,7 +8,12 @@ const router = Router();
 
 router.post('/initiate', requireAuth, async (req, res) => {
     const { paymentId, amount, reason, region } = req.body;
-    if (!paymentId || !amount) return res.status(400).json({ error: 'Missing payment details' });
+    if (!paymentId || amount === undefined) return res.status(400).json({ error: 'Missing payment details' });
+
+    const numAmount = Number(amount);
+    if (!isFinite(numAmount) || numAmount <= 0) {
+        return res.status(400).json({ error: 'Invalid refund amount. Must be a positive number greater than 0.' });
+    }
 
     const paymentRecord = await prisma.paymentRecord.findUnique({
         where: { paymentId }
@@ -21,11 +26,38 @@ router.post('/initiate', requireAuth, async (req, res) => {
         return res.status(403).json({ error: 'Permission denied to refund this payment' });
     }
 
+    // Verify refund amount does not exceed original payment
+    if (numAmount > paymentRecord.amount) {
+        return res.status(400).json({ 
+            error: `Refund amount (₹${numAmount}) cannot exceed original payment amount (₹${paymentRecord.amount}).` 
+        });
+    }
+
+    // Verify cumulative refunds do not exceed original payment
+    const existingRefunds = await prisma.refundRecord.findMany({
+        where: {
+            paymentId,
+            status: { in: ['COMPLETED', 'AUTOMATED_PENDING', 'MANUAL_PENDING', 'MANUAL_RESOLVED'] }
+        }
+    });
+    const totalRefunded = existingRefunds.reduce((sum, r) => sum + r.amount, 0);
+    if (totalRefunded + numAmount > paymentRecord.amount) {
+        return res.status(400).json({ 
+            error: `Cumulative refunds (₹${totalRefunded + numAmount}) would exceed original payment amount (₹${paymentRecord.amount}). Already refunded/pending: ₹${totalRefunded}.` 
+        });
+    }
+
+    // Linked booking check: must be CANCELLED unless Super Admin
+    const linkedBooking = await prisma.booking.findFirst({ where: { paymentId } });
+    if (linkedBooking && linkedBooking.status !== 'CANCELLED' && req.user!.role !== 'SUPER_ADMIN') {
+        return res.status(400).json({ error: 'Cannot initiate refund: associated booking must be cancelled first.' });
+    }
+
     try {
         const refund = await prisma.refundRecord.create({
             data: {
                 paymentId,
-                amount,
+                amount: numAmount,
                 region: region || 'Global',
                 reason: reason || 'User requested cancellation',
                 userId: paymentRecord.userId,
@@ -37,7 +69,7 @@ router.post('/initiate', requireAuth, async (req, res) => {
         await refundQueue.add('process-refund', {
             refundId: refund.id,
             paymentId,
-            amount
+            amount: numAmount
         });
 
         // Trigger background processing asynchronously

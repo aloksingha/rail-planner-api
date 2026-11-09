@@ -1,10 +1,15 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const auth_1 = require("../middleware/auth");
 const prisma_1 = require("../prisma");
 const auditService_1 = require("../services/auditService");
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const router = (0, express_1.Router)();
+const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key';
 // Get public payment configuration (Public for checkout forms)
 router.get('/payment-config', async (req, res) => {
     try {
@@ -23,7 +28,7 @@ router.get('/payment-config', async (req, res) => {
         return res.status(500).json({ success: false, error: 'Failed to load payment config' });
     }
 });
-// Get settings (Public)
+// Get settings (Public with sensitive payment credentials masked for non-Super Admins)
 router.get('/', async (req, res) => {
     try {
         let settings = await prisma_1.prisma.globalSettings.findUnique({
@@ -45,7 +50,36 @@ router.get('/', async (req, res) => {
                 }
             });
         }
-        res.json({ success: true, settings });
+        // Check if caller is authenticated Super Admin
+        let isSuperAdmin = false;
+        const authHeader = req.headers.authorization;
+        if (authHeader?.startsWith('Bearer ')) {
+            try {
+                const token = authHeader.split(' ')[1];
+                const payload = jsonwebtoken_1.default.verify(token, JWT_SECRET);
+                if (payload?.isSuperAdmin || payload?.role === 'SUPER_ADMIN') {
+                    isSuperAdmin = true;
+                }
+            }
+            catch (_) { }
+        }
+        const sanitizedSettings = isSuperAdmin ? settings : {
+            id: settings.id,
+            email: settings.email,
+            phone: settings.phone,
+            address: settings.address,
+            whatsapp: settings.whatsapp,
+            facebook: settings.facebook,
+            telegram: settings.telegram,
+            updatedAt: settings.updatedAt,
+            otaVersion: settings.otaVersion,
+            gstNo: settings.gstNo,
+            youpiEnabled: settings.youpiEnabled,
+            youpiVpa: settings.youpiVpa,
+            youpiMerchantName: settings.youpiMerchantName,
+            paymentGatewayMode: settings.paymentGatewayMode
+        };
+        res.json({ success: true, settings: sanitizedSettings });
     }
     catch (err) {
         console.error('Failed to get settings', err);

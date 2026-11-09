@@ -1,12 +1,20 @@
 import { Router } from 'express';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import { prisma } from '../prisma';
+import { requireAuth } from '../middleware/auth';
 import { generateGSTInvoice, formatINR } from '../services/invoiceService';
 import { sendWhatsApp } from '../services/notificationService';
 import axios from 'axios';
 
 const router = Router();
+const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key';
+
+export function getInvoiceAccessToken(bookingId: string): string {
+    return crypto.createHmac('sha256', JWT_SECRET).update(`inv_${bookingId}`).digest('hex').substring(0, 16);
+}
 
 /**
  * Helper to extract fare amount from event description or payment records
@@ -112,7 +120,7 @@ function extractCustomerDetails(booking: any) {
  */
 router.get('/:bookingId', async (req, res) => {
     try {
-        const { bookingId } = req.params;
+        const bookingId = req.params.bookingId as string;
         const booking = await prisma.booking.findUnique({
             where: { id: bookingId },
             include: {
@@ -123,6 +131,32 @@ router.get('/:bookingId', async (req, res) => {
 
         if (!booking) {
             return res.status(404).json({ success: false, error: 'Booking not found' });
+        }
+
+        // Authorization check: Bearer token (owner or admin/sales) OR signed access token
+        let isAuthorized = false;
+        const authHeader = req.headers.authorization;
+        if (authHeader?.startsWith('Bearer ')) {
+            try {
+                const token = authHeader.split(' ')[1];
+                const payload = jwt.verify(token, JWT_SECRET) as any;
+                const isPrivileged = payload.isSuperAdmin || ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(payload.role);
+                if (isPrivileged || payload.userId === booking.userId) {
+                    isAuthorized = true;
+                }
+            } catch (_) {}
+        }
+
+        const queryToken = req.query.token as string;
+        if (!isAuthorized && queryToken && queryToken === getInvoiceAccessToken(booking.id)) {
+            isAuthorized = true;
+        }
+
+        if (!isAuthorized) {
+            return res.status(403).json({ 
+                success: false, 
+                error: 'Forbidden: You do not have permission to access or download this invoice.' 
+            });
         }
 
         const amount = await getBookingAmount(booking);
@@ -184,9 +218,9 @@ router.get('/:bookingId', async (req, res) => {
  * POST /api/invoices/:bookingId/send
  * Dispatches the GST Invoice to the client via WhatsApp and Email
  */
-router.post('/:bookingId/send', async (req, res) => {
+router.post('/:bookingId/send', requireAuth, async (req, res) => {
     try {
-        const { bookingId } = req.params;
+        const bookingId = req.params.bookingId as string;
         const { email: customEmail, mobile: customMobile, clientGstin, clientCompanyName, clientState } = req.body;
 
         const booking = await prisma.booking.findUnique({
@@ -199,6 +233,16 @@ router.post('/:bookingId/send', async (req, res) => {
 
         if (!booking) {
             return res.status(404).json({ success: false, error: 'Booking not found' });
+        }
+
+        // Authorization check: user must own the booking or have management role
+        const isOwner = booking.userId === req.user!.userId;
+        const isPrivileged = req.user!.isSuperAdmin || ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(req.user!.role);
+        if (!isOwner && !isPrivileged) {
+            return res.status(403).json({ 
+                success: false, 
+                error: 'Forbidden: You do not have permission to dispatch invoices for this booking.' 
+            });
         }
 
         const amount = await getBookingAmount(booking);
@@ -228,8 +272,8 @@ router.post('/:bookingId/send', async (req, res) => {
             clientState
         });
 
-        // Direct download URL pointing to the live API
-        const directDownloadUrl = `https://rail-planner-api.onrender.com/api/invoices/${booking.id}?download=true`;
+        // Direct download URL pointing to the live API with signed access token
+        const directDownloadUrl = `https://rail-planner-api.onrender.com/api/invoices/${booking.id}?download=true&token=${getInvoiceAccessToken(booking.id)}`;
 
         // 1. Send via WhatsApp
         if (targetMobile) {

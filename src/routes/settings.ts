@@ -2,8 +2,10 @@ import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { prisma } from '../prisma';
 import { createAuditLog } from '../services/auditService';
+import jwt from 'jsonwebtoken';
 
 const router = Router();
+const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key';
 
 
 // Get public payment configuration (Public for checkout forms)
@@ -24,7 +26,7 @@ router.get('/payment-config', async (req, res) => {
     }
 });
 
-// Get settings (Public)
+// Get settings (Public with sensitive payment credentials masked for non-Super Admins)
 router.get('/', async (req, res) => {
     try {
         let settings = await prisma.globalSettings.findUnique({
@@ -48,7 +50,37 @@ router.get('/', async (req, res) => {
             });
         }
 
-        res.json({ success: true, settings });
+        // Check if caller is authenticated Super Admin
+        let isSuperAdmin = false;
+        const authHeader = req.headers.authorization;
+        if (authHeader?.startsWith('Bearer ')) {
+            try {
+                const token = authHeader.split(' ')[1];
+                const payload = jwt.verify(token, JWT_SECRET) as any;
+                if (payload?.isSuperAdmin || payload?.role === 'SUPER_ADMIN') {
+                    isSuperAdmin = true;
+                }
+            } catch (_) {}
+        }
+
+        const sanitizedSettings = isSuperAdmin ? settings : {
+            id: settings.id,
+            email: settings.email,
+            phone: settings.phone,
+            address: settings.address,
+            whatsapp: settings.whatsapp,
+            facebook: settings.facebook,
+            telegram: settings.telegram,
+            updatedAt: settings.updatedAt,
+            otaVersion: settings.otaVersion,
+            gstNo: settings.gstNo,
+            youpiEnabled: settings.youpiEnabled,
+            youpiVpa: settings.youpiVpa,
+            youpiMerchantName: settings.youpiMerchantName,
+            paymentGatewayMode: settings.paymentGatewayMode
+        };
+
+        res.json({ success: true, settings: sanitizedSettings });
     } catch (err) {
         console.error('Failed to get settings', err);
         res.status(500).json({ success: false, error: 'Internal server error' });

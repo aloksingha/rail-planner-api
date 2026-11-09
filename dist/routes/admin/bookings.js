@@ -83,7 +83,7 @@ router.delete('/bookings/:id', auth_1.requireAuth, (0, auth_1.requireRole)(['SUP
         // Clean up ticket file if it exists
         if (booking.ticketUrl) {
             const filename = path_1.default.basename(booking.ticketUrl);
-            const filePath = path_1.default.join(__dirname, '..', '..', 'uploads', filename);
+            const filePath = path_1.default.join(__dirname, '..', '..', '..', 'uploads', filename);
             if (fs_1.default.existsSync(filePath)) {
                 fs_1.default.unlinkSync(filePath);
             }
@@ -133,7 +133,7 @@ router.delete('/bookings/:id/ticket', auth_1.requireAuth, (0, auth_1.requireRole
             return res.status(404).json({ error: 'Ticket not found or already deleted.' });
         }
         const filename = path_1.default.basename(booking.ticketUrl);
-        const filePath = path_1.default.join(__dirname, '..', '..', 'uploads', filename);
+        const filePath = path_1.default.join(__dirname, '..', '..', '..', 'uploads', filename);
         if (fs_1.default.existsSync(filePath)) {
             fs_1.default.unlinkSync(filePath);
         }

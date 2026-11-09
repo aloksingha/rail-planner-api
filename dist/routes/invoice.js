@@ -3,13 +3,21 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getInvoiceAccessToken = getInvoiceAccessToken;
 const express_1 = require("express");
 const path_1 = __importDefault(require("path"));
+const crypto_1 = __importDefault(require("crypto"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const prisma_1 = require("../prisma");
+const auth_1 = require("../middleware/auth");
 const invoiceService_1 = require("../services/invoiceService");
 const notificationService_1 = require("../services/notificationService");
 const axios_1 = __importDefault(require("axios"));
 const router = (0, express_1.Router)();
+const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key';
+function getInvoiceAccessToken(bookingId) {
+    return crypto_1.default.createHmac('sha256', JWT_SECRET).update(`inv_${bookingId}`).digest('hex').substring(0, 16);
+}
 /**
  * Helper to extract fare amount from event description or payment records
  */
@@ -104,7 +112,7 @@ function extractCustomerDetails(booking) {
  */
 router.get('/:bookingId', async (req, res) => {
     try {
-        const { bookingId } = req.params;
+        const bookingId = req.params.bookingId;
         const booking = await prisma_1.prisma.booking.findUnique({
             where: { id: bookingId },
             include: {
@@ -114,6 +122,30 @@ router.get('/:bookingId', async (req, res) => {
         });
         if (!booking) {
             return res.status(404).json({ success: false, error: 'Booking not found' });
+        }
+        // Authorization check: Bearer token (owner or admin/sales) OR signed access token
+        let isAuthorized = false;
+        const authHeader = req.headers.authorization;
+        if (authHeader?.startsWith('Bearer ')) {
+            try {
+                const token = authHeader.split(' ')[1];
+                const payload = jsonwebtoken_1.default.verify(token, JWT_SECRET);
+                const isPrivileged = payload.isSuperAdmin || ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(payload.role);
+                if (isPrivileged || payload.userId === booking.userId) {
+                    isAuthorized = true;
+                }
+            }
+            catch (_) { }
+        }
+        const queryToken = req.query.token;
+        if (!isAuthorized && queryToken && queryToken === getInvoiceAccessToken(booking.id)) {
+            isAuthorized = true;
+        }
+        if (!isAuthorized) {
+            return res.status(403).json({
+                success: false,
+                error: 'Forbidden: You do not have permission to access or download this invoice.'
+            });
         }
         const amount = await getBookingAmount(booking);
         const { trainNo, trainName, fromStation, toStation } = parseTrainDetails(booking.event);
@@ -168,9 +200,9 @@ router.get('/:bookingId', async (req, res) => {
  * POST /api/invoices/:bookingId/send
  * Dispatches the GST Invoice to the client via WhatsApp and Email
  */
-router.post('/:bookingId/send', async (req, res) => {
+router.post('/:bookingId/send', auth_1.requireAuth, async (req, res) => {
     try {
-        const { bookingId } = req.params;
+        const bookingId = req.params.bookingId;
         const { email: customEmail, mobile: customMobile, clientGstin, clientCompanyName, clientState } = req.body;
         const booking = await prisma_1.prisma.booking.findUnique({
             where: { id: bookingId },
@@ -181,6 +213,15 @@ router.post('/:bookingId/send', async (req, res) => {
         });
         if (!booking) {
             return res.status(404).json({ success: false, error: 'Booking not found' });
+        }
+        // Authorization check: user must own the booking or have management role
+        const isOwner = booking.userId === req.user.userId;
+        const isPrivileged = req.user.isSuperAdmin || ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(req.user.role);
+        if (!isOwner && !isPrivileged) {
+            return res.status(403).json({
+                success: false,
+                error: 'Forbidden: You do not have permission to dispatch invoices for this booking.'
+            });
         }
         const amount = await getBookingAmount(booking);
         const { trainNo, trainName, fromStation, toStation } = parseTrainDetails(booking.event);
@@ -206,8 +247,8 @@ router.post('/:bookingId/send', async (req, res) => {
             clientCompanyName,
             clientState
         });
-        // Direct download URL pointing to the live API
-        const directDownloadUrl = `https://rail-planner-api.onrender.com/api/invoices/${booking.id}?download=true`;
+        // Direct download URL pointing to the live API with signed access token
+        const directDownloadUrl = `https://rail-planner-api.onrender.com/api/invoices/${booking.id}?download=true&token=${getInvoiceAccessToken(booking.id)}`;
         // 1. Send via WhatsApp
         if (targetMobile) {
             const cleanDigits = targetMobile.replace(/\D/g, '').slice(-10);

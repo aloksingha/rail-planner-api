@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { prisma } from '../prisma';
 import { CacheService } from '../utils/cache';
+import { requireAuth, requireRole } from '../middleware/auth';
 import axios from 'axios';
 import { getRailRadarKey } from '../utils/keys';
 
@@ -18,6 +19,9 @@ router.get('/ping', (req: Request, res: Response) => {
         uptimeSeconds: Math.floor(process.uptime())
     });
 });
+
+// Security: All diagnostic and introspection endpoints below require Super Admin access
+router.use(requireAuth, requireRole(['SUPER_ADMIN']));
 
 /**
  * 2. Database Health & Latency Test
@@ -229,7 +233,14 @@ router.get('/railkit/fare', async (req: Request, res: Response) => {
     const travelClass = (req.query.class as string) || '3A';
     const quota = (req.query.quota as string) || 'GN';
 
-    const apiKey = process.env.RAILKIT_API_KEY || 'railkit_cb0204e7cffc3b5cfaf811f6ca709344cae8f86899fd845a';
+    const apiKey = process.env.RAILKIT_API_KEY;
+    if (!apiKey) {
+        return res.status(500).json({
+            success: false,
+            provider: 'RailKit',
+            error: 'RAILKIT_API_KEY environment variable is not configured.'
+        });
+    }
 
     try {
         let railkit: any;

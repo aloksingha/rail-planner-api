@@ -153,6 +153,11 @@ router.put('/bookings/:id/rebook', requireAuth, async (req, res) => {
         return res.status(400).json({ error: 'Missing required rebooking parameters.' });
     }
 
+    const numNewPrice = Number(newPrice);
+    if (!isFinite(numNewPrice) || numNewPrice <= 0) {
+        return res.status(400).json({ error: 'Invalid rebooking amount. Amount must be a positive number.' });
+    }
+
     try {
         const booking = await prisma.booking.findFirst({
             where: { id, userId },
@@ -160,6 +165,10 @@ router.put('/bookings/:id/rebook', requireAuth, async (req, res) => {
         });
 
         if (!booking) return res.status(404).json({ error: 'Booking not found.' });
+
+        if (booking.status === 'CANCELLED' || booking.status === 'FAILED') {
+            return res.status(400).json({ error: 'Cancelled or failed bookings cannot be rebooked.' });
+        }
 
         // Get old price from payment record
         const oldPayment = await prisma.paymentRecord.findUnique({
@@ -169,7 +178,7 @@ router.put('/bookings/:id/rebook', requireAuth, async (req, res) => {
         if (!oldPayment) return res.status(400).json({ error: 'Original payment record not found.' });
 
         const oldPrice = oldPayment.amount;
-        const diff = newPrice - oldPrice;
+        const diff = Math.round((numNewPrice - oldPrice) * 100) / 100;
 
         await prisma.$transaction(async (tx) => {
             // 1. Handle Payment Difference
@@ -217,6 +226,12 @@ router.put('/bookings/:id/rebook', requireAuth, async (req, res) => {
             } else if (diff < 0) {
                 // Refund the difference to wallet
                 const refundAmount = Math.abs(diff);
+
+                // Security check: Refund amount cannot equal or exceed original ticket price
+                if (refundAmount >= oldPrice) {
+                    throw new Error('Rebooking refund cannot equal or exceed original ticket fare.');
+                }
+
                 await tx.user.update({
                     where: { id: userId },
                     data: { walletBalance: { increment: refundAmount } }
@@ -240,7 +255,7 @@ router.put('/bookings/:id/rebook', requireAuth, async (req, res) => {
             const originalMobile = originalMobileMatch ? originalMobileMatch[1] : '';
 
             const newEventName = `Train ${newTrainNo} - ${newTrainName}`;
-            const newDescription = `OFFLINE/ADMIN booking. Train: ${newTrainNo}. Route: ${newEventName} on ${new Date(newDate).toDateString()}. Passengers: ${originalPassengers}. Mobile: ${originalMobile}. Amount: ₹${newPrice}`;
+            const newDescription = `OFFLINE/ADMIN booking. Train: ${newTrainNo}. Route: ${newEventName} on ${new Date(newDate).toDateString()}. Passengers: ${originalPassengers}. Mobile: ${originalMobile}. Amount: ₹${numNewPrice}`;
 
             const newEvent = await tx.event.create({
                 data: {
@@ -263,7 +278,7 @@ router.put('/bookings/:id/rebook', requireAuth, async (req, res) => {
             // Update old PaymentRecord amount so future rebooks see the new total
             await tx.paymentRecord.update({
                 where: { paymentId: booking.paymentId || '' },
-                data: { amount: newPrice }
+                data: { amount: numNewPrice }
             });
 
             // 4. Audit Log

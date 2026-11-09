@@ -32,7 +32,23 @@ const compression_1 = __importDefault(require("compression"));
 const prisma_1 = require("./prisma");
 const app = (0, express_1.default)();
 app.use((0, compression_1.default)());
-app.use((0, cors_1.default)());
+const ALLOWED_ORIGINS = [
+    'https://ticketspro.in',
+    'https://www.ticketspro.in',
+    'https://rail-planner-pro.web.app',
+    'https://rail-planner-pro.firebaseapp.com'
+];
+app.use((0, cors_1.default)({
+    origin: (origin, callback) => {
+        if (!origin || ALLOWED_ORIGINS.includes(origin) || process.env.NODE_ENV !== 'production' || origin.startsWith('http://localhost:')) {
+            callback(null, true);
+        }
+        else {
+            callback(null, true);
+        }
+    },
+    credentials: true
+}));
 app.use(express_1.default.json());
 // Serve uploaded PDF tickets statically
 app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '..', 'uploads')));
@@ -47,6 +63,9 @@ app.get('/health', async (req, res) => {
     }
 });
 app.get('/test-api', async (req, res) => {
+    if (process.env.NODE_ENV === 'production') {
+        return res.status(404).json({ error: 'Endpoint disabled in production.' });
+    }
     try {
         const axios = require('axios');
         const { getRailRadarKey } = require('./utils/keys');

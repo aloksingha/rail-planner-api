@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const prisma_1 = require("../prisma");
 const cache_1 = require("../utils/cache");
+const auth_1 = require("../middleware/auth");
 const axios_1 = __importDefault(require("axios"));
 const keys_1 = require("../utils/keys");
 const router = (0, express_1.Router)();
@@ -21,6 +22,8 @@ router.get('/ping', (req, res) => {
         uptimeSeconds: Math.floor(process.uptime())
     });
 });
+// Security: All diagnostic and introspection endpoints below require Super Admin access
+router.use(auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_ADMIN']));
 /**
  * 2. Database Health & Latency Test
  * GET /api/test/db
@@ -213,7 +216,14 @@ router.get('/railkit/fare', async (req, res) => {
     const date = req.query.date || '18-10-2026';
     const travelClass = req.query.class || '3A';
     const quota = req.query.quota || 'GN';
-    const apiKey = process.env.RAILKIT_API_KEY || 'railkit_cb0204e7cffc3b5cfaf811f6ca709344cae8f86899fd845a';
+    const apiKey = process.env.RAILKIT_API_KEY;
+    if (!apiKey) {
+        return res.status(500).json({
+            success: false,
+            provider: 'RailKit',
+            error: 'RAILKIT_API_KEY environment variable is not configured.'
+        });
+    }
     try {
         let railkit;
         try {

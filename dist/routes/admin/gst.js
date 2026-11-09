@@ -47,13 +47,22 @@ router.get('/gst-report', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_AD
             start = new Date(now.getFullYear(), 0, 1, 0, 0, 0, 0);
             end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
         }
+        // Multi-tenant scoping: Admins only see bookings of users they created; Sales Managers see their own
+        let userFilter = {};
+        if (!req.user.isSuperAdmin && req.user.role === 'ADMIN') {
+            userFilter = { user: { createdByUserId: req.user.userId } };
+        }
+        else if (!req.user.isSuperAdmin && req.user.role === 'SALES_MANAGER') {
+            userFilter = { user: { id: req.user.userId } };
+        }
         const bookings = await prisma_1.prisma.booking.findMany({
             where: {
                 createdAt: {
                     gte: start,
                     lte: end
                 },
-                status: { notIn: ['CANCELLED', 'FAILED'] }
+                status: { notIn: ['CANCELLED', 'FAILED'] },
+                ...userFilter
             },
             include: {
                 event: true,

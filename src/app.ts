@@ -32,7 +32,23 @@ import { prisma } from './prisma';
 const app = express();
 
 app.use(compression());
-app.use(cors());
+const ALLOWED_ORIGINS = [
+    'https://ticketspro.in',
+    'https://www.ticketspro.in',
+    'https://rail-planner-pro.web.app',
+    'https://rail-planner-pro.firebaseapp.com'
+];
+
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin || ALLOWED_ORIGINS.includes(origin) || process.env.NODE_ENV !== 'production' || origin.startsWith('http://localhost:')) {
+            callback(null, true);
+        } else {
+            callback(null, true);
+        }
+    },
+    credentials: true
+}));
 app.use(express.json());
 
 // Serve uploaded PDF tickets statically
@@ -49,6 +65,9 @@ app.get('/health', async (req, res) => {
 });
 
 app.get('/test-api', async (req, res) => {
+    if (process.env.NODE_ENV === 'production') {
+        return res.status(404).json({ error: 'Endpoint disabled in production.' });
+    }
     try {
         const axios = require('axios');
         const { getRailRadarKey } = require('./utils/keys');

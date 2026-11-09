@@ -87,7 +87,7 @@ router.delete('/bookings/:id', requireAuth, requireRole(['SUPER_ADMIN']), async 
         // Clean up ticket file if it exists
         if (booking.ticketUrl) {
             const filename = path.basename(booking.ticketUrl);
-            const filePath = path.join(__dirname, '..', '..', 'uploads', filename);
+            const filePath = path.join(__dirname, '..', '..', '..', 'uploads', filename);
             if (fs.existsSync(filePath)) {
                 fs.unlinkSync(filePath);
             }
@@ -146,7 +146,7 @@ router.delete('/bookings/:id/ticket', requireAuth, requireRole(['SUPER_ADMIN']),
         }
 
         const filename = path.basename(booking.ticketUrl);
-        const filePath = path.join(__dirname, '..', '..', 'uploads', filename);
+        const filePath = path.join(__dirname, '..', '..', '..', 'uploads', filename);
 
         if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);

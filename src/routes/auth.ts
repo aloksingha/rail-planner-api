@@ -13,6 +13,11 @@ const TEST_EMAIL = 'test@ticketspro.in';
 const TEST_ADMIN_EMAIL = 'test@railplanner.in';
 
 router.post('/bypass', async (req, res) => {
+    // Security: strictly block bypass logins in production
+    if (process.env.NODE_ENV === 'production') {
+        return res.status(404).json({ error: 'Endpoint not available in production' });
+    }
+
     const { email, password } = req.body;
 
     const isNormalTest = email === TEST_EMAIL && password === 'test1234';
