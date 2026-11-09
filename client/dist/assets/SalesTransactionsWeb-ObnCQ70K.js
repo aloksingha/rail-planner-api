@@ -89,7 +89,7 @@ return e.jsxs("div",{className:"space-y-6 animate-in fade-in duration-500 pb-12"
               e.jsxs("tr", { key: idx, className: "hover:bg-white/[0.02]", children: [
                 e.jsx("td", { className: "p-3 font-mono font-bold text-cyan-400", children: row.sac }),
                 e.jsx("td", { className: "p-3", children: row.description }),
-                e.jsx("td", { className: "p-3 font-bold", children: row.taxRate + "%" }),
+                e.jsx("td", { className: "p-3 font-bold", children: (row.rate || (row.taxRate != null ? row.taxRate + "%" : "5%")) }),
                 e.jsx("td", { className: "p-3 text-right font-mono", children: row.taxableValue.toFixed(2) }),
                 e.jsx("td", { className: "p-3 text-right font-mono text-emerald-400", children: row.cgst.toFixed(2) }),
                 e.jsx("td", { className: "p-3 text-right font-mono text-emerald-400", children: row.sgst.toFixed(2) }),
@@ -133,7 +133,7 @@ return e.jsxs("div",{className:"space-y-6 animate-in fade-in duration-500 pb-12"
                   e.jsx("p", { className: "text-[10px] text-slate-500", children: inv.customerMobile })
                 ]}),
                 e.jsx("td", { className: "p-3 text-slate-400", children: inv.placeOfSupply }),
-                e.jsx("td", { className: "p-3 font-bold", children: inv.taxRate + "%" }),
+                e.jsx("td", { className: "p-3 font-bold", children: (inv.taxRate != null ? inv.taxRate + "%" : (inv.rate || "5%")) }),
                 e.jsx("td", { className: "p-3 text-right font-mono", children: "Rs. " + inv.taxableAmount.toFixed(2) }),
                 e.jsx("td", { className: "p-3 text-right font-mono text-emerald-400", children: "Rs. " + inv.cgst.toFixed(2) }),
                 e.jsx("td", { className: "p-3 text-right font-mono text-emerald-400", children: "Rs. " + inv.sgst.toFixed(2) }),
