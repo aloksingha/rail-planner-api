@@ -1,0 +1,42 @@
+{
+  "name": "Tickets Pro - Smart IRCTC Train Ticket Booking & Tatkal Automation",
+  "short_name": "TicketsPro",
+  "description": "Intelligent railway ticket reservation, Tatkal booking assistance, live seat availability, and instant WhatsApp PNR tracking.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b1120",
+  "theme_color": "#0b1120",
+  "icons": [
+    {
+      "src": "/brand_logo.webp",
+      "sizes": "192x192",
+      "type": "image/webp",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/brand_logo.webp",
+      "sizes": "512x512",
+      "type": "image/webp",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "travel",
+    "navigation",
+    "utilities"
+  ],
+  "shortcuts": [
+    {
+      "name": "Book Ticket",
+      "url": "/book-ticket",
+      "description": "Book IRCTC Train Tickets with Tatkal assistance"
+    },
+    {
+      "name": "Live Availability",
+      "url": "/",
+      "description": "Check real-time train seat availability"
+    }
+  ]
+}
