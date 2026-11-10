@@ -334,7 +334,7 @@
         animation: spin 1s linear infinite;
       }
       @keyframes spin { to { transform: rotate(360deg); } }
-      .sr-only {
+      .sr-only, .seo-knowledge-base {
         position: absolute;
         width: 1px;
         height: 1px;
@@ -445,7 +445,7 @@
     <div id="root"></div>
 
     <!-- Permanent Machine-Readable Semantic Knowledge & AEO Architecture (Immune to Client-Side React Hydration/DOM clears) -->
-    <div id="seo-knowledge-base" class="seo-knowledge-base" role="region" aria-label="Tickets Pro Railway Guide and FAQ">
+    <div id="seo-knowledge-base" class="sr-only seo-knowledge-base" style="position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;" role="region" aria-label="Tickets Pro Railway Guide and FAQ">
       <header role="banner">
         <nav aria-label="Main Navigation">
           <a href="/">Home</a>
