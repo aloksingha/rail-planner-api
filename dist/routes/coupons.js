@@ -1,9 +1,24 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.incrementCouponUsage = incrementCouponUsage;
 const express_1 = require("express");
 const prisma_1 = require("../prisma");
 const auth_1 = require("../middleware/auth");
+const rateLimit_1 = require("../middleware/rateLimit");
 const router = (0, express_1.Router)();
+async function incrementCouponUsage(tx, code) {
+    if (!code)
+        return;
+    try {
+        await tx.coupon.updateMany({
+            where: { code: code.toUpperCase() },
+            data: { usageCount: { increment: 1 } }
+        });
+    }
+    catch (e) {
+        console.warn('[Coupon] Failed to increment usage count for', code, e);
+    }
+}
 // GET / - List all coupons (Super Admin and Admin)
 router.get('/', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_ADMIN'], { allowSpecialPermission: 'MANAGE_COUPONS' }), async (req, res) => {
     const coupons = await prisma_1.prisma.coupon.findMany({
@@ -12,7 +27,7 @@ router.get('/', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_ADMIN'], { a
     res.json(coupons);
 });
 // POST /validate - Validate a coupon code
-router.post('/validate', async (req, res) => {
+router.post('/validate', (0, rateLimit_1.rateLimiter)({ windowSeconds: 60, maxRequests: 20, message: 'Too many coupon validation requests. Please wait a moment.' }), async (req, res) => {
     const { code, amount } = req.body;
     if (!code) {
         return res.status(400).json({ error: 'Coupon code is required' });

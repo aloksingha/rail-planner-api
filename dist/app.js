@@ -30,6 +30,7 @@ const testDiagnostics_1 = __importDefault(require("./routes/testDiagnostics"));
 const invoice_1 = __importDefault(require("./routes/invoice"));
 const compression_1 = __importDefault(require("compression"));
 const prisma_1 = require("./prisma");
+const auth_2 = require("./middleware/auth");
 const app = (0, express_1.default)();
 app.use((0, compression_1.default)());
 const ALLOWED_ORIGINS = [
@@ -50,7 +51,32 @@ app.use((0, cors_1.default)({
     credentials: true
 }));
 app.use(express_1.default.json());
-// Serve uploaded PDF tickets statically
+// SEC-09: Authenticated PDF Ticket Streaming
+app.get('/uploads/ticket_*.pdf', auth_2.requireAuth, async (req, res) => {
+    try {
+        const filename = path_1.default.basename(req.path);
+        const booking = await prisma_1.prisma.booking.findFirst({
+            where: { ticketUrl: { contains: filename } }
+        });
+        if (!booking) {
+            return res.status(404).json({ error: 'Ticket document not found' });
+        }
+        const isOwner = booking.userId === req.user.userId;
+        const isPrivileged = req.user.isSuperAdmin || ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(req.user.role);
+        if (!isOwner && !isPrivileged) {
+            return res.status(403).json({ error: 'Forbidden: You do not have permission to view this ticket.' });
+        }
+        const filePath = path_1.default.join(__dirname, '..', 'uploads', filename);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+        return res.sendFile(filePath);
+    }
+    catch (err) {
+        console.error('[Ticket Access Error]:', err);
+        return res.status(500).json({ error: 'Failed to access ticket' });
+    }
+});
+// Serve public static assets (promo banners, general assets)
 app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '..', 'uploads')));
 app.use('/downloads', express_1.default.static(path_1.default.join(__dirname, '..', 'downloads')));
 app.get('/health', async (req, res) => {

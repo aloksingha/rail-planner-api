@@ -8,6 +8,7 @@ import { checkAndApplyCommission } from '../../utils/commission';
 import { isValidIndianMobile } from '../../utils/validation';
 import { notifyBookingConfirmed, notifyPaymentReceived } from '../../services/notificationService';
 import { createAuditLog } from '../../services/auditService';
+import { incrementCouponUsage } from '../coupons';
 
 const router = Router();
 const razorpay = new Razorpay({
@@ -30,8 +31,21 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
         passengerList
     } = req.body;
 
-    if (!amount || amount <= 0) {
-        return res.status(400).json({ error: 'Invalid amount' });
+    const numAmount = Number(amount);
+    if (!isFinite(numAmount) || numAmount <= 0) {
+        return res.status(400).json({ error: 'Invalid payment amount. Must be a positive number.' });
+    }
+
+    const paxCount = Array.isArray(passengerList) && passengerList.length > 0 
+        ? passengerList.length 
+        : (Number(passengers) || 1);
+
+    // Sanity fare bound check: train tickets cannot be less than ₹100 per passenger
+    const minFarePerPax = 100;
+    if (trainNo && numAmount < paxCount * minFarePerPax) {
+        return res.status(400).json({ 
+            error: `Payment amount (₹${numAmount}) is below minimum plausible train fare for ${paxCount} passenger(s). Minimum is ₹${paxCount * minFarePerPax}.` 
+        });
     }
 
     if (!isValidIndianMobile(mobile)) {
@@ -113,6 +127,7 @@ router.post('/wallet-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'CU
             });
 
             await checkAndApplyCommission(tx, user.id, amount, booking.id, trainNo);
+            await incrementCouponUsage(tx, req.body.couponCode || req.body.coupon);
 
             // 6. Audit Log
             await tx.auditLog.create({

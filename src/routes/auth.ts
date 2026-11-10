@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import { prisma } from '../prisma';
 import { generateToken, requireAuth, requireRole } from '../middleware/auth';
+import { rateLimiter } from '../middleware/rateLimit';
 import axios from 'axios';
 
 const router = Router();
@@ -54,7 +55,7 @@ router.post('/bypass', async (req, res) => {
     }
 });
 
-router.post('/google', async (req, res) => {
+router.post('/google', rateLimiter({ windowSeconds: 60, maxRequests: 20, message: 'Too many authentication attempts. Please slow down.' }), async (req, res) => {
     const { credential, access_token } = req.body;
 
     if (!credential && !access_token) {

@@ -13,6 +13,7 @@ const commission_1 = require("../../utils/commission");
 const validation_1 = require("../../utils/validation");
 const notificationService_1 = require("../../services/notificationService");
 const auditService_1 = require("../../services/auditService");
+const coupons_1 = require("../coupons");
 const router = (0, express_1.Router)();
 // Helper to retrieve active YouPI gateway configuration from DB or env
 async function getYouPiConfig() {
@@ -243,6 +244,7 @@ async function fulfillYouPiOrder(orderData, utr) {
             });
         }
         await (0, commission_1.checkAndApplyCommission)(tx, userId, Number(orderData.amount), booking.id, orderData.trainNo);
+        await (0, coupons_1.incrementCouponUsage)(tx, orderData.couponCode || orderData.coupon);
         return { booking, eventName };
     });
     // Send customer notification (Non-blocking)
@@ -286,20 +288,24 @@ router.post('/webhook', async (req, res) => {
             req.headers['x-youpi-signature'] ||
             req.headers['x-signature']);
         const signature = rawSignature ? rawSignature.replace(/^sha256=/, '') : '';
-        // If webhook secret is configured, verify HMAC signature
-        if (config.webhookSecret) {
-            if (!signature) {
-                console.warn('[YouPI Webhook] Rejected: Missing signature header.');
-                return res.status(401).json({ error: 'Missing webhook signature' });
-            }
-            const expected = crypto_1.default
-                .createHmac('sha256', config.webhookSecret)
-                .update(JSON.stringify(req.body))
-                .digest('hex');
-            if (signature !== expected) {
-                console.warn('[YouPI Webhook] Rejected: Invalid HMAC signature.');
-                return res.status(401).json({ error: 'Invalid webhook signature' });
-            }
+        // Verify HMAC signature strictly with timing-safe comparison
+        if (!config.webhookSecret) {
+            console.warn('[YouPI Webhook] Rejected: Webhook secret not configured in system settings.');
+            return res.status(503).json({ error: 'Gateway webhook not configured' });
+        }
+        if (!signature) {
+            console.warn('[YouPI Webhook] Rejected: Missing signature header.');
+            return res.status(401).json({ error: 'Missing webhook signature' });
+        }
+        const expected = crypto_1.default
+            .createHmac('sha256', config.webhookSecret)
+            .update(JSON.stringify(req.body))
+            .digest('hex');
+        const signatureBuf = Buffer.from(signature, 'utf8');
+        const expectedBuf = Buffer.from(expected, 'utf8');
+        if (signatureBuf.length !== expectedBuf.length || !crypto_1.default.timingSafeEqual(signatureBuf, expectedBuf)) {
+            console.warn('[YouPI Webhook] Rejected: Invalid HMAC signature.');
+            return res.status(401).json({ error: 'Invalid webhook signature' });
         }
         const { event, orderId: bOrderId, order_id, status, utr: bUtr, rrn, vpa, amountPaise } = req.body;
         const orderId = bOrderId || order_id;

@@ -28,6 +28,7 @@ import invoiceRoutes from './routes/invoice';
 
 import compression from 'compression';
 import { prisma } from './prisma';
+import { requireAuth } from './middleware/auth';
 
 const app = express();
 
@@ -51,7 +52,35 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Serve uploaded PDF tickets statically
+// SEC-09: Authenticated PDF Ticket Streaming
+app.get('/uploads/ticket_*.pdf', requireAuth, async (req, res) => {
+    try {
+        const filename = path.basename(req.path);
+        const booking = await prisma.booking.findFirst({
+            where: { ticketUrl: { contains: filename } }
+        });
+
+        if (!booking) {
+            return res.status(404).json({ error: 'Ticket document not found' });
+        }
+
+        const isOwner = booking.userId === req.user!.userId;
+        const isPrivileged = req.user!.isSuperAdmin || ['SUPER_ADMIN', 'ADMIN', 'SALES_MANAGER'].includes(req.user!.role);
+        if (!isOwner && !isPrivileged) {
+            return res.status(403).json({ error: 'Forbidden: You do not have permission to view this ticket.' });
+        }
+
+        const filePath = path.join(__dirname, '..', 'uploads', filename);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+        return res.sendFile(filePath);
+    } catch (err: any) {
+        console.error('[Ticket Access Error]:', err);
+        return res.status(500).json({ error: 'Failed to access ticket' });
+    }
+});
+
+// Serve public static assets (promo banners, general assets)
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 app.use('/downloads', express.static(path.join(__dirname, '..', 'downloads')));
 

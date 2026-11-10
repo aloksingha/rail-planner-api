@@ -8,6 +8,7 @@ import { checkAndApplyCommission } from '../../utils/commission';
 import { isValidIndianMobile } from '../../utils/validation';
 import { notifyBookingConfirmed, notifyPaymentReceived } from '../../services/notificationService';
 import { createAuditLog } from '../../services/auditService';
+import { incrementCouponUsage } from '../coupons';
 
 const router = Router();
 
@@ -280,6 +281,7 @@ async function fulfillYouPiOrder(orderData: any, utr: string) {
         }
 
         await checkAndApplyCommission(tx, userId, Number(orderData.amount), booking.id, orderData.trainNo);
+        await incrementCouponUsage(tx, orderData.couponCode || orderData.coupon);
 
         return { booking, eventName };
     });
@@ -332,22 +334,27 @@ router.post('/webhook', async (req: Request, res: Response) => {
         ) as string;
         const signature = rawSignature ? rawSignature.replace(/^sha256=/, '') : '';
 
-        // If webhook secret is configured, verify HMAC signature
-        if (config.webhookSecret) {
-            if (!signature) {
-                console.warn('[YouPI Webhook] Rejected: Missing signature header.');
-                return res.status(401).json({ error: 'Missing webhook signature' });
-            }
+        // Verify HMAC signature strictly with timing-safe comparison
+        if (!config.webhookSecret) {
+            console.warn('[YouPI Webhook] Rejected: Webhook secret not configured in system settings.');
+            return res.status(503).json({ error: 'Gateway webhook not configured' });
+        }
 
-            const expected = crypto
-                .createHmac('sha256', config.webhookSecret)
-                .update(JSON.stringify(req.body))
-                .digest('hex');
+        if (!signature) {
+            console.warn('[YouPI Webhook] Rejected: Missing signature header.');
+            return res.status(401).json({ error: 'Missing webhook signature' });
+        }
 
-            if (signature !== expected) {
-                console.warn('[YouPI Webhook] Rejected: Invalid HMAC signature.');
-                return res.status(401).json({ error: 'Invalid webhook signature' });
-            }
+        const expected = crypto
+            .createHmac('sha256', config.webhookSecret)
+            .update(JSON.stringify(req.body))
+            .digest('hex');
+
+        const signatureBuf = Buffer.from(signature, 'utf8');
+        const expectedBuf = Buffer.from(expected, 'utf8');
+        if (signatureBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(signatureBuf, expectedBuf)) {
+            console.warn('[YouPI Webhook] Rejected: Invalid HMAC signature.');
+            return res.status(401).json({ error: 'Invalid webhook signature' });
         }
 
         const { event, orderId: bOrderId, order_id, status, utr: bUtr, rrn, vpa, amountPaise } = req.body;

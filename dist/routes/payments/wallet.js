@@ -12,6 +12,7 @@ const crypto_1 = __importDefault(require("crypto"));
 const commission_1 = require("../../utils/commission");
 const validation_1 = require("../../utils/validation");
 const notificationService_1 = require("../../services/notificationService");
+const coupons_1 = require("../coupons");
 const router = (0, express_1.Router)();
 const razorpay = new razorpay_1.default({
     key_id: process.env.RAZORPAY_KEY_ID || '',
@@ -19,8 +20,19 @@ const razorpay = new razorpay_1.default({
 });
 router.post('/wallet-pay', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_ADMIN', 'ADMIN', 'CUSTOMER', 'SALES_MANAGER']), restrict_1.requireActiveUser, async (req, res) => {
     const { amount, eventId, trainClass, trainNo, trainName, fromStation, toStation, journeyDate, passengers, mobile, email, passengerList } = req.body;
-    if (!amount || amount <= 0) {
-        return res.status(400).json({ error: 'Invalid amount' });
+    const numAmount = Number(amount);
+    if (!isFinite(numAmount) || numAmount <= 0) {
+        return res.status(400).json({ error: 'Invalid payment amount. Must be a positive number.' });
+    }
+    const paxCount = Array.isArray(passengerList) && passengerList.length > 0
+        ? passengerList.length
+        : (Number(passengers) || 1);
+    // Sanity fare bound check: train tickets cannot be less than ₹100 per passenger
+    const minFarePerPax = 100;
+    if (trainNo && numAmount < paxCount * minFarePerPax) {
+        return res.status(400).json({
+            error: `Payment amount (₹${numAmount}) is below minimum plausible train fare for ${paxCount} passenger(s). Minimum is ₹${paxCount * minFarePerPax}.`
+        });
     }
     if (!(0, validation_1.isValidIndianMobile)(mobile)) {
         return res.status(400).json({ error: 'Invalid Indian mobile number. Must be 10 digits starting with 6, 7, 8, or 9.' });
@@ -90,6 +102,7 @@ router.post('/wallet-pay', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_A
                 }
             });
             await (0, commission_1.checkAndApplyCommission)(tx, user.id, amount, booking.id, trainNo);
+            await (0, coupons_1.incrementCouponUsage)(tx, req.body.couponCode || req.body.coupon);
             // 6. Audit Log
             await tx.auditLog.create({
                 data: {

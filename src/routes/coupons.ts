@@ -1,8 +1,21 @@
 import { Router } from 'express';
 import { prisma } from '../prisma';
 import { requireAuth, requireRole } from '../middleware/auth';
+import { rateLimiter } from '../middleware/rateLimit';
 
 const router = Router();
+
+export async function incrementCouponUsage(tx: any, code?: string | null) {
+    if (!code) return;
+    try {
+        await tx.coupon.updateMany({
+            where: { code: code.toUpperCase() },
+            data: { usageCount: { increment: 1 } }
+        });
+    } catch (e) {
+        console.warn('[Coupon] Failed to increment usage count for', code, e);
+    }
+}
 
 // GET / - List all coupons (Super Admin and Admin)
 router.get('/', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermission: 'MANAGE_COUPONS' }), async (req, res) => {
@@ -13,7 +26,7 @@ router.get('/', requireAuth, requireRole(['SUPER_ADMIN'], { allowSpecialPermissi
 });
 
 // POST /validate - Validate a coupon code
-router.post('/validate', async (req, res) => {
+router.post('/validate', rateLimiter({ windowSeconds: 60, maxRequests: 20, message: 'Too many coupon validation requests. Please wait a moment.' }), async (req, res) => {
     const { code, amount } = req.body;
 
     if (!code) {

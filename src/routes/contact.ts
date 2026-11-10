@@ -2,11 +2,12 @@ import { sendWhatsApp } from '../services/notificationService';
 import express, { Request, Response } from 'express';
 import { prisma } from '../prisma';
 import { requireAuth, requireRole } from '../middleware/auth';
+import { rateLimiter } from '../middleware/rateLimit';
 
 const router = express.Router();
 
-// Public: Submit a contact message
-router.post('/', async (req: Request, res: Response) => {
+// Public: Submit a contact message (rate limited to prevent WhatsApp alert flooding)
+router.post('/', rateLimiter({ windowSeconds: 300, maxRequests: 5, message: 'Too many contact messages sent. Please wait 5 minutes before sending another inquiry.' }), async (req: Request, res: Response) => {
     const { name, email, subject, message } = req.body;
     if (!name || !email || !subject || !message) {
         return res.status(400).json({ error: 'All fields are required.' });

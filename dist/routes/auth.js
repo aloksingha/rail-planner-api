@@ -7,6 +7,7 @@ const express_1 = require("express");
 const google_auth_library_1 = require("google-auth-library");
 const prisma_1 = require("../prisma");
 const auth_1 = require("../middleware/auth");
+const rateLimit_1 = require("../middleware/rateLimit");
 const axios_1 = __importDefault(require("axios"));
 const router = (0, express_1.Router)();
 // Load the Google Client ID from environment or use a dummy placeholder
@@ -50,7 +51,7 @@ router.post('/bypass', async (req, res) => {
         return res.status(500).json({ error: 'Bypass Authentication Failed' });
     }
 });
-router.post('/google', async (req, res) => {
+router.post('/google', (0, rateLimit_1.rateLimiter)({ windowSeconds: 60, maxRequests: 20, message: 'Too many authentication attempts. Please slow down.' }), async (req, res) => {
     const { credential, access_token } = req.body;
     if (!credential && !access_token) {
         return res.status(400).json({ error: 'Missing Google credential or access token' });

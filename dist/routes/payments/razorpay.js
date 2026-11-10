@@ -11,6 +11,7 @@ const crypto_1 = __importDefault(require("crypto"));
 const commission_1 = require("../../utils/commission");
 const validation_1 = require("../../utils/validation");
 const notificationService_1 = require("../../services/notificationService");
+const coupons_1 = require("../coupons");
 const router = (0, express_1.Router)();
 const razorpay = new razorpay_1.default({
     key_id: process.env.RAZORPAY_KEY_ID || '',
@@ -21,13 +22,23 @@ const razorpay = new razorpay_1.default({
  * Initiates a standard Razorpay ticket booking order.
  */
 router.post('/create-order', auth_1.requireAuth, async (req, res) => {
-    const { amount } = req.body;
-    if (!amount || amount <= 0) {
+    const { amount, passengers, passengerList, trainNo } = req.body;
+    const numAmount = Number(amount);
+    if (!isFinite(numAmount) || numAmount <= 0) {
         return res.status(400).json({ error: 'Invalid booking amount' });
+    }
+    const paxCount = Array.isArray(passengerList) && passengerList.length > 0
+        ? passengerList.length
+        : (Number(passengers) || 1);
+    const minFarePerPax = 100;
+    if (trainNo && numAmount < paxCount * minFarePerPax) {
+        return res.status(400).json({
+            error: `Order amount (₹${numAmount}) is below minimum plausible train fare for ${paxCount} passenger(s). Minimum is ₹${paxCount * minFarePerPax}.`
+        });
     }
     try {
         const options = {
-            amount: Math.round(amount * 100), // to paise
+            amount: Math.round(numAmount * 100), // to paise
             currency: 'INR',
             receipt: `rcpt_booking_${Date.now()}`,
         };
@@ -106,6 +117,7 @@ router.post('/verify', auth_1.requireAuth, async (req, res) => {
                 }
             });
             await (0, commission_1.checkAndApplyCommission)(tx, req.user.userId, Number(amount), booking.id, trainNo);
+            await (0, coupons_1.incrementCouponUsage)(tx, req.body.couponCode || req.body.coupon);
             return { booking, eventName };
         });
         // 3. Notify (Non-blocking)
