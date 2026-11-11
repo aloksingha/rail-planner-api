@@ -33,6 +33,16 @@ import { requireAuth } from './middleware/auth';
 const app = express();
 
 app.use(compression());
+
+// SEC-20: Backend Defensive HTTP Security Headers
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    next();
+});
+
 const ALLOWED_ORIGINS = [
     'https://ticketspro.in',
     'https://www.ticketspro.in',
@@ -45,7 +55,7 @@ app.use(cors({
         if (!origin || ALLOWED_ORIGINS.includes(origin) || process.env.NODE_ENV !== 'production' || origin.startsWith('http://localhost:')) {
             callback(null, true);
         } else {
-            callback(null, true);
+            callback(new Error('Blocked by CORS policy'));
         }
     },
     credentials: true

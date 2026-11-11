@@ -33,6 +33,14 @@ const prisma_1 = require("./prisma");
 const auth_2 = require("./middleware/auth");
 const app = (0, express_1.default)();
 app.use((0, compression_1.default)());
+// SEC-20: Backend Defensive HTTP Security Headers
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    next();
+});
 const ALLOWED_ORIGINS = [
     'https://ticketspro.in',
     'https://www.ticketspro.in',
@@ -45,7 +53,7 @@ app.use((0, cors_1.default)({
             callback(null, true);
         }
         else {
-            callback(null, true);
+            callback(new Error('Blocked by CORS policy'));
         }
     },
     credentials: true
