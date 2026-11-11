@@ -15,6 +15,7 @@ const customer_1 = __importDefault(require("./routes/customer"));
 const stations_1 = __importDefault(require("./routes/stations"));
 const trains_1 = __importDefault(require("./routes/trains"));
 const flights_1 = __importDefault(require("./routes/flights"));
+const buses_1 = __importDefault(require("./routes/buses"));
 const cars_1 = __importDefault(require("./routes/cars"));
 const priceRequests_1 = __importDefault(require("./routes/priceRequests"));
 const corridors_1 = __importDefault(require("./routes/corridors"));
@@ -129,6 +130,7 @@ app.get('/test-api', async (req, res) => {
 });
 app.use('/api/trains', trains_1.default);
 app.use('/api/flights', flights_1.default);
+app.use('/api/buses', buses_1.default);
 app.use('/api/cars', cars_1.default);
 app.use('/api/auth', auth_1.default);
 app.use('/api/payments', payments_1.default);

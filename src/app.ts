@@ -12,6 +12,7 @@ import customerRoutes from './routes/customer';
 import stationRoutes from './routes/stations';
 import trainRoutes from './routes/trains';
 import flightRoutes from './routes/flights';
+import busRoutes from './routes/buses';
 import carRoutes from './routes/cars';
 import priceRequestRoutes from './routes/priceRequests';
 import corridorsRoutes from './routes/corridors';
@@ -136,6 +137,7 @@ app.get('/test-api', async (req, res) => {
 
 app.use('/api/trains', trainRoutes);
 app.use('/api/flights', flightRoutes);
+app.use('/api/buses', busRoutes);
 app.use('/api/cars', carRoutes);
 
 app.use('/api/auth', authRoutes);

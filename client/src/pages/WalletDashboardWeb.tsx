@@ -11,7 +11,7 @@ import {
     XCircle,
     Info,
     CreditCard,
-    ShieldCheck
+    ShieldCheck,
     QrCode
 } from 'lucide-react';
 import YouPiPaymentModal from '../components/booking/YouPiPaymentModal';
