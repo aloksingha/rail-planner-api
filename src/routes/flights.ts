@@ -4,6 +4,9 @@ import axios from 'axios';
 const router = express.Router();
 
 
+// ── SerpApi Google Flights Live Engine ──────────────────────────────────────
+const SERPAPI_KEY = process.env.SERPAPI_KEY || '43cd328a76083bc99cce3a893cf869c118c34eb48c0e2e043946de96e379f3f2';
+
 // ── RapidAPI sky-scrapper (Held temporarily) ────────────────────────────────
 const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || 'bf2a3e5aebmsh47dd2454d86a94ep16d33ejsnbc06de274f3b';
 const SKYSCRAPPER_HEADERS = {
@@ -182,6 +185,99 @@ router.get('/search', async (req: Request, res: Response) => {
         let results: any[] = [];
         let isMock = false;
 
+        // ── 1. PRIMARY: SerpApi Google Flights Live Engine ───────────────────────
+        if (SERPAPI_KEY) {
+            try {
+                const classMap: Record<string, string> = {
+                    economy: '1',
+                    premium_economy: '2',
+                    business: '3',
+                    first: '4',
+                };
+                const travelClass = classMap[cabinClass.toLowerCase()] || '1';
+                const isRoundTrip = tripType === 'roundtrip' && !!returnDate;
+
+                const serpParams: Record<string, string> = {
+                    engine: 'google_flights',
+                    departure_id: srcUpper,
+                    arrival_id: dstUpper,
+                    outbound_date: flightDate,
+                    type: isRoundTrip ? '1' : '2',
+                    travel_class: travelClass,
+                    adults: String(adults || '1'),
+                    currency: currency.toUpperCase(),
+                    hl: 'en',
+                    api_key: SERPAPI_KEY,
+                };
+                if (isRoundTrip && returnDate) {
+                    serpParams.return_date = returnDate;
+                }
+
+                console.log(`[FlightSearch] Querying SerpApi Google Flights for ${srcUpper} -> ${dstUpper} on ${flightDate}`);
+                const response = await axios.get('https://serpapi.com/search.json', { params: serpParams, timeout: 20000 });
+
+                if (response.data) {
+                    const allFlights = [
+                        ...(response.data.best_flights || []),
+                        ...(response.data.other_flights || []),
+                    ];
+
+                    if (allFlights.length > 0) {
+                        results = allFlights.map((it: any, index: number) => {
+                            const segments = it.flights || [];
+                            const firstSeg = segments[0] || {};
+                            const lastSeg = segments[segments.length - 1] || firstSeg;
+
+                            const alName = firstSeg.airline || 'Airline';
+                            const flightNumber = firstSeg.flight_number || '';
+                            const alCode = flightNumber ? flightNumber.split(' ')[0] : 'AI';
+
+                            const depTimeRaw = firstSeg.departure_airport?.time || '';
+                            const arrTimeRaw = lastSeg.arrival_airport?.time || '';
+                            const depTime = depTimeRaw.includes(' ') ? depTimeRaw.split(' ')[1] : depTimeRaw;
+                            const arrTime = arrTimeRaw.includes(' ') ? arrTimeRaw.split(' ')[1] : arrTimeRaw;
+
+                            const durationMins = it.total_duration || 0;
+                            const durationStr = `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`;
+                            const stops = Math.max(0, segments.length - 1);
+
+                            return {
+                                id: `GF_${index}_${flightNumber.replace(/\s+/g, '')}`,
+                                airline: alName,
+                                airlineCode: alCode,
+                                airlineLogo: firstSeg.airline_logo || `https://www.gstatic.com/flights/airline_logos/70px/${alCode}.png`,
+                                flightNo: flightNumber || `${alCode}-${index + 100}`,
+                                source: firstSeg.departure_airport?.name || AIRPORT_META[srcUpper]?.city || srcUpper,
+                                sourceCity: AIRPORT_META[srcUpper]?.city || srcUpper,
+                                sourceCode: firstSeg.departure_airport?.id || srcUpper,
+                                destination: lastSeg.arrival_airport?.name || AIRPORT_META[dstUpper]?.city || dstUpper,
+                                destCity: AIRPORT_META[dstUpper]?.city || dstUpper,
+                                destCode: lastSeg.arrival_airport?.id || dstUpper,
+                                departure: depTime || '—',
+                                arrival: arrTime || '—',
+                                duration: durationStr,
+                                durationMinutes: durationMins,
+                                stops,
+                                price: Math.round(it.price || 0),
+                                currency: currency.toUpperCase(),
+                                priceFormatted: `₹${(it.price || 0).toLocaleString('en-IN')}`,
+                                seatsLeft: 'Available',
+                                isRefundable: it.fare_policy?.is_cancellation_allowed ?? true,
+                                isChangeable: it.fare_policy?.is_change_allowed ?? true,
+                                airplane: firstSeg.airplane || 'Commercial Jet',
+                                bookingToken: it.booking_token || '',
+                                score: index < 3 ? 0.95 : 0.85,
+                                tags: index < 3 ? ['Cheapest / Best Value'] : (stops === 0 ? ['Non-stop'] : []),
+                                isMock: false,
+                            };
+                        });
+                        console.log(`[FlightSearch] SerpApi returned ${results.length} live flights!`);
+                    }
+                }
+            } catch (serpErr: any) {
+                console.error('[FlightSearch] SerpApi error:', serpErr.response?.data?.error || serpErr.message);
+            }
+        }
 
         // ── 2. FALLBACK to sky-scrapper (Held temporarily) ─────────────────────
         if (results.length === 0) {

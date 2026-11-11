@@ -19,6 +19,7 @@
     "@prisma/client": "^6.19.2",
     "@types/nodemailer": "^7.0.11",
     "@types/pdfkit": "^0.17.7",
+    "amadeus": "^11.0.0",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.70.1",
     "compression": "^1.8.1",
