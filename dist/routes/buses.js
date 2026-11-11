@@ -4,9 +4,24 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const auth_1 = require("../middleware/auth");
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const notificationService_1 = require("../services/notificationService");
 const router = express_1.default.Router();
+// Optional Auth: allows both logged-in users and guest bookings
+const optionalAuth = async (req, res, next) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        try {
+            const payload = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET || 'super-secret-jwt-key');
+            req.user = payload;
+        }
+        catch {
+            // Non-fatal for optional authentication
+        }
+    }
+    next();
+};
 // ── AbhiBus / Partner B2B API Configuration Placeholder ──────────────────────
 const ABHIBUS_API_KEY = process.env.ABHIBUS_API_KEY || '';
 const ABHIBUS_CLIENT_ID = process.env.ABHIBUS_CLIENT_ID || '';
@@ -264,7 +279,7 @@ router.get('/:id/seats', async (req, res) => {
     }
 });
 // ── 3. POST /api/buses/book ───────────────────────────────────────────────────
-router.post('/book', auth_1.requireAuth, async (req, res) => {
+router.post('/book', optionalAuth, async (req, res) => {
     try {
         const { busId, operatorName, busType, fromCity, toCity, travelDate, departureTime, boardingPoint, droppingPoint, selectedSeats = [], passengers = [], contactPhone, contactEmail } = req.body;
         if (!selectedSeats.length || !passengers.length) {

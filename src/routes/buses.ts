@@ -1,9 +1,24 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
 import { prisma } from '../prisma';
-import { requireAuth } from '../middleware/auth';
 import { sendWhatsApp } from '../services/notificationService';
 
 const router = express.Router();
+
+// Optional Auth: allows both logged-in users and guest bookings
+const optionalAuth = async (req: Request, res: Response, next: NextFunction) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        try {
+            const payload = jwt.verify(token, process.env.JWT_SECRET || 'super-secret-jwt-key') as any;
+            req.user = payload;
+        } catch {
+            // Non-fatal for optional authentication
+        }
+    }
+    next();
+};
 
 // ── AbhiBus / Partner B2B API Configuration Placeholder ──────────────────────
 const ABHIBUS_API_KEY = process.env.ABHIBUS_API_KEY || '';
@@ -306,7 +321,7 @@ router.get('/:id/seats', async (req: Request, res: Response) => {
 });
 
 // ── 3. POST /api/buses/book ───────────────────────────────────────────────────
-router.post('/book', requireAuth, async (req: Request, res: Response) => {
+router.post('/book', optionalAuth, async (req: Request, res: Response) => {
     try {
         const {
             busId,
