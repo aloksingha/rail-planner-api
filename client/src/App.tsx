@@ -6,7 +6,7 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import {
   LayoutDashboard, Ticket, CreditCard, Settings, ShieldCheck,
   BookOpen, ReceiptText, UserCog, LogOut, Train, BadgeIndianRupee,
-  Tags, Zap, Plane, Bus, Car, MessageSquare, Scale, Route as RouteIcon, Mail, AlertCircle,
+  Tags, Zap, Plane, Bus, MessageSquare, Scale, Route as RouteIcon, Mail, AlertCircle,
   Info, RotateCcw, Megaphone, Wallet, Sun, Moon, 
   Users,
   AlertTriangle,
@@ -56,7 +56,6 @@ const TicketBookingForm = lazy(() => import('./components/TicketBookingForm'));
 const TicketBookingFormAndroid = lazy(() => import('./components/TicketBookingFormAndroid'));
 const FlightBooking = lazy(() => import('./pages/FlightBooking'));
 const BusBooking = lazy(() => import('./pages/BusBooking'));
-const CarRental = lazy(() => import('./pages/CarRental'));
 const ContactUs = lazy(() => import('./pages/ContactUs'));
 const TermsAndConditions = lazy(() => import('./pages/TermsAndConditions'));
 const ManageSettings = lazy(() => import('./pages/ManageSettings'));
@@ -870,7 +869,6 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
                 <NavLink to="/bookings" icon={BookOpen}>My Bookings</NavLink>
                 <NavLink to="/flight-booking" icon={Plane}>Flight Booking</NavLink>
                 <NavLink to="/bus-booking" icon={Bus}>Bus Booking</NavLink>
-                <NavLink to="/car-rental" icon={Car}>Car Rental</NavLink>
                 
                 <SidebarSection label="Account" />
                 <NavLink to="/wallet" icon={Wallet}>My Wallet</NavLink>
@@ -948,7 +946,6 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
                 <NavLink to="/coupons" icon={Tags}>Manage Coupons</NavLink>
                 <NavLink to="/flight-booking" icon={Plane}>Flight Booking</NavLink>
                 <NavLink to="/bus-booking" icon={Bus}>Bus Booking</NavLink>
-                <NavLink to="/car-rental" icon={Car}>Car Rental</NavLink>
 
                 <SidebarSection label="Internal Finance" />
                 <NavLink to="/sales/transactions" icon={ReceiptText}>Platform Ledger</NavLink>
@@ -1173,7 +1170,7 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
                   <Route path="/refunds" element={<ManualRefunds />} />
                   <Route path="/flight-booking" element={<FlightBooking />} />
                   <Route path="/bus-booking" element={<BusBooking />} />
-                  <Route path="/car-rental" element={<CarRental />} />
+                  <Route path="/car-rental" element={<Navigate to="/" replace />} />
                   <Route path="/contact" element={<ContactUs />} />
                   <Route path="/terms" element={<TermsAndConditions />} />
                   <Route path="/about" element={<AboutUs />} />
