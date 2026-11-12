@@ -166,18 +166,6 @@ export default function TravelGuide() {
           </table>
         </div>
       </div>
-
-      <footer className="w-full pt-8 pb-4 border-t border-slate-200/50 dark:border-white/5 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-4">
-        <p>© 2026 Tickets Pro. Smart Rail Intelligence &amp; Automated Booking.</p>
-        <nav className="flex flex-wrap items-center gap-4 text-xs font-bold uppercase tracking-wider">
-          <Link to="/about" className="hover:text-primary transition-colors">About Us</Link>
-          <Link to="/contact" className="hover:text-primary transition-colors">Contact Support</Link>
-          <Link to="/pricing" className="hover:text-primary transition-colors">Pricing</Link>
-          <Link to="/terms" className="hover:text-primary transition-colors">Terms &amp; Conditions</Link>
-          <Link to="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
-          <Link to="/refund-policy" className="hover:text-primary transition-colors">Refund Policy</Link>
-        </nav>
-      </footer>
     </div>
   );
 }
