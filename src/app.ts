@@ -31,6 +31,7 @@ import { prisma } from './prisma';
 import { requireAuth } from './middleware/auth';
 
 const app = express();
+app.disable('x-powered-by');
 
 app.use(compression());
 
@@ -156,6 +157,11 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/promotions', promotionsRoutes);
 app.use('/api/test', testDiagnosticsRoutes);
 app.use('/api/invoices', invoiceRoutes);
+
+// Return JSON 404 for unknown /api/* routes instead of falling through to SPA HTML
+app.all('/api/*', (_req, res) => {
+    return res.status(404).json({ error: 'API endpoint not found' });
+});
 
 // --- PRODUCTION STATIC SERVING ---
 if (process.env.NODE_ENV === 'production') {

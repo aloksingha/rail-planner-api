@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { prisma } from '../prisma';
 import { requireAuth, requireRole } from '../middleware/auth';
+import { rateLimiter } from '../middleware/rateLimit';
 import { isValidIndianMobile } from '../utils/validation';
 
 const router = Router();
 
 // Publicly accessible to record a failure (no auth required to capture leads)
-router.post('/', async (req, res) => {
+router.post('/', rateLimiter({ windowSeconds: 300, maxRequests: 10, message: 'Too many submissions. Please wait a few minutes.' }), async (req, res) => {
     const { name, email, mobile, trainName, trainNumber, source, destination, journeyDate, trainClass, reason } = req.body;
 
     if (!name || !email || !mobile) {

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.requireRole = exports.requireAuth = exports.generateToken = void 0;
+exports.requireRole = exports.optionalAuth = exports.requireAuth = exports.generateToken = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const prisma_1 = require("../prisma");
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key';
@@ -53,6 +53,21 @@ const requireAuth = async (req, res, next) => {
     }
 };
 exports.requireAuth = requireAuth;
+const optionalAuth = async (req, _res, next) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        try {
+            const payload = jsonwebtoken_1.default.verify(token, JWT_SECRET);
+            req.user = payload;
+        }
+        catch {
+            // Non-fatal for optional authentication
+        }
+    }
+    next();
+};
+exports.optionalAuth = optionalAuth;
 const requireRole = (roles, options) => {
     const normalizedTargetRoles = roles.map(r => r.toUpperCase());
     return (req, res, next) => {

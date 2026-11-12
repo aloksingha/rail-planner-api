@@ -74,6 +74,20 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
     }
 };
 
+export const optionalAuth = async (req: Request, _res: Response, next: NextFunction) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+        const token = authHeader.split(' ')[1];
+        try {
+            const payload = jwt.verify(token, JWT_SECRET) as JwtPayload;
+            req.user = payload;
+        } catch {
+            // Non-fatal for optional authentication
+        }
+    }
+    next();
+};
+
 export const requireRole = (roles: string[], options?: { allowSpecialPermission?: string }) => {
     const normalizedTargetRoles = roles.map(r => r.toUpperCase());
     return (req: Request, res: Response, next: NextFunction) => {

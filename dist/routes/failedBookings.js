@@ -3,10 +3,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const prisma_1 = require("../prisma");
 const auth_1 = require("../middleware/auth");
+const rateLimit_1 = require("../middleware/rateLimit");
 const validation_1 = require("../utils/validation");
 const router = (0, express_1.Router)();
 // Publicly accessible to record a failure (no auth required to capture leads)
-router.post('/', async (req, res) => {
+router.post('/', (0, rateLimit_1.rateLimiter)({ windowSeconds: 300, maxRequests: 10, message: 'Too many submissions. Please wait a few minutes.' }), async (req, res) => {
     const { name, email, mobile, trainName, trainNumber, source, destination, journeyDate, trainClass, reason } = req.body;
     if (!name || !email || !mobile) {
         return res.status(400).json({ error: 'Name, Email, and Mobile are required' });

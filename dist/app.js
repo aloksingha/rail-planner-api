@@ -32,6 +32,7 @@ const compression_1 = __importDefault(require("compression"));
 const prisma_1 = require("./prisma");
 const auth_2 = require("./middleware/auth");
 const app = (0, express_1.default)();
+app.disable('x-powered-by');
 app.use((0, compression_1.default)());
 // SEC-20: Backend Defensive HTTP Security Headers
 app.use((req, res, next) => {
@@ -148,6 +149,10 @@ app.use('/api/notifications', notifications_1.default);
 app.use('/api/promotions', promotions_1.default);
 app.use('/api/test', testDiagnostics_1.default);
 app.use('/api/invoices', invoice_1.default);
+// Return JSON 404 for unknown /api/* routes instead of falling through to SPA HTML
+app.all('/api/*', (_req, res) => {
+    return res.status(404).json({ error: 'API endpoint not found' });
+});
 // --- PRODUCTION STATIC SERVING ---
 if (process.env.NODE_ENV === 'production') {
     // Correctly resolve client/dist from the compiled dist/ directory

@@ -4,24 +4,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const auth_1 = require("../middleware/auth");
+const rateLimit_1 = require("../middleware/rateLimit");
+const validation_1 = require("../utils/validation");
 const notificationService_1 = require("../services/notificationService");
 const router = express_1.default.Router();
-// Optional Auth: allows both logged-in users and guest bookings
-const optionalAuth = async (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    if (authHeader?.startsWith('Bearer ')) {
-        const token = authHeader.split(' ')[1];
-        try {
-            const payload = jsonwebtoken_1.default.verify(token, process.env.JWT_SECRET || 'super-secret-jwt-key');
-            req.user = payload;
-        }
-        catch {
-            // Non-fatal for optional authentication
-        }
-    }
-    next();
-};
 // ── AbhiBus / Partner B2B API Configuration Placeholder ──────────────────────
 const ABHIBUS_API_KEY = process.env.ABHIBUS_API_KEY || '';
 const ABHIBUS_CLIENT_ID = process.env.ABHIBUS_CLIENT_ID || '';
@@ -279,7 +266,7 @@ router.get('/:id/seats', async (req, res) => {
     }
 });
 // ── 3. POST /api/buses/book ───────────────────────────────────────────────────
-router.post('/book', optionalAuth, async (req, res) => {
+router.post('/book', (0, rateLimit_1.rateLimiter)({ windowSeconds: 60, maxRequests: 5, message: 'Too many booking requests. Please wait a minute before trying again.' }), auth_1.optionalAuth, async (req, res) => {
     try {
         const { busId, operatorName, busType, fromCity, toCity, travelDate, departureTime, boardingPoint, droppingPoint, selectedSeats = [], passengers = [], contactPhone, contactEmail } = req.body;
         if (!selectedSeats.length || !passengers.length) {
@@ -288,9 +275,14 @@ router.post('/book', optionalAuth, async (req, res) => {
         const seatNumbers = selectedSeats.map((s) => s.no || s).join(', ');
         const totalAmount = selectedSeats.reduce((acc, s) => acc + (s.price || 700), 0);
         const bookingId = `TP-BUS-${Date.now().toString().slice(-6)}`;
-        // Send instant WhatsApp notification
+        // Send instant WhatsApp notification (only for valid 10-digit Indian mobile numbers)
         if (contactPhone) {
-            const phoneStr = String(contactPhone);
+            const digits = String(contactPhone).replace(/\D/g, '');
+            const mobile10 = digits.slice(-10);
+            if (!(0, validation_1.isValidIndianMobile)(mobile10)) {
+                return res.status(400).json({ error: 'Invalid Indian contact phone number.' });
+            }
+            const phoneStr = digits.length >= 10 ? digits : mobile10;
             const waMsg = `🚍 *Bus Booking Confirmed — Tickets Pro*
 ━━━━━━━━━━━━━━━━━━
 *Booking ID:* ${bookingId}

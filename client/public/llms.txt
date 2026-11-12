@@ -1,12 +1,14 @@
 # Tickets Pro
 
-> Tickets Pro is an intelligent railway travel planning, IRCTC train ticket reservation, and automated Tatkal assistance platform.
+> Tickets Pro is an intelligent multi-modal travel planning platform for IRCTC train ticket reservations, live Indian domestic/international flight search, intercity bus booking, and automated Tatkal assistance.
 
 ## Overview
-Tickets Pro provides enterprise-grade rail travel tools, real-time seat availability monitoring across Indian Railways (IRCTC), instant Tatkal booking coordination, 10-digit PNR status tracking with live coach/berth confirmation, multi-wallet settlement, and dedicated WhatsApp support.
+Tickets Pro provides enterprise-grade travel booking tools, real-time seat availability monitoring across Indian Railways (IRCTC), live flight discovery via Google Flights, interactive deck/berth bus booking, instant Tatkal booking coordination, 10-digit PNR status tracking with live coach/berth confirmation, multi-wallet settlement, and dedicated WhatsApp support.
 
 ## Key Capabilities
 - **Live Train Seat Availability**: Instant availability checks across SL, 3A, 2A, 1A, 3E, and CC quotas across all IRCTC zones.
+- **Flight Search & Booking**: Real-time INR pricing, non-stop filters, and multi-airline flight comparisons across Indian and international routes.
+- **Intercity Bus Booking**: Interactive Lower/Upper deck sleeper & seater layouts with boarding/dropping points and WhatsApp e-ticket dispatch.
 - **Tatkal Booking Assistance**: Automated workflows ensuring rapid booking submission during 10:00 AM (AC) and 11:00 AM (Non-AC) Tatkal windows.
 - **WhatsApp PNR Status**: Instant 10-digit PNR status checks via automated WhatsApp bot and live dashboard lookup.
 - **Secure Refund & Cancellation**: Zero-friction automated refund calculation conforming strictly to Indian Railways refund rules.
@@ -14,7 +16,10 @@ Tickets Pro provides enterprise-grade rail travel tools, real-time seat availabi
 
 ## Key URLs
 - Homepage: https://ticketspro.in/
-- Ticket Booking: https://ticketspro.in/book-ticket
+- Train Ticket Booking: https://ticketspro.in/book-ticket
+- Flight Booking: https://ticketspro.in/flight-booking
+- Bus Booking: https://ticketspro.in/bus-booking
+- Travel Guide & FAQ: https://ticketspro.in/travel-guide
 - About Us: https://ticketspro.in/about
 - Contact & Support: https://ticketspro.in/contact
 - Pricing: https://ticketspro.in/pricing

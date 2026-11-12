@@ -1,24 +1,11 @@
-import express, { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import express, { Request, Response } from 'express';
 import { prisma } from '../prisma';
+import { optionalAuth } from '../middleware/auth';
+import { rateLimiter } from '../middleware/rateLimit';
+import { isValidIndianMobile } from '../utils/validation';
 import { sendWhatsApp } from '../services/notificationService';
 
 const router = express.Router();
-
-// Optional Auth: allows both logged-in users and guest bookings
-const optionalAuth = async (req: Request, res: Response, next: NextFunction) => {
-    const authHeader = req.headers.authorization;
-    if (authHeader?.startsWith('Bearer ')) {
-        const token = authHeader.split(' ')[1];
-        try {
-            const payload = jwt.verify(token, process.env.JWT_SECRET || 'super-secret-jwt-key') as any;
-            req.user = payload;
-        } catch {
-            // Non-fatal for optional authentication
-        }
-    }
-    next();
-};
 
 // ── AbhiBus / Partner B2B API Configuration Placeholder ──────────────────────
 const ABHIBUS_API_KEY = process.env.ABHIBUS_API_KEY || '';
@@ -321,7 +308,11 @@ router.get('/:id/seats', async (req: Request, res: Response) => {
 });
 
 // ── 3. POST /api/buses/book ───────────────────────────────────────────────────
-router.post('/book', optionalAuth, async (req: Request, res: Response) => {
+router.post(
+    '/book',
+    rateLimiter({ windowSeconds: 60, maxRequests: 5, message: 'Too many booking requests. Please wait a minute before trying again.' }),
+    optionalAuth,
+    async (req: Request, res: Response) => {
     try {
         const {
             busId,
@@ -347,9 +338,14 @@ router.post('/book', optionalAuth, async (req: Request, res: Response) => {
         const totalAmount = selectedSeats.reduce((acc: number, s: any) => acc + (s.price || 700), 0);
         const bookingId = `TP-BUS-${Date.now().toString().slice(-6)}`;
 
-        // Send instant WhatsApp notification
+        // Send instant WhatsApp notification (only for valid 10-digit Indian mobile numbers)
         if (contactPhone) {
-            const phoneStr = String(contactPhone);
+            const digits = String(contactPhone).replace(/\D/g, '');
+            const mobile10 = digits.slice(-10);
+            if (!isValidIndianMobile(mobile10)) {
+                return res.status(400).json({ error: 'Invalid Indian contact phone number.' });
+            }
+            const phoneStr = digits.length >= 10 ? digits : mobile10;
             const waMsg = `🚍 *Bus Booking Confirmed — Tickets Pro*
 ━━━━━━━━━━━━━━━━━━
 *Booking ID:* ${bookingId}
