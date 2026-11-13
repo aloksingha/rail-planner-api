@@ -219,6 +219,33 @@ class VisitorShieldService {
     }
 
     /**
+     * Returns detailed list of active visitors for Super Admin Viewer
+     */
+    getRecentVisitorsList() {
+        return Array.from(this.recentVisitors.values())
+            .map(({ profile, lastSeen, ip, city }) => {
+                const parts = ip.split('.');
+                const maskedIp = parts.length === 4 ? `${parts[0]}.${parts[1]}.xx.${parts[3]}` : (ip.includes(':') ? 'IPv6' : ip);
+                const devType = profile.deviceType === 'mobile' ? 'Mobile' : (profile.deviceType === 'tablet' ? 'Tablet' : 'Desktop');
+                return {
+                    visitorId: profile.visitorId,
+                    maskedIp,
+                    city: city && city !== 'Other' ? city : 'India',
+                    deviceType: devType,
+                    deviceSummary: `${devType} (${profile.os || 'Device'} • ${profile.browser || 'Browser'})`,
+                    screenResolution: profile.screenResolution || '1080p',
+                    source: profile.attribution?.utm_source?.toUpperCase() || (profile.attribution?.referrer ? 'Referral' : 'Direct'),
+                    campaign: profile.attribution?.utm_campaign || '',
+                    visitCount: profile.visitCount || 1,
+                    isHotLead: !!profile.isHotLead,
+                    searches: profile.recentSearches || [],
+                    lastSeen: new Date(lastSeen).toISOString(),
+                };
+            })
+            .sort((a, b) => new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime());
+    }
+
+    /**
      * Returns live telemetry statistics for Admin Dashboards
      */
     getStats() {

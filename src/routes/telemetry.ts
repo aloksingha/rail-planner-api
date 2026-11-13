@@ -25,6 +25,16 @@ router.get('/stats', (req: Request, res: Response) => {
     }
 });
 
+// Super Admin / Admin: Live anonymous visitor telemetry list
+router.get('/visitors', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), (req: Request, res: Response) => {
+    try {
+        const visitors = visitorShield.getRecentVisitorsList();
+        return res.json({ success: true, visitors });
+    } catch (err: any) {
+        return res.status(500).json({ error: 'Failed to retrieve visitor list.' });
+    }
+});
+
 // Public: Echo client IP and Edge GeoIP context
 router.get('/context', (req: Request, res: Response) => {
     try {
