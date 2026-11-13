@@ -1,6 +1,6 @@
 import React, { useEffect, useState, Suspense, useMemo } from 'react';
 import axios from 'axios';
-import { Users, ShoppingBag, Activity, ChevronRight, TrendingUp, Plus, Clock, Terminal, AlertCircle, CheckCircle2, Zap, ArrowUpRight, ShieldCheck } from 'lucide-react';
+import { Users, ShoppingBag, Activity, ChevronRight, TrendingUp, Plus, Clock, Terminal, AlertCircle, CheckCircle2, Zap, ArrowUpRight, ShieldCheck, Fingerprint, X, RefreshCw, Flame, MapPin, Smartphone, Compass } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import WalletCard from '../components/WalletCard';
@@ -111,6 +111,43 @@ export default function DashboardHome({ role }: { role?: string }) {
   });
   const [loading, setLoading] = useState(!stats);
   const [loadingActivities, setLoadingActivities] = useState(activities.length === 0);
+  const [showVisitorModal, setShowVisitorModal] = useState(false);
+  const [visitorList, setVisitorList] = useState<any[]>([]);
+  const [loadingVisitors, setLoadingVisitors] = useState(false);
+  const [telemetryStats, setTelemetryStats] = useState<any>(null);
+
+  const fetchVisitors = async () => {
+    setLoadingVisitors(true);
+    try {
+      const token = localStorage.getItem('token');
+      const { data } = await axios.get('/api/telemetry/visitors', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (data.success) {
+        setVisitorList(data.visitors || []);
+      }
+    } catch (e) {
+      console.error('Failed to load visitors', e);
+    } finally {
+      setLoadingVisitors(false);
+    }
+  };
+
+  const fetchTelemetryStats = async () => {
+    try {
+      const { data } = await axios.get('/api/telemetry/stats');
+      if (data.success) {
+        setTelemetryStats(data.stats);
+      }
+    } catch (e) {
+      // Non-critical
+    }
+  };
+
+  const handleOpenVisitorModal = () => {
+    setShowVisitorModal(true);
+    fetchVisitors();
+  };
 
   const user = (() => {
     try {
@@ -161,6 +198,7 @@ export default function DashboardHome({ role }: { role?: string }) {
     };
 
     fetchDashboardData();
+    fetchTelemetryStats();
   }, []);
 
   const chartData = useMemo(() => {
@@ -405,6 +443,41 @@ export default function DashboardHome({ role }: { role?: string }) {
                   </div>
                 </div>
               </div>
+
+              {/* Visitor Intelligence & Bot Shield Pulse */}
+              <div 
+                onClick={handleOpenVisitorModal}
+                className="mt-3 p-3.5 rounded-2xl bg-gradient-to-r from-blue-950/40 via-slate-900/60 to-teal-950/40 border border-blue-500/30 hover:border-blue-400/60 flex flex-wrap items-center justify-between gap-3 text-xs cursor-pointer transition-all hover:scale-[1.01] shadow-lg group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-blue-500/20 text-blue-400 group-hover:scale-110 transition-transform">
+                    <Fingerprint size={18} />
+                  </div>
+                  <div>
+                    <p className="font-black text-slate-200 text-xs uppercase tracking-tight flex items-center gap-2">
+                      Visitor Intelligence &amp; Bot Shield
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-black uppercase tracking-wider">
+                        Live Terminal
+                      </span>
+                    </p>
+                    <p className="text-[10px] text-slate-400 font-medium">
+                      Multi-Touch Attribution • Zero-Cookie Digital Fingerprint • Click to View Live Feed
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="px-2.5 py-1 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] font-bold text-slate-300">
+                    🛡️ <span className="text-emerald-400">Bot Shield:</span> {telemetryStats?.blockedBots || 0} Blocked
+                  </div>
+                  <div className="px-2.5 py-1 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] font-bold text-slate-300">
+                    🔥 <span className="text-amber-400">Hot Leads:</span> {telemetryStats?.hotLeadsCount || 0}
+                  </div>
+                  <div className="px-2.5 py-1 rounded-xl bg-blue-500/10 border border-blue-500/30 text-[11px] font-bold text-blue-400 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                    <span>View Feed →</span>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -479,6 +552,135 @@ export default function DashboardHome({ role }: { role?: string }) {
           </div>
         )}
       </div>
+
+      {/* Live Visitor Intelligence Modal */}
+      {showVisitorModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-4xl max-h-[85vh] bg-slate-900 border border-slate-700/60 rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                  <Fingerprint size={24} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-white uppercase tracking-tight flex items-center gap-2">
+                    Live Visitor Intelligence Feed
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  </h2>
+                  <p className="text-xs text-slate-400">
+                    Real-time digital fingerprints, device specs, corridor search intent &amp; ad attribution
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={fetchVisitors}
+                  disabled={loadingVisitors}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300 border border-slate-700 transition-all"
+                >
+                  <RefreshCw size={13} className={loadingVisitors ? 'animate-spin' : ''} />
+                  <span>Refresh</span>
+                </button>
+                <button
+                  onClick={() => setShowVisitorModal(false)}
+                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition-all"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body: Visitors Table / List */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-3 custom-scrollbar">
+              {loadingVisitors ? (
+                <div className="py-20 text-center text-slate-500 flex flex-col items-center gap-2">
+                  <RefreshCw size={24} className="animate-spin text-blue-400" />
+                  <p className="text-xs font-bold uppercase tracking-wider">Loading Live Visitor Signals...</p>
+                </div>
+              ) : visitorList.length === 0 ? (
+                <div className="py-16 text-center text-slate-500 flex flex-col items-center gap-3">
+                  <Fingerprint size={36} className="text-slate-600" />
+                  <p className="text-sm font-bold text-slate-400">No active sessions detected yet.</p>
+                  <p className="text-xs text-slate-500 max-w-md">
+                    Visitor fingerprints are recorded automatically in real time whenever travelers browse routes or search tickets on ticketspro.in.
+                  </p>
+                </div>
+              ) : (
+                visitorList.map((v: any, idx: number) => (
+                  <div
+                    key={v.visitorId || idx}
+                    className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80 hover:border-blue-500/30 transition-all space-y-2.5"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-bold text-blue-400 bg-blue-500/10 px-2.5 py-1 rounded-lg border border-blue-500/20">
+                          {v.visitorId}
+                        </span>
+                        {v.isHotLead && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-black uppercase tracking-wider">
+                            <Flame size={12} className="text-rose-400 animate-pulse" /> Hot Lead ({v.visitCount} visits)
+                          </span>
+                        )}
+                        <span className="text-[11px] font-bold text-slate-400">
+                          IP: {v.maskedIp}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-bold uppercase">
+                        Seen: {new Date(v.lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                      <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">
+                        <MapPin size={12} className="text-blue-400" />
+                        <span>{v.city}</span>
+                      </div>
+                      <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">
+                        <Smartphone size={12} className="text-indigo-400" />
+                        <span>{v.deviceSummary}</span>
+                      </div>
+                      <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-teal-300">
+                        <Compass size={12} className="text-teal-400" />
+                        <span>Source: {v.source} {v.campaign ? `(${v.campaign})` : ''}</span>
+                      </div>
+                      <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-slate-400">
+                        <span>Screen: {v.screenResolution}</span>
+                      </div>
+                      <div className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold ml-auto">
+                        <ShieldCheck size={12} />
+                        <span>Clean Verified</span>
+                      </div>
+                    </div>
+
+                    {v.searches && v.searches.length > 0 && (
+                      <div className="pt-2 border-t border-slate-800/60 flex flex-wrap items-center gap-2 text-xs">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Searched Routes:</span>
+                        {v.searches.map((s: any, sIdx: number) => (
+                          <span key={sIdx} className="px-2 py-0.5 rounded-md bg-brand-blue/10 border border-brand-blue/20 text-brand-blue text-[11px] font-bold">
+                            {s.mode?.toUpperCase()}: {s.from} ➔ {s.to} {s.date ? `(${s.date})` : ''}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 bg-slate-950/60 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+              <span>Showing active real-time sessions • Live Sync</span>
+              <button
+                onClick={() => setShowVisitorModal(false)}
+                className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold transition-all"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

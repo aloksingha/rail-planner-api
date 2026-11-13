@@ -10,6 +10,7 @@ import axios from 'axios';
 import { isValidIndianMobile } from '../utils/validation';
 import { POPULAR_STATIONS, STATION_OVERRIDES, FRONTEND_NEARBY_STATIONS } from '../utils/constants';
 import { TRAIN_CLASS_LABELS, getClassesToShow, getTicketPrice, resolveToCode } from '../utils/trainUtils';
+import { recordRouteSearch } from '../utils/visitorIntelligence';
 import PaymentGatewaySelector, { PaymentMethod } from './booking/PaymentGatewaySelector';
 import YouPiPaymentModal from './booking/YouPiPaymentModal';
 
@@ -523,6 +524,8 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
             setAvailableTrains([]); // Clear 'Awaiting' state
             return;
         }
+
+        recordRouteSearch(finalSource, finalDest, 'train', journeyDate);
 
         // âŒ Instant Guard: Block "Intra-City" searches to prevent confusion (Frontend Sync)
         const isSameCluster = finalSource === finalDest || (FRONTEND_NEARBY_STATIONS[finalSource] || []).includes(finalDest);

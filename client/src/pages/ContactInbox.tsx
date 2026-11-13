@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Mail, Trash2, CheckCircle2, Clock, AlertCircle, RefreshCw, Search, MessageSquare } from 'lucide-react';
+import { Mail, Trash2, CheckCircle2, Clock, AlertCircle, RefreshCw, Search, MessageSquare, MapPin, Smartphone, Compass, Flame, ShieldCheck, ShieldAlert } from 'lucide-react';
 
 interface ContactMsg {
     id: string;
@@ -10,6 +10,46 @@ interface ContactMsg {
     message: string;
     status: 'UNREAD' | 'READ' | 'RESOLVED';
     createdAt: string;
+}
+
+interface ParsedTelemetry {
+    city: string;
+    device: string;
+    source: string;
+    intent: string;
+    shield: string;
+}
+
+function parseMessageTelemetry(rawMsg: string): { cleanText: string; telemetry: ParsedTelemetry | null } {
+    const match = rawMsg.match(/\[TELEMETRY_META:\s*(.*?)\]/);
+    if (!match) return { cleanText: rawMsg, telemetry: null };
+
+    const cleanText = rawMsg.replace(/\[TELEMETRY_META:\s*(.*?)\]/, '').trim();
+    const pairs = match[1].split('|');
+    const data: Record<string, string> = {};
+    pairs.forEach(p => {
+        const idx = p.indexOf('=');
+        if (idx > -1) {
+            const k = p.substring(0, idx).trim();
+            const v = p.substring(idx + 1).trim();
+            try {
+                data[k] = decodeURIComponent(v);
+            } catch {
+                data[k] = v;
+            }
+        }
+    });
+
+    return {
+        cleanText,
+        telemetry: {
+            city: data.city || 'India',
+            device: data.device || 'Mobile Browser',
+            source: data.source || 'Direct',
+            intent: data.intent || 'New Visitor',
+            shield: data.shield || 'VERIFIED',
+        }
+    };
 }
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string; border: string; icon: any }> = {
@@ -131,6 +171,8 @@ export default function ContactInbox() {
                             const meta = STATUS_META[msg.status];
                             const StatusIcon = meta.icon;
                             const isExpanded = expandedId === msg.id;
+                            const { cleanText, telemetry } = parseMessageTelemetry(msg.message);
+                            const isHot = telemetry?.intent?.includes('Hot Lead');
                             return (
                                 <div key={msg.id} className={`rounded-xl border transition-all overflow-hidden ${meta.border} ${msg.status === 'UNREAD' ? 'bg-slate-800/60' : 'bg-slate-900/40'}`}>
                                     {/* Row */}
@@ -141,6 +183,11 @@ export default function ContactInbox() {
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2">
                                                 <span className={`text-sm font-bold ${msg.status === 'UNREAD' ? 'text-white' : 'text-slate-300'}`}>{msg.name}</span>
+                                                {isHot && (
+                                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[9px] font-black uppercase tracking-wider">
+                                                        <Flame size={10} className="text-rose-400 animate-pulse" /> Hot Lead
+                                                    </span>
+                                                )}
                                                 <span className="text-xs text-slate-500">·</span>
                                                 <span className="text-xs text-slate-400 truncate">{msg.email}</span>
                                             </div>
@@ -154,8 +201,34 @@ export default function ContactInbox() {
 
                                     {/* Expanded body */}
                                     {isExpanded && (
-                                        <div className="px-4 pb-4 pt-1 border-t border-slate-700/50">
-                                            <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap bg-slate-900/50 rounded-lg p-3 mb-3">{msg.message}</p>
+                                        <div className="px-4 pb-4 pt-1 border-t border-slate-700/50 space-y-3">
+                                            {/* Visitor Intelligence Telemetry Bar */}
+                                            {telemetry && (
+                                                <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3 flex flex-wrap items-center gap-2 text-xs">
+                                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 font-medium">
+                                                        <MapPin size={12} className="text-blue-400" />
+                                                        <span>{telemetry.city}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 font-medium">
+                                                        <Smartphone size={12} className="text-indigo-400" />
+                                                        <span>{telemetry.device}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-teal-500/10 border border-teal-500/20 text-teal-400 font-medium">
+                                                        <Compass size={12} className="text-teal-400" />
+                                                        <span>Source: {telemetry.source}</span>
+                                                    </div>
+                                                    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-medium border ${isHot ? 'bg-amber-500/10 border-amber-500/20 text-amber-400' : 'bg-slate-800 border-slate-700 text-slate-300'}`}>
+                                                        <Flame size={12} className={isHot ? 'text-amber-400' : 'text-slate-400'} />
+                                                        <span>{telemetry.intent}</span>
+                                                    </div>
+                                                    <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg font-medium border ml-auto ${telemetry.shield === 'VERIFIED' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-rose-500/10 border-rose-500/20 text-rose-400'}`}>
+                                                        {telemetry.shield === 'VERIFIED' ? <ShieldCheck size={12} className="text-emerald-400" /> : <ShieldAlert size={12} className="text-rose-400" />}
+                                                        <span>{telemetry.shield === 'VERIFIED' ? 'Clean Verified' : 'Suspicious VPN / Proxy'}</span>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap bg-slate-900/50 rounded-lg p-3">{cleanText}</p>
                                             <div className="flex gap-2 flex-wrap">
                                                 {['UNREAD', 'READ', 'RESOLVED'].filter(s => s !== msg.status).map(s => (
                                                     <button key={s} onClick={() => changeStatus(msg.id, s)}

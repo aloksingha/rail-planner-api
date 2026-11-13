@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { recordRouteSearch } from '../utils/visitorIntelligence';
 import {
     Bus, Search, Calendar, MapPin, Users, CheckCircle2,
     Loader2, AlertCircle, RefreshCw, Trash2, ArrowRight,
@@ -130,6 +131,7 @@ export default function BusBooking() {
 
     const handleSearch = async () => {
         if (!source || !destination || !date) return;
+        recordRouteSearch(source, destination, 'bus', date);
         setSearching(true);
         setSearchError('');
         setSearchDone(false);

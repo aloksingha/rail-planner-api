@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { Mail, Phone, MapPin, MessageSquare, Send, CheckCircle2, Facebook, Edit2 } from 'lucide-react';
 import { jwtDecode } from 'jwt-decode';
+import { getVisitorProfile } from '../utils/visitorIntelligence';
 
 export default function ContactUs() {
     const [form, setForm] = useState({ name: '', email: '', subject: '', message: '' });
@@ -16,7 +17,8 @@ export default function ContactUs() {
         address: '123 Express Hub, Tech Park Phase 2, Bengaluru, Karnataka 560100',
         whatsapp: '',
         facebook: '',
-        telegram: ''
+        telegram: '',
+        gstNo: ''
     });
 
     useEffect(() => {
@@ -52,7 +54,8 @@ export default function ContactUs() {
         setSending(true);
         setError('');
         try {
-            await axios.post('/api/contact', form);
+            const telemetry = getVisitorProfile();
+            await axios.post('/api/contact', { ...form, visitorTelemetry: telemetry });
             setSent(true);
             setForm({ name: '', email: '', subject: '', message: '' });
         } catch (err: any) {
@@ -122,6 +125,11 @@ export default function ContactUs() {
                         <p className="text-slate-400 text-[10px] text-balance whitespace-pre-line leading-relaxed font-bold uppercase tracking-tighter">
                             {settings.address}
                         </p>
+                        {settings.gstNo && (
+                            <p className="text-slate-400 text-[10px] mt-2 font-bold uppercase tracking-tighter">
+                                GST NO: <span className="text-white">{settings.gstNo}</span>
+                            </p>
+                        )}
                     </div>
 
                     {(settings.whatsapp || settings.facebook || settings.telegram) && (

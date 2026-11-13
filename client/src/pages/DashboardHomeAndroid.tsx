@@ -1,6 +1,6 @@
 import React, { useEffect, useState, Suspense, useMemo } from 'react';
 import axios from 'axios';
-import { Users, ShoppingBag, Activity, ChevronRight, TrendingUp, Plus, Clock, Terminal, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Users, ShoppingBag, Activity, ChevronRight, TrendingUp, Plus, Clock, Terminal, AlertCircle, CheckCircle2, Zap, ArrowUpRight, ShieldCheck, Fingerprint, X, RefreshCw, Flame, MapPin, Smartphone, Compass } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import WalletCard from '../components/WalletCard';
@@ -112,6 +112,43 @@ export default function DashboardHomeAndroid({ role }: { role?: string }) {
   });
   const [loading, setLoading] = useState(!stats);
   const [loadingActivities, setLoadingActivities] = useState(activities.length === 0);
+  const [showVisitorModal, setShowVisitorModal] = useState(false);
+  const [visitorList, setVisitorList] = useState<any[]>([]);
+  const [loadingVisitors, setLoadingVisitors] = useState(false);
+  const [telemetryStats, setTelemetryStats] = useState<any>(null);
+
+  const fetchVisitors = async () => {
+    setLoadingVisitors(true);
+    try {
+      const token = localStorage.getItem('token');
+      const { data } = await axios.get('/api/telemetry/visitors', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (data.success) {
+        setVisitorList(data.visitors || []);
+      }
+    } catch (e) {
+      console.error('Failed to load visitors', e);
+    } finally {
+      setLoadingVisitors(false);
+    }
+  };
+
+  const fetchTelemetryStats = async () => {
+    try {
+      const { data } = await axios.get('/api/telemetry/stats');
+      if (data.success) {
+        setTelemetryStats(data.stats);
+      }
+    } catch (e) {
+      // Non-critical
+    }
+  };
+
+  const handleOpenVisitorModal = () => {
+    setShowVisitorModal(true);
+    fetchVisitors();
+  };
 
   const user = (() => {
     try {
@@ -162,6 +199,7 @@ export default function DashboardHomeAndroid({ role }: { role?: string }) {
     };
 
     fetchDashboardData();
+    fetchTelemetryStats();
   }, []);
 
   const chartData = useMemo(() => {
@@ -307,6 +345,164 @@ export default function DashboardHomeAndroid({ role }: { role?: string }) {
 
         {(isSuperAdmin || isAdmin) && (
           <div className="space-y-6">
+            {/* Quick Operations & Gateway Nodes Terminal */}
+            <div className="card-glow p-5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 rounded-3xl shadow-sm transition-all space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/5">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-brand-blue/10 border border-brand-blue/20 flex items-center justify-center text-brand-blue">
+                    <Zap size={14} />
+                  </div>
+                  <div>
+                    <h2 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Platform Operations &amp; Command Nodes</h2>
+                    <p className="text-[8px] text-slate-500 font-bold uppercase tracking-wider">Direct Access &amp; Gateway Dispatch</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[9px] font-black uppercase tracking-wider">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Gateway Active
+                </div>
+              </div>
+
+              {/* 6 Quick Action Grid Tiles */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                <Link to="/book-ticket" className="command-node-tile p-3 rounded-2xl transition-all group hover:scale-[1.02] bg-slate-50 dark:bg-slate-800/60 border border-slate-200/50 dark:border-white/5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="p-1.5 rounded-lg bg-brand-blue/10 text-brand-blue border border-brand-blue/20">
+                      <Plus size={14} />
+                    </div>
+                    <ArrowUpRight size={12} className="text-slate-400 group-hover:text-brand-blue" />
+                  </div>
+                  <h3 className="text-[11px] font-black uppercase tracking-tight">Instant Booking</h3>
+                  <p className="text-[9px] text-slate-500 font-semibold truncate">IRCTC Tatkal &amp; General</p>
+                </Link>
+
+                <Link to="/failed-bookings" className="command-node-tile p-3 rounded-2xl transition-all group hover:scale-[1.02] bg-slate-50 dark:bg-slate-800/60 border border-slate-200/50 dark:border-white/5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="p-1.5 rounded-lg bg-rose-500/10 text-rose-500 border border-rose-500/20">
+                      <AlertCircle size={14} />
+                    </div>
+                    <span className="text-[8px] font-black px-1.5 py-0.2 rounded bg-rose-500/10 text-rose-500 border border-rose-500/20">{stats?.failedBookingCount || 0} Pending</span>
+                  </div>
+                  <h3 className="text-[11px] font-black uppercase tracking-tight">Failed Bookings</h3>
+                  <p className="text-[9px] text-slate-500 font-semibold truncate">Urgent Intervention</p>
+                </Link>
+
+                <Link to="/inbox" className="command-node-tile p-3 rounded-2xl transition-all group hover:scale-[1.02] bg-slate-50 dark:bg-slate-800/60 border border-slate-200/50 dark:border-white/5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                      <Terminal size={14} />
+                    </div>
+                    <ArrowUpRight size={12} className="text-slate-400 group-hover:text-emerald-500" />
+                  </div>
+                  <h3 className="text-[11px] font-black uppercase tracking-tight">Contact Inbox</h3>
+                  <p className="text-[9px] text-slate-500 font-semibold truncate">WhatsApp &amp; Web Leads</p>
+                </Link>
+
+                <Link to="/price-requests" className="command-node-tile p-3 rounded-2xl transition-all group hover:scale-[1.02] bg-slate-50 dark:bg-slate-800/60 border border-slate-200/50 dark:border-white/5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                      <TrendingUp size={14} />
+                    </div>
+                    <span className="text-[8px] font-black px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-500 border border-amber-500/20">{stats?.priceRequestCount || 0} Review</span>
+                  </div>
+                  <h3 className="text-[11px] font-black uppercase tracking-tight">Price Requests</h3>
+                  <p className="text-[9px] text-slate-500 font-semibold truncate">Custom Pricing</p>
+                </Link>
+
+                <Link to="/corridors" className="command-node-tile p-3 rounded-2xl transition-all group hover:scale-[1.02] bg-slate-50 dark:bg-slate-800/60 border border-slate-200/50 dark:border-white/5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 border border-indigo-500/20">
+                      <ShieldCheck size={14} />
+                    </div>
+                    <ArrowUpRight size={12} className="text-slate-400 group-hover:text-indigo-500" />
+                  </div>
+                  <h3 className="text-[11px] font-black uppercase tracking-tight">Corridors</h3>
+                  <p className="text-[9px] text-slate-500 font-semibold truncate">Route Margins</p>
+                </Link>
+
+                <Link to="/coupons" className="command-node-tile p-3 rounded-2xl transition-all group hover:scale-[1.02] bg-slate-50 dark:bg-slate-800/60 border border-slate-200/50 dark:border-white/5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="p-1.5 rounded-lg bg-teal-500/10 text-teal-500 border border-teal-500/20">
+                      <CheckCircle2 size={14} />
+                    </div>
+                    <ArrowUpRight size={12} className="text-slate-400 group-hover:text-teal-500" />
+                  </div>
+                  <h3 className="text-[11px] font-black uppercase tracking-tight">Coupons</h3>
+                  <p className="text-[9px] text-slate-500 font-semibold truncate">Promos &amp; Offers</p>
+                </Link>
+              </div>
+
+              {/* 4 Gateway Nodes Status Pulse */}
+              <div className="pt-2.5 border-t border-slate-100 dark:border-white/5 grid grid-cols-2 gap-2">
+                <div className="command-node-pill flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/40 dark:border-white/5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] shrink-0" />
+                  <div className="min-w-0">
+                    <p className="pill-title text-[9px] font-black uppercase truncate">Core Rail API</p>
+                    <p className="text-[8px] text-emerald-500 font-bold uppercase">Render Online</p>
+                  </div>
+                </div>
+
+                <div className="command-node-pill flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/40 dark:border-white/5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] shrink-0" />
+                  <div className="min-w-0">
+                    <p className="pill-title text-[9px] font-black uppercase truncate">IRCTC Engine</p>
+                    <p className="text-[8px] text-emerald-500 font-bold uppercase">RailKit Active</p>
+                  </div>
+                </div>
+
+                <div className="command-node-pill flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/40 dark:border-white/5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] shrink-0" />
+                  <div className="min-w-0">
+                    <p className="pill-title text-[9px] font-black uppercase truncate">WhatsApp Node</p>
+                    <p className="text-[8px] text-emerald-500 font-bold uppercase">WhatsGateway</p>
+                  </div>
+                </div>
+
+                <div className="command-node-pill flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200/40 dark:border-white/5">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.8)] shrink-0" />
+                  <div className="min-w-0">
+                    <p className="pill-title text-[9px] font-black uppercase truncate">TextBee SMS</p>
+                    <p className="text-[8px] text-emerald-500 font-bold uppercase">Airtel Dedicated</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* VISITOR INTELLIGENCE & BOT SHIELD PULSE (Exact match to the Web!) */}
+              <div 
+                onClick={handleOpenVisitorModal}
+                className="mt-3 p-3 rounded-2xl bg-gradient-to-r from-blue-950/40 via-slate-900/60 to-teal-950/40 border border-blue-500/30 hover:border-blue-400/60 flex flex-wrap items-center justify-between gap-2.5 text-xs cursor-pointer transition-all active:scale-[0.98] shadow-lg group"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="p-2 rounded-xl bg-blue-500/20 text-blue-400 group-hover:scale-110 transition-transform shrink-0">
+                    <Fingerprint size={16} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-black text-slate-200 text-[11px] uppercase tracking-tight flex items-center gap-1.5 truncate">
+                      Visitor Intelligence &amp; Bot Shield
+                      <span className="inline-flex items-center px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[8px] font-black uppercase tracking-wider shrink-0">
+                        Live Terminal
+                      </span>
+                    </p>
+                    <p className="text-[9px] text-slate-400 font-medium truncate">
+                      Multi-Touch Attribution • Click to View Live Feed
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5 w-full sm:w-auto justify-between sm:justify-end">
+                  <div className="px-2 py-0.5 rounded-lg bg-slate-900/90 border border-slate-800 text-[10px] font-bold text-slate-300">
+                    🛡️ <span className="text-emerald-400">Bot Shield:</span> {telemetryStats?.blockedBots || 0} Blocked
+                  </div>
+                  <div className="px-2 py-0.5 rounded-lg bg-slate-900/90 border border-slate-800 text-[10px] font-bold text-slate-300">
+                    🔥 <span className="text-amber-400">Hot Leads:</span> {telemetryStats?.hotLeadsCount || 0}
+                  </div>
+                  <div className="px-2 py-0.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-[10px] font-bold text-blue-400 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                    <span>View Feed →</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <WalletCard />
             
             <div className="card-glow p-5 bg-white dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 rounded-3xl shadow-sm transition-all flex flex-col max-h-[400px]">
@@ -368,6 +564,132 @@ export default function DashboardHomeAndroid({ role }: { role?: string }) {
           </div>
         )}
       </div>
+
+      {/* Live Visitor Intelligence Modal (Mobile Android Optimized) */}
+      {showVisitorModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl max-h-[88vh] bg-slate-900 border border-slate-700/60 rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                  <Fingerprint size={20} />
+                </div>
+                <div>
+                  <h2 className="text-sm sm:text-base font-black text-white uppercase tracking-tight flex items-center gap-2">
+                    Visitor Intelligence Feed
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  </h2>
+                  <p className="text-[10px] text-slate-400">
+                    Real-time digital fingerprints &amp; route intent
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={fetchVisitors}
+                  disabled={loadingVisitors}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-[10px] font-bold text-slate-300 border border-slate-700 transition-all"
+                >
+                  <RefreshCw size={11} className={loadingVisitors ? 'animate-spin' : ''} />
+                  <span>Refresh</span>
+                </button>
+                <button
+                  onClick={() => setShowVisitorModal(false)}
+                  className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white border border-slate-700 transition-all"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2.5 custom-scrollbar">
+              {loadingVisitors ? (
+                <div className="py-16 text-center text-slate-500 flex flex-col items-center gap-2">
+                  <RefreshCw size={20} className="animate-spin text-blue-400" />
+                  <p className="text-[10px] font-bold uppercase tracking-wider">Loading Live Signals...</p>
+                </div>
+              ) : visitorList.length === 0 ? (
+                <div className="py-12 text-center text-slate-500 flex flex-col items-center gap-2">
+                  <Fingerprint size={32} className="text-slate-600" />
+                  <p className="text-xs font-bold text-slate-400">No active sessions detected yet.</p>
+                  <p className="text-[10px] text-slate-500 max-w-xs">
+                    Visitor fingerprints are recorded automatically when travelers search tickets on TicketsPro.
+                  </p>
+                </div>
+              ) : (
+                visitorList.map((v: any, idx: number) => (
+                  <div
+                    key={v.visitorId || idx}
+                    className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800/80 hover:border-blue-500/30 transition-all space-y-2"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-1.5">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-mono text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-lg border border-blue-500/20">
+                          {v.visitorId}
+                        </span>
+                        {v.isHotLead && (
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[9px] font-black uppercase tracking-wider">
+                            <Flame size={10} className="text-rose-400 animate-pulse" /> Hot Lead ({v.visitCount} visits)
+                          </span>
+                        )}
+                        <span className="text-[10px] font-bold text-slate-400">
+                          IP: {v.maskedIp}
+                        </span>
+                      </div>
+                      <span className="text-[9px] text-slate-500 font-bold uppercase">
+                        {new Date(v.lastSeen).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">
+                        <MapPin size={10} className="text-blue-400" />
+                        <span>{v.city}</span>
+                      </div>
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-800 text-slate-300">
+                        <Smartphone size={10} className="text-indigo-400" />
+                        <span>{v.deviceSummary}</span>
+                      </div>
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-800 text-teal-300">
+                        <Compass size={10} className="text-teal-400" />
+                        <span>{v.source}</span>
+                      </div>
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold ml-auto">
+                        <ShieldCheck size={10} />
+                        <span>Clean</span>
+                      </div>
+                    </div>
+
+                    {v.searches && v.searches.length > 0 && (
+                      <div className="pt-1.5 border-t border-slate-800/60 flex flex-wrap items-center gap-1.5 text-[10px]">
+                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Searched:</span>
+                        {v.searches.map((s: any, sIdx: number) => (
+                          <span key={sIdx} className="px-1.5 py-0.2 rounded bg-brand-blue/10 border border-brand-blue/20 text-brand-blue font-bold">
+                            {s.from} ➔ {s.to}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-3 bg-slate-950/60 border-t border-slate-800 flex items-center justify-between text-[10px] text-slate-400">
+              <span>Live Synced</span>
+              <button
+                onClick={() => setShowVisitorModal(false)}
+                className="px-3 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold transition-all text-xs"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

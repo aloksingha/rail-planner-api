@@ -25,6 +25,7 @@ import { InteractiveBackground } from './components/InteractiveBackground';
 import { App as CapApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import brandLogo from './assets/brand_logo.webp';
+import { syncVisitorTelemetry } from './utils/visitorIntelligence';
 
 // ✅ DIRECT IMPORTS for Absolute UI Stability
 import AnnouncementPopup from './components/AnnouncementPopup';
@@ -400,6 +401,7 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
     };
 
     checkServer();
+    syncVisitorTelemetry();
 
     return () => {
       active = false;

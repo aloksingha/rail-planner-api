@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { recordRouteSearch } from '../utils/visitorIntelligence';
 import {
     Plane, Search, Calendar, ArrowRight,
     CheckCircle2, Loader2, Award,
@@ -143,6 +144,7 @@ export default function FlightBooking() {
 
     const handleSearch = async () => {
         if (!source || !destination || !date) return;
+        recordRouteSearch(source, destination, 'flight', date);
         setSearching(true);
         setFlights([]);
         setSearchError('');
