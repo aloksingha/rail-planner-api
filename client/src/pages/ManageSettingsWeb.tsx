@@ -2,6 +2,28 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Settings, QrCode, Mail, Phone, MapPin, Save, Loader2, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
 
+const formatOtaTimestamp = (version?: string, updatedAt?: string) => {
+    let date: Date | null = null;
+    const match = version ? String(version).match(/v?(\d{10,13})/) : null;
+    if (match) {
+        let ts = Number(match[1]);
+        if (ts < 1e11) ts *= 1000;
+        date = new Date(ts);
+    } else if (updatedAt) {
+        date = new Date(updatedAt);
+    }
+    if (!date || isNaN(date.getTime())) return 'Never';
+    return date.toLocaleString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+    });
+};
+
 export default function ManageSettings() {
     const [form, setForm] = useState({
                 email: '',

@@ -31,6 +31,7 @@ import { syncVisitorTelemetry } from './utils/visitorIntelligence';
 import AnnouncementPopup from './components/AnnouncementPopup';
 import HotUpdateManager from './components/HotUpdateManager';
 import PageLoader from './components/PageLoader';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 
 import DashboardHome from './pages/DashboardHome';
@@ -1135,7 +1136,8 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
           <div className="p-4 lg:p-8 max-w-screen-2xl mx-auto w-full relative z-10">
             <div className="relative">
                <Suspense fallback={<PageLoader />}>
-                <Routes>
+                <ErrorBoundary>
+                  <Routes>
                   <Route path="/" element={auth.role === 'CUSTOMER' ? <CustomerDashboard /> : auth.role === 'SALES_MANAGER' ? <SalesOptions /> : <DashboardHome role={auth.role} />} />
                   <Route path="/book-ticket" element={<TicketBookingForm />} />
                   <Route path="/bookings" element={<CustomerBookings />} />
@@ -1190,6 +1192,7 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
                   <Route path="/sales/login" element={<Navigate to="/" replace />} />
                   <Route path="/book-ticket-android" element={<TicketBookingFormAndroid />} />
                 </Routes>
+                </ErrorBoundary>
               </Suspense>
             </div>
           </div>
