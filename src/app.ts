@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import 'express-async-errors';
 
@@ -94,6 +95,46 @@ app.get('/uploads/ticket_*.pdf', requireAuth, async (req, res) => {
 
 // Serve public static assets (promo banners, general assets)
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
+// Robust APK and downloads handler with automatic fallback to latest release
+app.get('/downloads/:filename', (req, res) => {
+    const filename = path.basename(req.params.filename);
+    const downloadsDir = path.join(__dirname, '..', 'downloads');
+    const targetPath = path.join(downloadsDir, filename);
+
+    if (fs.existsSync(targetPath)) {
+        return res.download(targetPath, filename, {
+            headers: {
+                'Content-Type': 'application/vnd.android.package-archive'
+            }
+        });
+    }
+
+    // Fallback: If any APK version is requested (e.g. tickets-pro-v3.5.12.apk or tickets-pro-latest.apk),
+    // serve the latest versioned APK available in the downloads directory
+    if (filename.toLowerCase().endsWith('.apk')) {
+        try {
+            if (fs.existsSync(downloadsDir)) {
+                const files = fs.readdirSync(downloadsDir).filter(f => f.endsWith('.apk') && f.startsWith('tickets-pro-v'));
+                files.sort((a, b) => b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' }));
+                const latestApk = files[0];
+                if (latestApk) {
+                    const latestPath = path.join(downloadsDir, latestApk);
+                    console.log(`[Downloads] Serving latest APK (${latestApk}) for requested ${filename}`);
+                    return res.download(latestPath, filename, {
+                        headers: {
+                            'Content-Type': 'application/vnd.android.package-archive'
+                        }
+                    });
+                }
+            }
+        } catch (err) {
+            console.error('[Downloads Fallback Error]:', err);
+        }
+    }
+
+    return res.status(404).json({ error: 'File not found' });
+});
 app.use('/downloads', express.static(path.join(__dirname, '..', 'downloads')));
 
 app.get('/health', async (req, res) => {

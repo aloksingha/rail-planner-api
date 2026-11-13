@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
 const path_1 = __importDefault(require("path"));
+const fs_1 = __importDefault(require("fs"));
 require("express-async-errors");
 const auth_1 = __importDefault(require("./routes/auth"));
 const payments_1 = __importDefault(require("./routes/payments"));
@@ -28,6 +29,7 @@ const notifications_1 = __importDefault(require("./routes/notifications"));
 const promotions_1 = __importDefault(require("./routes/promotions"));
 const testDiagnostics_1 = __importDefault(require("./routes/testDiagnostics"));
 const invoice_1 = __importDefault(require("./routes/invoice"));
+const telemetry_1 = __importDefault(require("./routes/telemetry"));
 const compression_1 = __importDefault(require("compression"));
 const prisma_1 = require("./prisma");
 const auth_2 = require("./middleware/auth");
@@ -87,6 +89,43 @@ app.get('/uploads/ticket_*.pdf', auth_2.requireAuth, async (req, res) => {
 });
 // Serve public static assets (promo banners, general assets)
 app.use('/uploads', express_1.default.static(path_1.default.join(__dirname, '..', 'uploads')));
+// Robust APK and downloads handler with automatic fallback to latest release
+app.get('/downloads/:filename', (req, res) => {
+    const filename = path_1.default.basename(req.params.filename);
+    const downloadsDir = path_1.default.join(__dirname, '..', 'downloads');
+    const targetPath = path_1.default.join(downloadsDir, filename);
+    if (fs_1.default.existsSync(targetPath)) {
+        return res.download(targetPath, filename, {
+            headers: {
+                'Content-Type': 'application/vnd.android.package-archive'
+            }
+        });
+    }
+    // Fallback: If any APK version is requested (e.g. tickets-pro-v3.5.12.apk or tickets-pro-latest.apk),
+    // serve the latest versioned APK available in the downloads directory
+    if (filename.toLowerCase().endsWith('.apk')) {
+        try {
+            if (fs_1.default.existsSync(downloadsDir)) {
+                const files = fs_1.default.readdirSync(downloadsDir).filter(f => f.endsWith('.apk') && f.startsWith('tickets-pro-v'));
+                files.sort((a, b) => b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' }));
+                const latestApk = files[0];
+                if (latestApk) {
+                    const latestPath = path_1.default.join(downloadsDir, latestApk);
+                    console.log(`[Downloads] Serving latest APK (${latestApk}) for requested ${filename}`);
+                    return res.download(latestPath, filename, {
+                        headers: {
+                            'Content-Type': 'application/vnd.android.package-archive'
+                        }
+                    });
+                }
+            }
+        }
+        catch (err) {
+            console.error('[Downloads Fallback Error]:', err);
+        }
+    }
+    return res.status(404).json({ error: 'File not found' });
+});
 app.use('/downloads', express_1.default.static(path_1.default.join(__dirname, '..', 'downloads')));
 app.get('/health', async (req, res) => {
     try {
@@ -149,6 +188,7 @@ app.use('/api/notifications', notifications_1.default);
 app.use('/api/promotions', promotions_1.default);
 app.use('/api/test', testDiagnostics_1.default);
 app.use('/api/invoices', invoice_1.default);
+app.use('/api/telemetry', telemetry_1.default);
 // Return JSON 404 for unknown /api/* routes instead of falling through to SPA HTML
 app.all('/api/*', (_req, res) => {
     return res.status(404).json({ error: 'API endpoint not found' });
