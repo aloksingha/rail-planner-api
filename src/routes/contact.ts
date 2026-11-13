@@ -3,18 +3,33 @@ import express, { Request, Response } from 'express';
 import { prisma } from '../prisma';
 import { requireAuth, requireRole } from '../middleware/auth';
 import { rateLimiter } from '../middleware/rateLimit';
+import { visitorShield } from '../services/visitorShieldService';
 
 const router = express.Router();
 
-// Public: Submit a contact message (rate limited to prevent WhatsApp alert flooding)
+// Public: Submit a contact message (rate limited & shielded to prevent bot flooding)
 router.post('/', rateLimiter({ windowSeconds: 300, maxRequests: 5, message: 'Too many contact messages sent. Please wait 5 minutes before sending another inquiry.' }), async (req: Request, res: Response) => {
-    const { name, email, subject, message } = req.body;
+    const { name, email, subject, message, visitorTelemetry } = req.body;
     if (!name || !email || !subject || !message) {
         return res.status(400).json({ error: 'All fields are required.' });
     }
+
+    // Run Visitor Intelligence & Bot Shield
+    const visitorContext = visitorShield.inspectRequest(req, visitorTelemetry);
+
+    // Silently discard automated headless bot spam without triggering WhatsApp alerts
+    if (visitorContext.isBot) {
+        console.warn(`[BotShield] Silently dropping automated scraper message from IP: ${visitorContext.ip}`);
+        return res.json({ success: true, id: 'shielded_bot' });
+    }
+
     try {
+        // Embed structured telemetry signature into message for dashboard badge rendering
+        const telemetryMeta = `\n\n[TELEMETRY_META: city=${encodeURIComponent(visitorContext.city)}|device=${encodeURIComponent(visitorContext.deviceSummary)}|source=${encodeURIComponent(visitorContext.sourceSummary)}|intent=${encodeURIComponent(visitorContext.intentSummary)}|shield=${visitorContext.shieldVerdict}]`;
+        const enrichedMessage = `${message}${telemetryMeta}`;
+
         const msg = await prisma.contactMessage.create({
-            data: { name, email, subject, message, status: 'UNREAD' }
+            data: { name, email, subject, message: enrichedMessage, status: 'UNREAD' }
         });
 
         // Trigger High-Priority WhatsApp notification to Admin Mobile
@@ -24,7 +39,7 @@ router.post('/', rateLimiter({ windowSeconds: 300, maxRequests: 5, message: 'Too
                 const adminPhone = settings?.phone || '7318815790';
                 if (adminPhone) {
                     const waText = 
-`🚨 *TicketsPro High Priority Alert: New Contact Inquiry!*
+`🚨 *TicketsPro Priority Alert: New Contact Inquiry!*
 
 👤 *Name:* ${name}
 📧 *Email:* ${email}
@@ -32,11 +47,17 @@ router.post('/', rateLimiter({ windowSeconds: 300, maxRequests: 5, message: 'Too
 💬 *Message:*
 "${message}"
 
+📍 *Location:* ${visitorContext.city}${visitorContext.region ? `, ${visitorContext.region}` : ''} (${visitorContext.networkType})
+📱 *Device:* ${visitorContext.deviceSummary}
+🔥 *Visitor Intent:* ${visitorContext.intentSummary}
+📊 *Ad Attribution:* ${visitorContext.sourceSummary}
+🛡️ *Shield Verdict:* ${visitorContext.shieldVerdict === 'VERIFIED' ? '✅ Clean Verified' : '⚠️ Suspicious VPN'}
+
 👉 *Manage in Contact Inbox:*
 https://ticketspro.in/inbox`;
 
                     await sendWhatsApp(adminPhone, waText);
-                    console.log(`✅ Admin alerted via WhatsApp for contact inquiry (${adminPhone})`);
+                    console.log(`✅ Admin alerted via WhatsApp with visitor intelligence for contact inquiry (${adminPhone})`);
                 }
             } catch (notifyErr: any) {
                 console.error('⚠️ Failed to dispatch WhatsApp admin alert for contact message:', notifyErr?.message || notifyErr);

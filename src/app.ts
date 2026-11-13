@@ -25,6 +25,7 @@ import notificationRoutes from './routes/notifications';
 import promotionsRoutes from './routes/promotions';
 import testDiagnosticsRoutes from './routes/testDiagnostics';
 import invoiceRoutes from './routes/invoice';
+import telemetryRoutes from './routes/telemetry';
 
 import compression from 'compression';
 import { prisma } from './prisma';
@@ -157,6 +158,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/promotions', promotionsRoutes);
 app.use('/api/test', testDiagnosticsRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/telemetry', telemetryRoutes);
 
 // Return JSON 404 for unknown /api/* routes instead of falling through to SPA HTML
 app.all('/api/*', (_req, res) => {
