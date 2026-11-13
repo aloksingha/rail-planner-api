@@ -485,14 +485,7 @@ export default function LoginPage({ setToken, roleType, isAuthenticated }: Login
                                     </div>
                                 </a>
                                 <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">Available for Android 8.0+</p>
-                                <footer className="mt-8 pt-6 border-t border-slate-200 dark:border-white/5 flex flex-wrap items-center justify-center gap-4 text-[10px] text-slate-500 uppercase tracking-widest font-bold">
-                                    <Link to="/about" className="hover:text-brand-blue transition-colors">About Us</Link>
-                                    <Link to="/contact" className="hover:text-brand-blue transition-colors">Contact</Link>
-                                    <Link to="/pricing" className="hover:text-brand-blue transition-colors">Pricing</Link>
-                                    <Link to="/terms" className="hover:text-brand-blue transition-colors">Terms</Link>
-                                    <Link to="/privacy" className="hover:text-brand-blue transition-colors">Privacy</Link>
-                                    <Link to="/refund-policy" className="hover:text-brand-blue transition-colors">Refund Policy</Link>
-                                </footer>
+
                             </div>
                         </motion.div>
                     </div>
