@@ -31,6 +31,7 @@ import { syncVisitorTelemetry } from './utils/visitorIntelligence';
 import AnnouncementPopup from './components/AnnouncementPopup';
 import HotUpdateManager from './components/HotUpdateManager';
 import PageLoader from './components/PageLoader';
+import PublicPageLayout from './components/PublicPageLayout';
 
 import DashboardHome from './pages/DashboardHome';
 import CustomerDashboard from './pages/CustomerDashboard';
@@ -722,6 +723,31 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
 
 
   if (!auth.token || !auth.role) {
+    // Public compliance and legal routes accessible without requiring login
+    const publicPages: Record<string, React.ReactNode> = {
+      '/about': <AboutUs />,
+      '/contact': <ContactUs />,
+      '/pricing': <Pricing />,
+      '/terms': <TermsAndConditions />,
+      '/privacy': <PrivacyPolicy />,
+      '/refund-policy': <RefundPolicy />,
+      '/travel-guide': <TravelGuide />,
+      '/faq': <TravelGuide />,
+    };
+
+    if (publicPages[location.pathname]) {
+      return (
+        <>
+          <HotUpdateManager />
+          <PublicPageLayout>
+            <Suspense fallback={<PageLoader />}>
+              {publicPages[location.pathname]}
+            </Suspense>
+          </PublicPageLayout>
+        </>
+      );
+    }
+
     let loginComponent = <LoginPage setToken={setToken} roleType="CUSTOMER" isAuthenticated={false} />;
     if (location.pathname === '/admin/login') {
       loginComponent = <LoginPage setToken={setToken} roleType="ADMIN" isAuthenticated={false} />;

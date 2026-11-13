@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useGoogleLogin } from '@react-oauth/google';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import brandLogo from '../assets/brand_logo.png';
+import brandLogo from '../assets/brand_logo.webp';
 import { Browser } from '@capacitor/browser';
 import { App } from '@capacitor/app';
 
@@ -101,6 +101,7 @@ export default function LoginPage({ setToken, roleType, isAuthenticated }: Login
         onSuccess: tokenResponse => handleGoogleSuccess(tokenResponse),
         onError: () => setError('Native Google Login Failed'),
         flow: 'implicit',
+        scope: 'email profile openid',
     });
 
     const handleLoginClick = useCallback(() => {
@@ -485,12 +486,12 @@ export default function LoginPage({ setToken, roleType, isAuthenticated }: Login
                                 </a>
                                 <p className="text-[9px] font-bold text-slate-600 uppercase tracking-widest">Available for Android 8.0+</p>
                                 <footer className="mt-8 pt-6 border-t border-slate-200 dark:border-white/5 flex flex-wrap items-center justify-center gap-4 text-[10px] text-slate-500 uppercase tracking-widest font-bold">
-                                    <a href="/about" className="hover:text-brand-blue transition-colors">About Us</a>
-                                    <a href="/contact" className="hover:text-brand-blue transition-colors">Contact</a>
-                                    <a href="/pricing" className="hover:text-brand-blue transition-colors">Pricing</a>
-                                    <a href="/terms" className="hover:text-brand-blue transition-colors">Terms</a>
-                                    <a href="/privacy" className="hover:text-brand-blue transition-colors">Privacy</a>
-                                    <a href="/refund-policy" className="hover:text-brand-blue transition-colors">Refund Policy</a>
+                                    <Link to="/about" className="hover:text-brand-blue transition-colors">About Us</Link>
+                                    <Link to="/contact" className="hover:text-brand-blue transition-colors">Contact</Link>
+                                    <Link to="/pricing" className="hover:text-brand-blue transition-colors">Pricing</Link>
+                                    <Link to="/terms" className="hover:text-brand-blue transition-colors">Terms</Link>
+                                    <Link to="/privacy" className="hover:text-brand-blue transition-colors">Privacy</Link>
+                                    <Link to="/refund-policy" className="hover:text-brand-blue transition-colors">Refund Policy</Link>
                                 </footer>
                             </div>
                         </motion.div>
