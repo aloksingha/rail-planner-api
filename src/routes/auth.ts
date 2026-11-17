@@ -24,8 +24,7 @@ router.post('/bypass', rateLimiter({ windowSeconds: 60, maxRequests: 10, message
     const envAdminPass = process.env.ADMIN_PASSWORD || 'Machhol@733215';
     const isCustomAdminTest = email === 'admin@ticketspro.in' && (
         password === envAdminPass || 
-        password === 'Machhol@733215' || 
-        password === 'admin@733215'
+        password === 'Machhol@733215'
     );
     const isNormalTest = email === TEST_EMAIL && password === 'test1234';
     const isAdminTest = email === TEST_ADMIN_EMAIL && password === 'admin1234';
@@ -140,6 +139,10 @@ router.post('/google', rateLimiter({ windowSeconds: 60, maxRequests: 20, message
             }
         });
         console.timeEnd('[Auth] DB Upsert');
+
+        if (user.status === 'BLOCKED') {
+            return res.status(403).json({ error: 'Your account has been blocked. Please contact support.' });
+        }
 
         prisma.auditLog.create({
             data: {

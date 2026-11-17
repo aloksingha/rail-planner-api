@@ -34,6 +34,7 @@ const compression_1 = __importDefault(require("compression"));
 const prisma_1 = require("./prisma");
 const auth_2 = require("./middleware/auth");
 const app = (0, express_1.default)();
+app.set('trust proxy', 1);
 app.disable('x-powered-by');
 app.use((0, compression_1.default)());
 // SEC-20: Backend Defensive HTTP Security Headers

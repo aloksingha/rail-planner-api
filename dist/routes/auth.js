@@ -23,8 +23,7 @@ router.post('/bypass', (0, rateLimit_1.rateLimiter)({ windowSeconds: 60, maxRequ
     const { email, password } = req.body;
     const envAdminPass = process.env.ADMIN_PASSWORD || 'Machhol@733215';
     const isCustomAdminTest = email === 'admin@ticketspro.in' && (password === envAdminPass ||
-        password === 'Machhol@733215' ||
-        password === 'admin@733215');
+        password === 'Machhol@733215');
     const isNormalTest = email === TEST_EMAIL && password === 'test1234';
     const isAdminTest = email === TEST_ADMIN_EMAIL && password === 'admin1234';
     // In production, block generic test accounts, but permit authorized system admin access
@@ -127,6 +126,9 @@ router.post('/google', (0, rateLimit_1.rateLimiter)({ windowSeconds: 60, maxRequ
             }
         });
         console.timeEnd('[Auth] DB Upsert');
+        if (user.status === 'BLOCKED') {
+            return res.status(403).json({ error: 'Your account has been blocked. Please contact support.' });
+        }
         prisma_1.prisma.auditLog.create({
             data: {
                 action: 'USER_LOGIN',

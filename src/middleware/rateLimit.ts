@@ -17,8 +17,7 @@ export function rateLimiter(options: RateLimitOptions) {
 
     return async (req: Request, res: Response, next: NextFunction) => {
         try {
-            const forwarded = req.headers['x-forwarded-for'];
-            const ip = (typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : req.socket.remoteAddress) || '127.0.0.1';
+            const ip = req.ip || (typeof req.headers['x-forwarded-for'] === 'string' ? req.headers['x-forwarded-for'].split(',')[0].trim() : req.socket.remoteAddress) || '127.0.0.1';
             const routeKey = `${keyPrefix}:${req.baseUrl || ''}${req.path}:${ip}`;
 
             const currentVal = await CacheService.get(routeKey);

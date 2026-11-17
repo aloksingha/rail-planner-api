@@ -220,30 +220,58 @@ router.post('/wallet/verify-topup', requireAuth, requireRole(['SUPER_ADMIN', 'AD
     }
 
     try {
-        // 1. Verify Signature
+        // 1. Timing-safe Signature Verification
         const body = razorpay_order_id + "|" + razorpay_payment_id;
         const expectedSignature = crypto
             .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET as string)
             .update(body.toString())
             .digest('hex');
 
-        if (expectedSignature !== razorpay_signature) {
+        const sigBuffer = Buffer.from(razorpay_signature, 'utf8');
+        const expBuffer = Buffer.from(expectedSignature, 'utf8');
+        if (sigBuffer.length !== expBuffer.length || !crypto.timingSafeEqual(sigBuffer, expBuffer)) {
             return res.status(400).json({ error: 'Invalid payment signature' });
         }
 
-        // 2. Transactionally update user balance and log it
+        // 2. Fetch and strictly verify payment details from Razorpay Gateway (Prevents Amount Tampering)
+        let verifiedAmount = Number(amount);
+        try {
+            const payment = await razorpay.payments.fetch(razorpay_payment_id);
+            if (!payment) {
+                return res.status(400).json({ error: 'Payment details could not be retrieved from gateway' });
+            }
+            if (payment.order_id && payment.order_id !== razorpay_order_id) {
+                return res.status(400).json({ error: 'Order ID mismatch between signature and gateway' });
+            }
+            if (payment.status !== 'captured' && payment.status !== 'authorized') {
+                return res.status(400).json({ error: `Payment is not in captured status. Current status: ${payment.status}` });
+            }
+            const gatewayAmountRupees = Math.round(Number(payment.amount) / 100);
+            if (gatewayAmountRupees <= 0) {
+                return res.status(400).json({ error: 'Invalid payment amount reported by gateway' });
+            }
+            if (amount && Math.abs(gatewayAmountRupees - Number(amount)) > 1) {
+                return res.status(400).json({ error: 'Payment amount mismatch between gateway and client payload' });
+            }
+            verifiedAmount = gatewayAmountRupees;
+        } catch (fetchErr: any) {
+            console.error('[Razorpay Verify] Gateway verification error:', fetchErr.message || fetchErr);
+            return res.status(502).json({ error: 'Failed to verify transaction with payment gateway. Please contact support.' });
+        }
+
+        // 3. Transactionally update user balance with VERIFIED amount and log it
         const result = await prisma.$transaction(async (tx) => {
             // Update User Balance
             const user = await tx.user.update({
                 where: { id: req.user!.userId },
-                data: { walletBalance: { increment: amount } }
+                data: { walletBalance: { increment: verifiedAmount } }
             });
 
             // Create Wallet Transaction
             await tx.walletTransaction.create({
                 data: {
                     userId: req.user!.userId,
-                    amount,
+                    amount: verifiedAmount,
                     type: 'CREDIT',
                     description: `Wallet top-up via Razorpay (ID: ${razorpay_payment_id})`
                 }
@@ -254,7 +282,7 @@ router.post('/wallet/verify-topup', requireAuth, requireRole(['SUPER_ADMIN', 'AD
                 data: {
                     orderId: razorpay_order_id,
                     paymentId: razorpay_payment_id,
-                    amount,
+                    amount: verifiedAmount,
                     status: 'CAPTURED',
                     userId: req.user!.userId
                 }
@@ -266,7 +294,7 @@ router.post('/wallet/verify-topup', requireAuth, requireRole(['SUPER_ADMIN', 'AD
                     action: 'WALLET_TOPUP',
                     targetUserId: req.user!.userId,
                     performedByUserId: req.user!.userId,
-                    details: `Added ₹${amount} via Razorpay. New balance: ₹${user.walletBalance}`
+                    details: `Added ₹${verifiedAmount} via Razorpay. New balance: ₹${user.walletBalance}`
                 }
             });
 
