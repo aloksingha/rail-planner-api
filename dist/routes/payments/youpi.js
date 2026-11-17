@@ -50,7 +50,8 @@ router.post('/create-order', auth_1.requireAuth, async (req, res) => {
     }
     const { amount, type = 'BOOKING', // 'BOOKING' | 'WALLET_TOPUP'
     // Booking metadata:
-    trainNo, trainName, fromStation, toStation, journeyDate, passengers, mobile, email, trainClass, passengerList, walletAmountUsed = 0 } = req.body;
+    trainNo, trainName, fromStation, toStation, journeyDate, passengers, mobile, email, trainClass, passengerList, walletAmountUsed = 0, platform } = req.body;
+    const resolvedPlatform = String(platform || req.headers['x-client-platform'] || (req.headers['user-agent']?.includes('Capacitor') ? 'APP' : 'WEB')).toUpperCase() === 'APP' ? 'APP' : 'WEB';
     const numAmount = Number(amount);
     if (!numAmount || numAmount <= 0) {
         return res.status(400).json({ error: 'Invalid payment amount' });
@@ -120,6 +121,7 @@ router.post('/create-order', auth_1.requireAuth, async (req, res) => {
             trainClass,
             passengerList,
             walletAmountUsed,
+            platform: resolvedPlatform,
             createdAt: Date.now()
         };
         await cache_1.CacheService.set(`youpi:order:${orderId}`, JSON.stringify(sessionPayload), 1800);
@@ -225,7 +227,8 @@ async function fulfillYouPiOrder(orderData, utr) {
                 eventId: event.id,
                 paymentId,
                 status: 'CONFIRMED',
-                class: category
+                class: category,
+                platform: orderData?.platform === 'APP' ? 'APP' : 'WEB'
             }
         });
         // If wallet balance was partially used, deduct it

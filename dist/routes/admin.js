@@ -100,6 +100,8 @@ router.get('/team', auth_1.requireAuth, (0, auth_1.requireRole)(['ADMIN']), asyn
                 mobile: true,
                 region: true,
                 createdAt: true,
+                lastLoginPlatform: true,
+                lastLoginAt: true,
                 _count: {
                     select: { bookings: true }
                 }
@@ -207,6 +209,12 @@ router.get('/stats', auth_1.requireAuth, async (req, res) => {
                 count: Number(row.count),
                 amount: Math.round(Number(row.amount))
             }));
+            const [webBookings, appBookings, webLogins, appLogins] = await Promise.all([
+                prisma_1.prisma.booking.count({ where: { ...bookingWhere, platform: 'WEB' } }),
+                prisma_1.prisma.booking.count({ where: { ...bookingWhere, platform: 'APP' } }),
+                prisma_1.prisma.user.count({ where: { ...userWhere, lastLoginPlatform: 'WEB' } }),
+                prisma_1.prisma.user.count({ where: { ...userWhere, lastLoginPlatform: 'APP' } })
+            ]);
             const statsData = {
                 userCount: superAdmins + admins + salesMgrs + customers,
                 teamCount: teamMembersCount,
@@ -219,17 +227,30 @@ router.get('/stats', auth_1.requireAuth, async (req, res) => {
                 SUPER_ADMIN: superAdmins,
                 ADMIN: admins,
                 SALES_MANAGER: salesMgrs,
-                CUSTOMER: customers
+                CUSTOMER: customers,
+                platformStats: {
+                    bookings: { web: webBookings, app: appBookings },
+                    logins: { web: webLogins, app: appLogins }
+                }
             };
             statsCache.set(cacheKey, { data: statsData, expiry: Date.now() + STATS_CACHE_TTL });
             return res.json(statsData);
         }
         if (role === 'SALES_MANAGER') {
-            const [todayCount, totalCount] = await Promise.all([
+            const [todayCount, totalCount, webBookings, appBookings] = await Promise.all([
                 prisma_1.prisma.booking.count({ where: { user: { createdByUserId: userId }, createdAt: { gte: todayStart } } }),
-                prisma_1.prisma.booking.count({ where: { user: { createdByUserId: userId } } })
+                prisma_1.prisma.booking.count({ where: { user: { createdByUserId: userId } } }),
+                prisma_1.prisma.booking.count({ where: { user: { createdByUserId: userId }, platform: 'WEB' } }),
+                prisma_1.prisma.booking.count({ where: { user: { createdByUserId: userId }, platform: 'APP' } })
             ]);
-            const statsData = { todayBookings: todayCount, bookingCount: totalCount, timeline: [] };
+            const statsData = {
+                todayBookings: todayCount,
+                bookingCount: totalCount,
+                timeline: [],
+                platformStats: {
+                    bookings: { web: webBookings, app: appBookings }
+                }
+            };
             statsCache.set(cacheKey, { data: statsData, expiry: Date.now() + STATS_CACHE_TTL });
             return res.json(statsData);
         }
@@ -429,7 +450,7 @@ router.get('/activity-feed', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER
 // Consolidate Statistics & Activity into a single High-Velocity Dashboard Payload
 router.get('/dashboard-data', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
     const { role, userId } = req.user;
-    const cacheKey = `dashboard:bundle:v4:${role}:${userId}`;
+    const cacheKey = `dashboard:bundle:v5:${role}:${userId}`;
     try {
         const cachedStr = await cache_1.CacheService.get(cacheKey);
         if (cachedStr) {
@@ -478,7 +499,7 @@ router.get('/dashboard-data', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPE
                 ORDER BY day ASC
             `;
         // 1. Fetch all dashboard stats concurrently
-        const [roleCounts, teamMembersCount, todayBookings, totalBookings, todayAmountAgg, failedBookingCount, priceRequestCount, auditLogs, recentBookings, timelineRaw] = await Promise.all([
+        const [roleCounts, teamMembersCount, todayBookings, totalBookings, todayAmountAgg, failedBookingCount, priceRequestCount, auditLogs, recentBookings, timelineRaw, webBookings, appBookings, webLogins, appLogins] = await Promise.all([
             prisma_1.prisma.user.groupBy({
                 by: ['role'],
                 _count: { _all: true }
@@ -517,7 +538,11 @@ router.get('/dashboard-data', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPE
                     event: { select: { name: true } }
                 }
             }),
-            timelinePromise
+            timelinePromise,
+            prisma_1.prisma.booking.count({ where: { ...bookingWhere, platform: 'WEB' } }),
+            prisma_1.prisma.booking.count({ where: { ...bookingWhere, platform: 'APP' } }),
+            prisma_1.prisma.user.count({ where: { ...userWhere, lastLoginPlatform: 'WEB' } }),
+            prisma_1.prisma.user.count({ where: { ...userWhere, lastLoginPlatform: 'APP' } })
         ]);
         let superAdmins = 0;
         let admins = 0;
@@ -555,7 +580,11 @@ router.get('/dashboard-data', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPE
                 userCount: superAdmins + admins + salesMgrs + customers,
                 teamCount: teamMembersCount, todayBookings, bookingCount: totalBookings,
                 todayAmount, timeline, failedBookingCount, priceRequestCount,
-                SUPER_ADMIN: superAdmins, ADMIN: admins, SALES_MANAGER: salesMgrs, CUSTOMER: customers
+                SUPER_ADMIN: superAdmins, ADMIN: admins, SALES_MANAGER: salesMgrs, CUSTOMER: customers,
+                platformStats: {
+                    bookings: { web: webBookings, app: appBookings },
+                    logins: { web: webLogins, app: appLogins }
+                }
             },
             activities
         };
@@ -624,6 +653,9 @@ router.get('/bookings', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_ADMI
                 // Default: Only see self bookings
                 where = { user: { createdByUserId: userId } };
             }
+        }
+        if (req.query.platform && (req.query.platform === 'WEB' || req.query.platform === 'APP')) {
+            where.platform = req.query.platform;
         }
         const limit = parseInt(req.query.limit) || 50;
         const page = parseInt(req.query.page) || 1;
@@ -709,6 +741,9 @@ router.get('/transactions', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_
                 where = { user: { createdByUserId: userId } };
             }
         }
+        if (req.query.platform && (req.query.platform === 'WEB' || req.query.platform === 'APP')) {
+            where.platform = req.query.platform;
+        }
         const limit = parseInt(req.query.limit) || 50;
         const page = parseInt(req.query.page) || 1;
         const skip = (page - 1) * limit;
@@ -780,6 +815,9 @@ router.get('/audit-logs', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_AD
                     { targetUser: { createdByUserId: userId } }
                 ]
             };
+        }
+        if (req.query.platform && (req.query.platform === 'WEB' || req.query.platform === 'APP')) {
+            where.platform = req.query.platform;
         }
         const limit = parseInt(req.query.limit) || 50;
         const page = parseInt(req.query.page) || 1;

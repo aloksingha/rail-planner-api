@@ -151,6 +151,267 @@ router.get('/users', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (
     }
 });
 
+// ── Super Admin & Admin: Get Date-wise User Activity History ────────────────
+router.get('/users/:id/activity', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+    const id = req.params.id as string;
+    try {
+        const targetUser = await prisma.user.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                email: true,
+                name: true,
+                mobile: true,
+                role: true,
+                region: true,
+                status: true,
+                walletBalance: true,
+                createdAt: true,
+                createdByUserId: true,
+                lastLoginPlatform: true,
+                lastLoginAt: true
+            }
+        });
+
+        if (!targetUser) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Admin can only see activity for users they manage (or themselves)
+        if (req.user!.role === 'ADMIN' && targetUser.createdByUserId !== req.user!.userId && req.user!.userId !== id) {
+            return res.status(403).json({ error: 'Unauthorized: You can only view activity for users you manage.' });
+        }
+
+        const [audits, bookings, walletTx, priceReqs, withdrawals, payments] = await Promise.all([
+            prisma.auditLog.findMany({
+                where: { OR: [{ targetUserId: id }, { performedByUserId: id }] },
+                orderBy: { timestamp: 'desc' },
+                take: 100
+            }),
+            prisma.booking.findMany({
+                where: { userId: id },
+                include: { 
+                    event: true,
+                    refundRecords: {
+                        orderBy: { createdAt: 'desc' },
+                        take: 1
+                    }
+                },
+                orderBy: { createdAt: 'desc' },
+                take: 50
+            }),
+            prisma.walletTransaction.findMany({
+                where: { userId: id },
+                orderBy: { createdAt: 'desc' },
+                take: 50
+            }),
+            prisma.priceRequest.findMany({
+                where: { userId: id },
+                orderBy: { createdAt: 'desc' },
+                take: 50
+            }),
+            prisma.withdrawalRequest.findMany({
+                where: { userId: id },
+                orderBy: { createdAt: 'desc' },
+                take: 50
+            }),
+            prisma.paymentRecord.findMany({
+                where: { userId: id },
+                orderBy: { createdAt: 'desc' },
+                take: 50
+            })
+        ]);
+
+        const items: any[] = [];
+
+        // 1. Audits & Logins
+        for (const log of audits) {
+            if (log.action === 'USER_LOGIN') {
+                let platform: 'WEB' | 'APP' = 'WEB';
+                try {
+                    if (log.details) {
+                        const parsed = JSON.parse(log.details);
+                        if (parsed.platform === 'APP') platform = 'APP';
+                    }
+                } catch {
+                    if (log.details && log.details.includes('APP')) platform = 'APP';
+                }
+                items.push({
+                    id: `audit-${log.id}`,
+                    type: 'LOGIN',
+                    platform,
+                    title: platform === 'APP' ? 'Mobile App Login' : 'Web Portal Login',
+                    description: `Authenticated via ${platform === 'APP' ? 'Android Mobile App' : 'Web Browser'}`,
+                    timestamp: log.timestamp,
+                    status: 'SUCCESS',
+                    metadata: { action: log.action, rawDetails: log.details }
+                });
+            } else {
+                items.push({
+                    id: `audit-${log.id}`,
+                    type: 'AUDIT',
+                    platform: null,
+                    title: `System Action: ${log.action.replace(/_/g, ' ')}`,
+                    description: log.details || 'System operation executed',
+                    timestamp: log.timestamp,
+                    status: 'COMPLETED',
+                    metadata: { action: log.action }
+                });
+            }
+        }
+
+        // If user has lastLoginAt and no recent login audit event matches it within 1 minute
+        if (targetUser.lastLoginAt) {
+            const hasMatchingLogin = items.some(i => i.type === 'LOGIN' && Math.abs(new Date(i.timestamp).getTime() - new Date(targetUser.lastLoginAt!).getTime()) < 60000);
+            if (!hasMatchingLogin) {
+                const platform = targetUser.lastLoginPlatform === 'APP' ? 'APP' : 'WEB';
+                items.push({
+                    id: `lastlogin-${targetUser.id}`,
+                    type: 'LOGIN',
+                    platform,
+                    title: `${platform === 'APP' ? 'Mobile App' : 'Web Portal'} Login`,
+                    description: `Active session recorded via ${platform === 'APP' ? 'Android Mobile App' : 'Web Browser'}`,
+                    timestamp: targetUser.lastLoginAt,
+                    status: 'SUCCESS',
+                    metadata: { platform }
+                });
+            }
+        }
+
+        // 2. Bookings
+        for (const b of bookings) {
+            items.push({
+                id: `booking-${b.id}`,
+                type: 'BOOKING',
+                platform: b.platform || 'WEB',
+                title: `Ticket Booking: ${b.event?.name || 'Rail Reservation'}`,
+                description: b.event?.description ? `${b.event.description} • Class: ${b.class || 'Standard'}` : `Class: ${b.class || 'Standard'} • Status: ${b.status}`,
+                timestamp: b.createdAt,
+                status: b.status,
+                metadata: {
+                    bookingId: b.id,
+                    platform: b.platform,
+                    ticketUrl: b.ticketUrl,
+                    class: b.class,
+                    refundRecords: b.refundRecords
+                }
+            });
+        }
+
+        // 3. Wallet Transactions
+        for (const w of walletTx) {
+            items.push({
+                id: `wallet-${w.id}`,
+                type: 'WALLET',
+                platform: null,
+                title: w.type === 'CREDIT' ? `Wallet Credited (+₹${w.amount})` : `Wallet Debited (-₹${w.amount})`,
+                description: w.description || (w.type === 'CREDIT' ? 'Funds added to wallet balance' : 'Payment deducted from wallet'),
+                timestamp: w.createdAt,
+                status: 'COMPLETED',
+                amount: w.type === 'CREDIT' ? w.amount : -w.amount,
+                metadata: { type: w.type, bookingId: w.bookingId }
+            });
+        }
+
+        // 4. Price Requests
+        for (const pr of priceReqs) {
+            items.push({
+                id: `price-${pr.id}`,
+                type: 'PRICE_REQUEST',
+                platform: null,
+                title: `Fare Enquiry: ${pr.trainNumber} ${pr.trainName}`,
+                description: `${pr.source} ➔ ${pr.destination} • Class: ${pr.class}${pr.suggestedPrice ? ` • Suggested: ₹${pr.suggestedPrice}` : ''}${pr.adminComment ? ` (${pr.adminComment})` : ''}`,
+                timestamp: pr.createdAt,
+                status: pr.status,
+                metadata: {
+                    trainNumber: pr.trainNumber,
+                    trainName: pr.trainName,
+                    source: pr.source,
+                    destination: pr.destination,
+                    class: pr.class,
+                    suggestedPrice: pr.suggestedPrice
+                }
+            });
+        }
+
+        // 5. Withdrawal Requests
+        for (const wr of withdrawals) {
+            items.push({
+                id: `withdrawal-${wr.id}`,
+                type: 'WITHDRAWAL',
+                platform: null,
+                title: `Withdrawal Request: ₹${wr.amount}`,
+                description: `Method: ${wr.method} • Status: ${wr.status}${wr.charge ? ` • Fee: ₹${wr.charge}` : ''}`,
+                timestamp: wr.createdAt,
+                status: wr.status,
+                amount: -wr.amount,
+                metadata: { method: wr.method, charge: wr.charge }
+            });
+        }
+
+        // 6. Payments
+        for (const p of payments) {
+            items.push({
+                id: `payment-${p.id}`,
+                type: 'PAYMENT',
+                platform: null,
+                title: `Payment: ₹${p.amount}`,
+                description: `Order: ${p.orderId || p.paymentId} • Status: ${p.status}`,
+                timestamp: p.createdAt,
+                status: p.status,
+                amount: p.amount,
+                metadata: { paymentId: p.paymentId, orderId: p.orderId }
+            });
+        }
+
+        // Sort chronologically descending
+        items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+        // Group by calendar date
+        const dateMap = new Map();
+        const todayKey = new Date().toISOString().split('T')[0];
+
+        for (const item of items) {
+            const d = new Date(item.timestamp);
+            const dateKey = d.toISOString().split('T')[0];
+            if (!dateMap.has(dateKey)) {
+                dateMap.set(dateKey, {
+                    dateKey,
+                    dateFormatted: d.toLocaleDateString('en-IN', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                    }),
+                    isToday: dateKey === todayKey,
+                    items: []
+                });
+            }
+            dateMap.get(dateKey).items.push(item);
+        }
+
+        const summary = {
+            totalEvents: items.length,
+            loginCount: items.filter(i => i.type === 'LOGIN').length,
+            bookingCount: items.filter(i => i.type === 'BOOKING').length,
+            walletCount: items.filter(i => i.type === 'WALLET').length,
+            priceRequestCount: items.filter(i => i.type === 'PRICE_REQUEST').length,
+            auditCount: items.filter(i => i.type === 'AUDIT').length,
+            webEventsCount: items.filter(i => i.platform === 'WEB').length,
+            appEventsCount: items.filter(i => i.platform === 'APP').length
+        };
+
+        return res.json({
+            success: true,
+            user: targetUser,
+            summary,
+            timeline: Array.from(dateMap.values())
+        });
+    } catch (error: any) {
+        console.error('Fetch user activity error:', error);
+        return res.status(500).json({ error: error.message || 'Internal Server Error' });
+    }
+});
+
 // ── Super Admin: Update a user's status (Block/Restrict) ────────────────────
 router.patch('/users/:id/status', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
     const id = req.params.id as string;

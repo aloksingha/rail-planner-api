@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Users, Mail, Phone, Ticket, UserPlus, Calendar, TrendingUp, Globe, Smartphone, Clock } from 'lucide-react';
+import { Users, Mail, Phone, Ticket, UserPlus, Calendar, TrendingUp, Globe, Smartphone, Clock, History } from 'lucide-react';
+import UserActivityModal from '../components/UserActivityModal';
 import { Link } from 'react-router-dom';
 
 interface TeamMember {
@@ -27,6 +28,7 @@ export default function AdminTeam() {
     const [members, setMembers] = useState<TeamMember[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [selectedMemberForActivity, setSelectedMemberForActivity] = useState<TeamMember | null>(null);
 
     useEffect(() => {
         axios.get('/api/admin/team')
@@ -130,6 +132,13 @@ export default function AdminTeam() {
                                     </div>
                                     {/* Right badges */}
                                     <div className="flex items-center gap-3 shrink-0">
+                                        <button
+                                            onClick={() => setSelectedMemberForActivity(member)}
+                                            className="flex items-center gap-1.5 px-3 py-2 bg-sky-500/10 hover:bg-sky-500/20 rounded-xl border border-sky-500/30 text-sky-400 font-black text-xs transition-all uppercase tracking-wider"
+                                            title="View Member Activity History"
+                                        >
+                                            <History size={13} /> Activity
+                                        </button>
                                         <div className="flex items-center gap-1.5 px-3 py-2 bg-brand-blue/10 rounded-xl border border-brand-blue/20">
                                             <Ticket size={14} className="text-brand-blue" />
                                             <span className="text-white font-black text-base">{member?._count?.bookings || 0}</span>
@@ -145,6 +154,15 @@ export default function AdminTeam() {
                     })}
                 </div>
             )}
+
+            {/* User Activity History Modal */}
+            <UserActivityModal
+                isOpen={!!selectedMemberForActivity}
+                onClose={() => setSelectedMemberForActivity(null)}
+                userId={selectedMemberForActivity?.id || null}
+                userEmail={selectedMemberForActivity?.email}
+                userName={selectedMemberForActivity?.name || undefined}
+            />
 
             {members.length > 0 && (
                 <Link to="/sales/team"

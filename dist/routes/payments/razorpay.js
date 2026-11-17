@@ -107,13 +107,15 @@ router.post('/verify', auth_1.requireAuth, async (req, res) => {
                 category = 'AC';
             }
             // Create Booking
+            const bookingPlatform = String(req.body.platform || req.headers['x-client-platform'] || (req.headers['user-agent']?.includes('Capacitor') ? 'APP' : 'WEB')).toUpperCase() === 'APP' ? 'APP' : 'WEB';
             const booking = await tx.booking.create({
                 data: {
                     userId: req.user.userId,
                     eventId: event.id,
                     paymentId: razorpay_payment_id,
                     status: 'CONFIRMED',
-                    class: category
+                    class: category,
+                    platform: bookingPlatform
                 }
             });
             await (0, commission_1.checkAndApplyCommission)(tx, req.user.userId, Number(amount), booking.id, trainNo);

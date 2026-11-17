@@ -47,13 +47,15 @@ router.post('/skydo-pay', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_AD
             if (['2A', '3A', 'CC', '1A', '3E', 'FC', 'EC'].includes(String(trainClass || '').toUpperCase())) {
                 category = 'AC';
             }
+            const bookingPlatform = String(req.body.platform || req.headers['x-client-platform'] || (req.headers['user-agent']?.includes('Capacitor') ? 'APP' : 'WEB')).toUpperCase() === 'APP' ? 'APP' : 'WEB';
             const booking = await tx.booking.create({
                 data: {
                     userId: req.user.userId,
                     eventId: event.id,
                     paymentId: skydoPaymentId,
                     status: 'PENDING',
-                    class: category
+                    class: category,
+                    platform: bookingPlatform
                 }
             });
             return { booking, eventName };

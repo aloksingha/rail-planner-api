@@ -490,7 +490,7 @@ router.get('/activity-feed', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']),
 // Consolidate Statistics & Activity into a single High-Velocity Dashboard Payload
 router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
     const { role, userId } = req.user!;
-    const cacheKey = `dashboard:bundle:v4:${role}:${userId}`;
+    const cacheKey = `dashboard:bundle:v5:${role}:${userId}`;
     try {
         const cachedStr = await CacheService.get(cacheKey);
         if (cachedStr) {
@@ -552,7 +552,11 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
             priceRequestCount,
             auditLogs, 
             recentBookings,
-            timelineRaw
+            timelineRaw,
+            webBookings,
+            appBookings,
+            webLogins,
+            appLogins
         ] = await Promise.all([
             prisma.user.groupBy({
                 by: ['role'],
@@ -592,7 +596,11 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
                     event: { select: { name: true } }
                 }
             }),
-            timelinePromise
+            timelinePromise,
+            prisma.booking.count({ where: { ...bookingWhere, platform: 'WEB' } }),
+            prisma.booking.count({ where: { ...bookingWhere, platform: 'APP' } }),
+            prisma.user.count({ where: { ...userWhere, lastLoginPlatform: 'WEB' } }),
+            prisma.user.count({ where: { ...userWhere, lastLoginPlatform: 'APP' } })
         ]);
 
         let superAdmins = 0;
@@ -633,7 +641,11 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
                 userCount: superAdmins + admins + salesMgrs + customers,
                 teamCount: teamMembersCount, todayBookings, bookingCount: totalBookings,
                 todayAmount, timeline, failedBookingCount, priceRequestCount,
-                SUPER_ADMIN: superAdmins, ADMIN: admins, SALES_MANAGER: salesMgrs, CUSTOMER: customers
+                SUPER_ADMIN: superAdmins, ADMIN: admins, SALES_MANAGER: salesMgrs, CUSTOMER: customers,
+                platformStats: {
+                    bookings: { web: webBookings, app: appBookings },
+                    logins: { web: webLogins, app: appLogins }
+                }
             },
             activities
         };

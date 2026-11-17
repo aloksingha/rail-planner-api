@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Users, Shield, Zap, Train, Settings, Search, RefreshCw, ChevronDown, CheckCircle2, AlertCircle, UserCog, UserPlus, X, Wallet, Minus, Loader2, AlertTriangle, Lock, Trash2, Star, Globe, Smartphone, Clock } from 'lucide-react';
+import { Users, Shield, Zap, Train, Settings, Search, RefreshCw, ChevronDown, CheckCircle2, AlertCircle, UserCog, UserPlus, X, Wallet, Minus, Loader2, AlertTriangle, Lock, Trash2, Star, Globe, Smartphone, Clock, History } from 'lucide-react';
+import UserActivityModal from '../components/UserActivityModal';
 import { isValidIndianMobile } from '../utils/validation';
 import { STATUS_META, ALL_ROLES, ROLE_META } from '../utils/constants';
 import { useUserManagement, User } from '../hooks/useUserManagement';
@@ -45,6 +46,7 @@ export default function UserManagement() {
     } = useUserManagement();
 
     const [selectedUserForPermissions, setSelectedUserForPermissions] = useState<User | null>(null);
+    const [selectedUserForActivity, setSelectedUserForActivity] = useState<User | null>(null);
     const [modalPermissions, setModalPermissions] = useState<string[]>([]);
 
     const PERMISSION_OPTIONS = [
@@ -242,7 +244,11 @@ export default function UserManagement() {
                                         <div className={`absolute top-0 left-0 w-1 h-full ${meta.bg.replace('/10','')} opacity-50`} />
                                         
                                         <div className="flex items-start justify-between gap-3 mb-4">
-                                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                                            <div 
+                                                onClick={() => setSelectedUserForActivity(user)}
+                                                className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer active:opacity-80 transition-opacity"
+                                                title="Tap to view activity history"
+                                            >
                                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black shrink-0 ${meta.bg} ${meta.color}`}>
                                                     {(user.name || user.email || "?")[0].toUpperCase()}
                                                 </div>
@@ -275,6 +281,13 @@ export default function UserManagement() {
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-2">
+                                            {/* Activity History Button */}
+                                            <button
+                                                onClick={() => setSelectedUserForActivity(user)}
+                                                className="col-span-2 flex items-center justify-center gap-1.5 px-2 py-2.5 bg-sky-500/10 border border-sky-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest text-sky-500 dark:text-sky-400 active:scale-95 transition-transform font-mono shadow-sm"
+                                            >
+                                                <History size={12} /> VIEW ACTIVITY HISTORY (WEB & APP)
+                                            </button>
                                             {/* Access Toggle */}
                                             {user.status === 'BLOCKED' ? (
                                                 <button
@@ -455,6 +468,15 @@ export default function UserManagement() {
                     </div>
                 </div>
             )}
+
+            {/* User Activity History Modal */}
+            <UserActivityModal
+                isOpen={!!selectedUserForActivity}
+                onClose={() => setSelectedUserForActivity(null)}
+                userId={selectedUserForActivity?.id || null}
+                userEmail={selectedUserForActivity?.email}
+                userName={selectedUserForActivity?.name || undefined}
+            />
 
             {/* Special Permissions Modal */}
             {selectedUserForPermissions && (

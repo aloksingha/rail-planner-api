@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Users, Shield, Zap, Train, Settings, Search, RefreshCw, ChevronDown, CheckCircle2, AlertCircle, UserCog, UserPlus, X, Wallet, Minus, Loader2, AlertTriangle, Trash2, Star, Globe, Smartphone, Clock } from 'lucide-react';
+import { Users, Shield, Zap, Train, Settings, Search, RefreshCw, ChevronDown, CheckCircle2, AlertCircle, UserCog, UserPlus, X, Wallet, Minus, Loader2, AlertTriangle, Trash2, Star, Globe, Smartphone, Clock, History } from 'lucide-react';
+import UserActivityModal from '../components/UserActivityModal';
 import { isValidIndianMobile } from '../utils/validation';
 import { STATUS_META, ALL_ROLES, ROLE_META } from '../utils/constants';
 import { useUserManagement, User } from '../hooks/useUserManagement';
@@ -47,6 +48,7 @@ export default function UserManagement() {
     } = useUserManagement();
 
     const [selectedUserForPermissions, setSelectedUserForPermissions] = useState<User | null>(null);
+    const [selectedUserForActivity, setSelectedUserForActivity] = useState<User | null>(null);
     const [modalPermissions, setModalPermissions] = useState<string[]>([]);
 
     const PERMISSION_OPTIONS = [
@@ -272,15 +274,24 @@ export default function UserManagement() {
                                     <div className="grid grid-cols-1 gap-3">
                                         {roleUsers.map(user => (
                                             <div key={user.id} className="flex flex-col sm:flex-row sm:items-center gap-4 bg-white dark:bg-slate-900/50 border border-slate-300 dark:border-white/5 rounded-2xl p-5 hover:border-brand-blue dark:hover:border-white/10 transition-all group shadow-md shadow-slate-200/50 dark:shadow-none">
-                                                <div className="flex items-center gap-5 flex-1 min-w-0">
-                                                     {/* Avatar */}
-                                                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-base font-black shrink-0 shadow-lg shadow-black/5 ${meta.bg} ${meta.color}`}>
-                                                        {(user.name || user.email || "?")[0].toUpperCase()}
-                                                    </div>
+                                                <div 
+                                                        onClick={() => setSelectedUserForActivity(user)}
+                                                        className="flex items-center gap-5 flex-1 min-w-0 cursor-pointer group/userinfo hover:opacity-85 transition-opacity"
+                                                        title="Click to view date-wise activity history"
+                                                    >
+                                                         {/* Avatar */}
+                                                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-base font-black shrink-0 shadow-lg shadow-black/5 ${meta.bg} ${meta.color} group-hover/userinfo:scale-105 transition-transform`}>
+                                                            {(user.name || user.email || "?")[0].toUpperCase()}
+                                                        </div>
 
-                                                    {/* Info */}
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-base font-black text-slate-900 dark:text-white truncate tracking-tight">{user.name || 'Anonymous User'}</p>
+                                                        {/* Info */}
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="text-base font-black text-slate-900 dark:text-white truncate tracking-tight group-hover/userinfo:text-brand-blue transition-colors">{user.name || 'Anonymous User'}</p>
+                                                                <span className="text-[9px] font-black font-mono text-brand-blue uppercase tracking-wider opacity-0 group-hover/userinfo:opacity-100 transition-opacity hidden sm:inline-flex items-center gap-1">
+                                                                    <History size={10} /> History
+                                                                </span>
+                                                            </div>
                                                         <div className="flex items-center gap-2 mt-0.5">
                                                             <p className="text-xs font-bold text-slate-600 dark:text-slate-400 truncate font-mono">{user.email}</p>
                                                             {user.lastLoginAt && (
@@ -313,6 +324,16 @@ export default function UserManagement() {
                                                         <span className="text-xs font-black text-slate-900 dark:text-white">{user._count?.bookings ?? 0}</span>
                                                         <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Bookings</span>
                                                     </div>
+
+                                                    {/* User Activity History Button */}
+                                                    <button
+                                                        onClick={() => setSelectedUserForActivity(user)}
+                                                        className="flex items-center justify-center gap-1.5 h-8 min-w-[90px] px-2.5 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 rounded-xl text-[10px] font-black uppercase tracking-widest text-sky-600 dark:text-sky-400 transition-all font-mono shadow-sm"
+                                                        title="View user activity history (date-wise, Web vs App)"
+                                                    >
+                                                        <History size={12} />
+                                                        Activity
+                                                    </button>
 
                                                     {/* Mimic User Button */}
                                                     <div className="flex items-center gap-2">
@@ -519,6 +540,15 @@ export default function UserManagement() {
                     </div>
                 </div>
             )}
+
+            {/* User Activity History Modal */}
+            <UserActivityModal
+                isOpen={!!selectedUserForActivity}
+                onClose={() => setSelectedUserForActivity(null)}
+                userId={selectedUserForActivity?.id || null}
+                userEmail={selectedUserForActivity?.email}
+                userName={selectedUserForActivity?.name || undefined}
+            />
 
             {/* Special Permissions Modal */}
             {selectedUserForPermissions && (

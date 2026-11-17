@@ -92,13 +92,15 @@ router.post('/wallet-pay', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_A
             if (['2A', '3A', 'CC', '1A', '3E', 'FC', 'EC'].includes(trainClass || '')) {
                 category = 'AC';
             }
+            const bookingPlatform = String(req.body.platform || req.headers['x-client-platform'] || (req.headers['user-agent']?.includes('Capacitor') ? 'APP' : 'WEB')).toUpperCase() === 'APP' ? 'APP' : 'WEB';
             const booking = await tx.booking.create({
                 data: {
                     userId: user.id,
                     eventId: resolvedEventId,
                     paymentId: internalPaymentId,
                     status: 'CONFIRMED',
-                    class: category
+                    class: category,
+                    platform: bookingPlatform
                 }
             });
             await (0, commission_1.checkAndApplyCommission)(tx, user.id, amount, booking.id, trainNo);
