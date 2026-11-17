@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.requireRole = exports.optionalAuth = exports.requireAuth = exports.generateToken = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const prisma_1 = require("../prisma");
+const presenceService_1 = require("../services/presenceService");
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key';
 if (process.env.NODE_ENV === 'production' && (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'super-secret-jwt-key')) {
     console.error('🚨 CRITICAL SECURITY ALERT: JWT_SECRET environment variable is missing or using insecure default in production!');
@@ -41,6 +42,12 @@ const requireAuth = async (req, res, next) => {
         // Inject specialPermissions
         payload.specialPermissions = user.specialPermissions;
         req.user = payload;
+        // Track real-time presence
+        try {
+            const platform = presenceService_1.presenceService.resolvePlatform(req);
+            presenceService_1.presenceService.recordActivity(payload, platform, `${req.method} ${req.path}`, req.ip);
+        }
+        catch { }
         next();
     }
     catch (err) {

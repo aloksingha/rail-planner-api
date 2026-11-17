@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../prisma';
+import { presenceService } from '../services/presenceService';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-jwt-key';
 
@@ -63,6 +64,13 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
         payload.specialPermissions = user.specialPermissions;
 
         req.user = payload;
+
+        // Track real-time presence
+        try {
+            const platform = presenceService.resolvePlatform(req);
+            presenceService.recordActivity(payload, platform, `${req.method} ${req.path}`, req.ip);
+        } catch {}
+
         next();
     } catch (err: any) {
         console.error('Auth verification error:', err);

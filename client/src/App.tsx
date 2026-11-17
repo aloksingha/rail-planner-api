@@ -313,6 +313,25 @@ function App() {
     };
   }, []);
 
+  // Active Presence Heartbeat for live tracking
+  useEffect(() => {
+    const token = auth?.token || localStorage.getItem('token');
+    if (!token) return;
+
+    const sendHeartbeat = () => {
+      axios.post('/api/auth/heartbeat', {}).catch(() => {});
+    };
+
+    sendHeartbeat();
+    const interval = setInterval(sendHeartbeat, 120000); // 2 minutes
+    window.addEventListener('focus', sendHeartbeat);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', sendHeartbeat);
+    };
+  }, [auth?.token]);
+
 
   const setToken = (newToken: string | null) => {
     if (!newToken) {

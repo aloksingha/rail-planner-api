@@ -16,6 +16,7 @@ const refunds_1 = __importDefault(require("./admin/refunds"));
 const bookings_1 = __importDefault(require("./admin/bookings"));
 const gst_1 = __importDefault(require("./admin/gst"));
 const cache_1 = require("../utils/cache");
+const presenceService_1 = require("../services/presenceService");
 const router = (0, express_1.Router)();
 router.use('/', users_1.default);
 router.use('/', refunds_1.default);
@@ -575,6 +576,7 @@ router.get('/dashboard-data', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPE
                 timestamp: b.createdAt, user: b.user.name || b.user.email, status: b.status
             }))
         ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 20);
+        const liveTelemetry = await presenceService_1.presenceService.getLiveTelemetry(role, userId);
         const bundle = {
             stats: {
                 userCount: superAdmins + admins + salesMgrs + customers,
@@ -582,8 +584,12 @@ router.get('/dashboard-data', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPE
                 todayAmount, timeline, failedBookingCount, priceRequestCount,
                 SUPER_ADMIN: superAdmins, ADMIN: admins, SALES_MANAGER: salesMgrs, CUSTOMER: customers,
                 platformStats: {
-                    bookings: { web: webBookings, app: appBookings },
-                    logins: { web: webLogins, app: appLogins }
+                    activeNow: liveTelemetry.activeNow,
+                    todayLogins: liveTelemetry.todayLogins,
+                    todayBookings: liveTelemetry.todayBookings,
+                    bookings: { web: liveTelemetry.todayBookings.web, app: liveTelemetry.todayBookings.app },
+                    logins: { web: liveTelemetry.todayLogins.web, app: liveTelemetry.todayLogins.app },
+                    registered: { web: webLogins, app: appLogins }
                 }
             },
             activities
@@ -598,6 +604,26 @@ router.get('/dashboard-data', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPE
     catch (error) {
         console.error('Fetch dashboard data error:', error);
         return res.status(500).json({ error: error.message });
+    }
+});
+// ── Super Admin & Admin: Get Live Online Users & Real-time Activities ──────────
+router.get('/live-users', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+    const { role, userId } = req.user;
+    try {
+        const [telemetry, users] = await Promise.all([
+            presenceService_1.presenceService.getLiveTelemetry(role, userId),
+            presenceService_1.presenceService.getLiveUsersList(role, userId)
+        ]);
+        return res.json({
+            success: true,
+            telemetry,
+            users,
+            serverTime: new Date().toISOString()
+        });
+    }
+    catch (error) {
+        console.error('Fetch live users error:', error);
+        return res.status(500).json({ error: error.message || 'Internal Server Error' });
     }
 });
 // Get bookings

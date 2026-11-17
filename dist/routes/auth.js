@@ -207,4 +207,15 @@ router.patch('/profile', auth_1.requireAuth, async (req, res) => {
         return res.status(500).json({ error: 'Failed to update name' });
     }
 });
+// Live Presence Heartbeat ping from Web / App
+router.all('/heartbeat', auth_1.requireAuth, (req, res) => {
+    const platform = req.headers['x-client-platform'] === 'APP' ? 'APP' : 'WEB';
+    return res.json({
+        status: 'ok',
+        online: true,
+        userId: req.user.userId,
+        platform,
+        serverTime: new Date().toISOString()
+    });
+});
 exports.default = router;

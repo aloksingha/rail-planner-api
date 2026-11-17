@@ -17,6 +17,7 @@ import refundsRouter from './admin/refunds';
 import bookingsRouter from './admin/bookings';
 import gstRouter from './admin/gst';
 import { CacheService } from '../utils/cache';
+import { presenceService } from '../services/presenceService';
 
 const router = Router();
 router.use('/', usersRouter);
@@ -636,6 +637,8 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
             }))
         ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 20);
 
+        const liveTelemetry = await presenceService.getLiveTelemetry(role, userId);
+
         const bundle = {
             stats: {
                 userCount: superAdmins + admins + salesMgrs + customers,
@@ -643,8 +646,12 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
                 todayAmount, timeline, failedBookingCount, priceRequestCount,
                 SUPER_ADMIN: superAdmins, ADMIN: admins, SALES_MANAGER: salesMgrs, CUSTOMER: customers,
                 platformStats: {
-                    bookings: { web: webBookings, app: appBookings },
-                    logins: { web: webLogins, app: appLogins }
+                    activeNow: liveTelemetry.activeNow,
+                    todayLogins: liveTelemetry.todayLogins,
+                    todayBookings: liveTelemetry.todayBookings,
+                    bookings: { web: liveTelemetry.todayBookings.web, app: liveTelemetry.todayBookings.app },
+                    logins: { web: liveTelemetry.todayLogins.web, app: liveTelemetry.todayLogins.app },
+                    registered: { web: webLogins, app: appLogins }
                 }
             },
             activities
@@ -658,6 +665,26 @@ router.get('/dashboard-data', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN'])
     } catch (error: any) {
         console.error('Fetch dashboard data error:', error);
         return res.status(500).json({ error: error.message });
+    }
+});
+
+// ── Super Admin & Admin: Get Live Online Users & Real-time Activities ──────────
+router.get('/live-users', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (req, res) => {
+    const { role, userId } = req.user!;
+    try {
+        const [telemetry, users] = await Promise.all([
+            presenceService.getLiveTelemetry(role, userId),
+            presenceService.getLiveUsersList(role, userId)
+        ]);
+        return res.json({
+            success: true,
+            telemetry,
+            users,
+            serverTime: new Date().toISOString()
+        });
+    } catch (error: any) {
+        console.error('Fetch live users error:', error);
+        return res.status(500).json({ error: error.message || 'Internal Server Error' });
     }
 });
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, Suspense, useMemo } from 'react';
 import axios from 'axios';
-import { Users, ShoppingBag, Activity, ChevronRight, TrendingUp, Plus, Clock, Terminal, AlertCircle, CheckCircle2, Zap, ArrowUpRight, ShieldCheck, Fingerprint, X, RefreshCw, Flame, MapPin, Smartphone, Compass, Globe } from 'lucide-react';
+import { Users, ShoppingBag, Activity, ChevronRight, TrendingUp, Plus, Clock, Terminal, AlertCircle, CheckCircle2, Zap, ArrowUpRight, ShieldCheck, Fingerprint, X, RefreshCw, Flame, MapPin, Smartphone, Compass, Globe, Radio, Ticket } from 'lucide-react';
+import LiveUsersModal from '../components/LiveUsersModal';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import WalletCard from '../components/WalletCard';
@@ -112,6 +113,7 @@ export default function DashboardHome({ role }: { role?: string }) {
   const [loading, setLoading] = useState(!stats);
   const [loadingActivities, setLoadingActivities] = useState(activities.length === 0);
   const [showVisitorModal, setShowVisitorModal] = useState(false);
+  const [showLiveUsersModal, setShowLiveUsersModal] = useState(false);
   const [visitorList, setVisitorList] = useState<any[]>([]);
   const [loadingVisitors, setLoadingVisitors] = useState(false);
   const [telemetryStats, setTelemetryStats] = useState<any>(null);
@@ -479,39 +481,71 @@ export default function DashboardHome({ role }: { role?: string }) {
                 </div>
               </div>
 
-              {/* Platform Usages & Telemetry Node */}
-              <div className="mt-3 p-3.5 rounded-2xl bg-gradient-to-r from-purple-950/40 via-slate-900/60 to-sky-950/40 border border-purple-500/30 flex flex-wrap items-center justify-between gap-3 text-xs shadow-lg">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-purple-500/20 text-purple-400">
-                    <Smartphone size={18} />
+              {/* Platform Usages & Live Telemetry Node */}
+              <div 
+                onClick={() => setShowLiveUsersModal(true)}
+                className="mt-3 p-4 rounded-2xl bg-gradient-to-r from-purple-950/50 via-slate-900/80 to-sky-950/50 border border-purple-500/40 flex flex-wrap items-center justify-between gap-3 text-xs shadow-xl cursor-pointer hover:border-purple-400/60 transition-all group"
+              >
+                <div className="flex items-center gap-3.5">
+                  <div className="p-2.5 rounded-xl bg-purple-500/20 text-purple-400 group-hover:scale-105 transition-transform">
+                    <Radio size={20} className="text-emerald-400 animate-pulse" />
                   </div>
                   <div>
-                    <p className="font-black text-slate-200 text-xs uppercase tracking-tight flex items-center gap-2">
-                      Platform Usages: Web vs App
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30 text-[9px] font-black uppercase tracking-wider">
-                        Live Tracking
+                    <div className="flex items-center gap-2">
+                      <p className="font-black text-slate-100 text-sm uppercase tracking-tight">
+                        Platform Usages &amp; Live Users
+                      </p>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[9px] font-black uppercase tracking-wider">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                        Live Online Now
                       </span>
-                    </p>
-                    <p className="text-[10px] text-slate-400 font-medium">
-                      Breakdown of Agent Logins and Customer Bookings across Web and Mobile App
+                    </div>
+                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                      Active sessions right now, today's logins, and live user activities post-login
                     </p>
                   </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2.5">
-                  <div className="px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] font-bold text-slate-300 flex items-center gap-2">
-                    <span className="text-slate-400 uppercase text-[9px] font-black">Bookings:</span>
-                    <span className="inline-flex items-center gap-1 text-sky-400"><Globe size={11} /> {stats?.platformStats?.bookings?.web ?? 0} Web</span>
+                  {/* Live Active Now */}
+                  <div className="px-3 py-1.5 rounded-xl bg-slate-900/95 border border-emerald-500/40 text-[11px] font-bold text-slate-200 flex items-center gap-2 shadow-sm">
+                    <span className="text-emerald-400 uppercase text-[9px] font-black flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Online Now:
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-sky-400 font-black"><Globe size={11} /> {stats?.platformStats?.activeNow?.web ?? 0} Web</span>
                     <span className="text-slate-600">|</span>
-                    <span className="inline-flex items-center gap-1 text-purple-400"><Smartphone size={11} /> {stats?.platformStats?.bookings?.app ?? 0} App</span>
+                    <span className="inline-flex items-center gap-1 text-purple-400 font-black"><Smartphone size={11} /> {stats?.platformStats?.activeNow?.app ?? 0} App</span>
                   </div>
 
+                  {/* Today's Logins */}
                   <div className="px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] font-bold text-slate-300 flex items-center gap-2">
-                    <span className="text-slate-400 uppercase text-[9px] font-black">Agent Logins:</span>
-                    <span className="inline-flex items-center gap-1 text-sky-400"><Globe size={11} /> {stats?.platformStats?.logins?.web ?? 0} Web</span>
+                    <span className="text-purple-400 uppercase text-[9px] font-black flex items-center gap-1">
+                      <Clock size={10} /> Today's Logins:
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-sky-400 font-bold"><Globe size={11} /> {stats?.platformStats?.todayLogins?.web ?? stats?.platformStats?.logins?.web ?? 0} Web</span>
                     <span className="text-slate-600">|</span>
-                    <span className="inline-flex items-center gap-1 text-purple-400"><Smartphone size={11} /> {stats?.platformStats?.logins?.app ?? 0} App</span>
+                    <span className="inline-flex items-center gap-1 text-purple-400 font-bold"><Smartphone size={11} /> {stats?.platformStats?.todayLogins?.app ?? stats?.platformStats?.logins?.app ?? 0} App</span>
                   </div>
+
+                  {/* Today's Bookings */}
+                  <div className="px-3 py-1.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] font-bold text-slate-300 flex items-center gap-2">
+                    <span className="text-sky-400 uppercase text-[9px] font-black flex items-center gap-1">
+                      <Ticket size={10} /> Bookings:
+                    </span>
+                    <span className="inline-flex items-center gap-1 text-sky-400 font-bold"><Globe size={11} /> {stats?.platformStats?.todayBookings?.web ?? stats?.platformStats?.bookings?.web ?? 0} Web</span>
+                    <span className="text-slate-600">|</span>
+                    <span className="inline-flex items-center gap-1 text-purple-400 font-bold"><Smartphone size={11} /> {stats?.platformStats?.todayBookings?.app ?? stats?.platformStats?.bookings?.app ?? 0} App</span>
+                  </div>
+
+                  {/* Action Button */}
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setShowLiveUsersModal(true); }}
+                    className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 hover:from-emerald-500 hover:to-sky-500 text-white text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-emerald-950/40 transition-all cursor-pointer active:scale-95"
+                  >
+                    <Radio size={12} className="animate-pulse text-emerald-200" />
+                    <span>View Live Users &amp; Activity</span>
+                    <ChevronRight size={12} />
+                  </button>
                 </div>
               </div>
             </div>
@@ -588,6 +622,12 @@ export default function DashboardHome({ role }: { role?: string }) {
           </div>
         )}
       </div>
+
+      {/* Live Users & Real-Time Activity Modal */}
+      <LiveUsersModal
+        isOpen={showLiveUsersModal}
+        onClose={() => setShowLiveUsersModal(false)}
+      />
 
       {/* Live Visitor Intelligence Modal */}
       {showVisitorModal && (

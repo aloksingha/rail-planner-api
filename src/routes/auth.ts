@@ -233,5 +233,17 @@ router.patch('/profile', requireAuth, async (req, res) => {
     }
 });
 
+// Live Presence Heartbeat ping from Web / App
+router.all('/heartbeat', requireAuth, (req, res) => {
+    const platform = req.headers['x-client-platform'] === 'APP' ? 'APP' : 'WEB';
+    return res.json({
+        status: 'ok',
+        online: true,
+        userId: req.user!.userId,
+        platform,
+        serverTime: new Date().toISOString()
+    });
+});
+
 export default router;
 

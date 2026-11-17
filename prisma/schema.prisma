@@ -33,10 +33,14 @@ model User {
   withdrawalRequests   WithdrawalRequest[]
   lastLoginPlatform    String?             @default("WEB")
   lastLoginAt          DateTime?
+  lastActivePlatform   String?             @default("WEB")
+  lastActiveAt         DateTime?
 
   @@index([role])
   @@index([createdByUserId])
   @@index([lastLoginPlatform])
+  @@index([lastActiveAt])
+  @@index([lastLoginAt])
 }
 
 model Event {
