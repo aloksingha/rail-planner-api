@@ -11,7 +11,9 @@ export interface User {
     status: string;
     createdAt: string;
     createdByUserId?: string | null;
-    hasSpecialPermission?: boolean;
+    specialPermissions?: string[];
+    lastLoginPlatform?: string | null;
+    lastLoginAt?: string | null;
     _count: { bookings: number };
 }
 
@@ -36,6 +38,7 @@ export const useUserManagement = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [filterRole, setFilterRole] = useState('ALL');
+    const [filterPlatform, setFilterPlatform] = useState('ALL');
     const [changingRole, setChangingRole] = useState<string | null>(null);
     const [openDropdown, setOpenDropdown] = useState<string | null>(null);
     const [message, setMessage] = useState<Message>({ text: '', type: '' });
@@ -139,18 +142,17 @@ export const useUserManagement = () => {
         }
     };
 
-    const handleToggleSpecialPermission = async (userId: string, currentStatus: boolean, userEmail: string) => {
-        if (!window.confirm(`Are you sure you want to ${currentStatus ? 'REVOKE' : 'GRANT'} special permissions for ${userEmail}?`)) return;
+    const handleUpdateSpecialPermissions = async (userId: string, permissions: string[], userEmail: string) => {
         try {
             const token = localStorage.getItem('token');
-            await axios.put(`/api/admin/users/${userId}/special-permission`, { hasSpecialPermission: !currentStatus }, {
+            await axios.put(`/api/admin/users/${userId}/special-permission`, { permissions }, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            showMsg(`Successfully updated special permission for ${userEmail}`, 'success');
-            setUsers(prev => prev.map(u => u.id === userId ? { ...u, hasSpecialPermission: !currentStatus } : u));
+            showMsg(`Successfully updated special permissions for ${userEmail}`, 'success');
+            setUsers(prev => prev.map(u => u.id === userId ? { ...u, specialPermissions: permissions } : u));
         } catch (err) {
             const error = err as any;
-            showMsg(error.response?.data?.error || 'Failed to update special permission', 'error');
+            showMsg(error.response?.data?.error || 'Failed to update special permissions', 'error');
         }
     };
 
@@ -231,9 +233,10 @@ export const useUserManagement = () => {
             const searchMatch = !search || 
                 userEmail.toLowerCase().includes(search.toLowerCase()) || 
                 userName.toLowerCase().includes(search.toLowerCase());
-            return roleMatch && searchMatch;
+            const platformMatch = filterPlatform === 'ALL' || (u.lastLoginPlatform || 'WEB') === filterPlatform;
+            return roleMatch && searchMatch && platformMatch;
         });
-    }, [users, filterRole, search]);
+    }, [users, filterRole, filterPlatform, search]);
 
     const groupedUsers = useMemo(() => {
         return ALL_ROLES.reduce<Record<string, User[]>>((acc, role) => {
@@ -257,6 +260,8 @@ export const useUserManagement = () => {
         setSearch,
         filterRole,
         setFilterRole,
+        filterPlatform,
+        setFilterPlatform,
         changingRole,
         setChangingRole,
         openDropdown,
@@ -281,13 +286,12 @@ export const useUserManagement = () => {
         handleRoleChange,
         handleAddUser,
         handleStatusUpdate,
-        handleToggleSpecialPermission,
+        handleUpdateSpecialPermissions,
         handleDeleteUser,
         handleAdjustWallet,
         handleMimicUser,
         filteredUsers,
         groupedUsers,
-        totalByRole,
-        isSuperAdmin
+        totalByRole
     };
 };

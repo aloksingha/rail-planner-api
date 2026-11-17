@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Users, Mail, Phone, Ticket, UserPlus, Calendar, TrendingUp } from 'lucide-react';
+import { Users, Mail, Phone, Ticket, UserPlus, Calendar, TrendingUp, Globe, Smartphone, Clock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 interface TeamMember {
@@ -10,6 +10,8 @@ interface TeamMember {
     mobile: string | null;
     region: string | null;
     createdAt: string;
+    lastLoginPlatform?: string | null;
+    lastLoginAt?: string | null;
     _count: { bookings: number };
 }
 
@@ -103,7 +105,17 @@ export default function AdminTeam() {
                                     </div>
                                     {/* Info */}
                                     <div className="flex-1 min-w-0">
-                                        <p className="font-black text-lg text-white group-hover:text-brand-teal transition-colors tracking-tight">{member.name || <span className="text-slate-600 italic font-normal">Anonymous</span>}</p>
+                                        <div className="flex items-center gap-3">
+                                            <p className="font-black text-lg text-white group-hover:text-brand-teal transition-colors tracking-tight">{member.name || <span className="text-slate-600 italic font-normal">Anonymous</span>}</p>
+                                            <span className={`inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-full border uppercase tracking-wider font-mono ${
+                                                member.lastLoginPlatform === 'APP'
+                                                    ? 'bg-purple-500/10 text-purple-400 border-purple-500/30'
+                                                    : 'bg-sky-500/10 text-sky-400 border-sky-500/30'
+                                            }`}>
+                                                {member.lastLoginPlatform === 'APP' ? <Smartphone size={10} /> : <Globe size={10} />}
+                                                {member.lastLoginPlatform ? `${member.lastLoginPlatform} LOGIN` : 'WEB LOGIN'}
+                                            </span>
+                                        </div>
                                         <div className="flex flex-wrap gap-x-5 gap-y-2 mt-2">
                                             <span className="flex items-center gap-1.5 text-[11px] text-slate-400 font-bold font-mono">
                                                 <Mail size={12} className="text-brand-blue" /> {member.email}

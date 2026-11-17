@@ -115,6 +115,8 @@ router.get('/team', requireAuth, requireRole(['ADMIN']), async (req, res) => {
                 mobile: true,
                 region: true,
                 createdAt: true,
+                lastLoginPlatform: true,
+                lastLoginAt: true,
                 _count: {
                     select: { bookings: true }
                 }
@@ -237,6 +239,13 @@ router.get('/stats', requireAuth, async (req, res) => {
                 amount: Math.round(Number(row.amount))
             }));
 
+            const [webBookings, appBookings, webLogins, appLogins] = await Promise.all([
+                prisma.booking.count({ where: { ...bookingWhere, platform: 'WEB' } }),
+                prisma.booking.count({ where: { ...bookingWhere, platform: 'APP' } }),
+                prisma.user.count({ where: { ...userWhere, lastLoginPlatform: 'WEB' } }),
+                prisma.user.count({ where: { ...userWhere, lastLoginPlatform: 'APP' } })
+            ]);
+
             const statsData = {
                 userCount: superAdmins + admins + salesMgrs + customers,
                 teamCount: teamMembersCount,
@@ -249,18 +258,31 @@ router.get('/stats', requireAuth, async (req, res) => {
                 SUPER_ADMIN: superAdmins,
                 ADMIN: admins,
                 SALES_MANAGER: salesMgrs,
-                CUSTOMER: customers
+                CUSTOMER: customers,
+                platformStats: {
+                    bookings: { web: webBookings, app: appBookings },
+                    logins: { web: webLogins, app: appLogins }
+                }
             };
             statsCache.set(cacheKey, { data: statsData, expiry: Date.now() + STATS_CACHE_TTL });
             return res.json(statsData);
         }
 
         if (role === 'SALES_MANAGER') {
-            const [todayCount, totalCount] = await Promise.all([
+            const [todayCount, totalCount, webBookings, appBookings] = await Promise.all([
                 prisma.booking.count({ where: { user: { createdByUserId: userId }, createdAt: { gte: todayStart } } }),
-                prisma.booking.count({ where: { user: { createdByUserId: userId } } })
+                prisma.booking.count({ where: { user: { createdByUserId: userId } } }),
+                prisma.booking.count({ where: { user: { createdByUserId: userId }, platform: 'WEB' } }),
+                prisma.booking.count({ where: { user: { createdByUserId: userId }, platform: 'APP' } })
             ]);
-            const statsData = { todayBookings: todayCount, bookingCount: totalCount, timeline: [] };
+            const statsData = { 
+                todayBookings: todayCount, 
+                bookingCount: totalCount, 
+                timeline: [],
+                platformStats: {
+                    bookings: { web: webBookings, app: appBookings }
+                }
+            };
             statsCache.set(cacheKey, { data: statsData, expiry: Date.now() + STATS_CACHE_TTL });
             return res.json(statsData);
         }
@@ -682,6 +704,10 @@ router.get('/bookings', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SALES
             }
         }
 
+        if (req.query.platform && (req.query.platform === 'WEB' || req.query.platform === 'APP')) {
+            where.platform = req.query.platform;
+        }
+
         const limit = parseInt(req.query.limit as string) || 50;
         const page = parseInt(req.query.page as string) || 1;
         const skip = (page - 1) * limit;
@@ -766,6 +792,10 @@ router.get('/transactions', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'S
             } else {
                 where = { user: { createdByUserId: userId } };
             }
+        }
+
+        if (req.query.platform && (req.query.platform === 'WEB' || req.query.platform === 'APP')) {
+            where.platform = req.query.platform;
         }
 
         const limit = parseInt(req.query.limit as string) || 50;
@@ -853,6 +883,10 @@ router.get('/audit-logs', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), as
                     { targetUser: { createdByUserId: userId } }
                 ]
             };
+        }
+
+        if (req.query.platform && (req.query.platform === 'WEB' || req.query.platform === 'APP')) {
+            where.platform = req.query.platform;
         }
 
         const limit = parseInt(req.query.limit as string) || 50;

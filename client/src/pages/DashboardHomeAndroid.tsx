@@ -1,6 +1,6 @@
 import React, { useEffect, useState, Suspense, useMemo } from 'react';
 import axios from 'axios';
-import { Users, ShoppingBag, Activity, ChevronRight, TrendingUp, Plus, Clock, Terminal, AlertCircle, CheckCircle2, Zap, ArrowUpRight, ShieldCheck, Fingerprint, X, RefreshCw, Flame, MapPin, Smartphone, Compass } from 'lucide-react';
+import { Users, ShoppingBag, Activity, ChevronRight, TrendingUp, Plus, Clock, Terminal, AlertCircle, CheckCircle2, Zap, ArrowUpRight, ShieldCheck, Fingerprint, X, RefreshCw, Flame, MapPin, Smartphone, Compass, Globe } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import WalletCard from '../components/WalletCard';
@@ -498,6 +498,39 @@ export default function DashboardHomeAndroid({ role }: { role?: string }) {
                   <div className="px-2 py-0.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-[10px] font-bold text-blue-400 flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
                     <span>View Feed →</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Platform Usages & Telemetry Node */}
+              <div className="mt-3 p-3 rounded-2xl bg-gradient-to-r from-purple-950/40 via-slate-900/60 to-sky-950/40 border border-purple-500/30 flex flex-col gap-2 text-xs shadow-lg">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-purple-500/20 text-purple-400">
+                    <Smartphone size={16} />
+                  </div>
+                  <div>
+                    <p className="font-black text-slate-200 text-[11px] uppercase tracking-tight flex items-center gap-1.5">
+                      Platform Usages: Web vs App
+                      <span className="inline-flex items-center px-1.5 py-0.2 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30 text-[8px] font-black uppercase tracking-wider">
+                        Live Tracking
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-[10px] font-bold text-slate-300 flex items-center gap-1.5">
+                    <span className="text-slate-400 uppercase text-[8px] font-black">Bookings:</span>
+                    <span className="inline-flex items-center gap-0.5 text-sky-400"><Globe size={10} /> {stats?.platformStats?.bookings?.web ?? 0} Web</span>
+                    <span className="text-slate-600">|</span>
+                    <span className="inline-flex items-center gap-0.5 text-purple-400"><Smartphone size={10} /> {stats?.platformStats?.bookings?.app ?? 0} App</span>
+                  </div>
+
+                  <div className="px-2.5 py-1 rounded-lg bg-slate-900/90 border border-slate-800 text-[10px] font-bold text-slate-300 flex items-center gap-1.5">
+                    <span className="text-slate-400 uppercase text-[8px] font-black">Agent Logins:</span>
+                    <span className="inline-flex items-center gap-0.5 text-sky-400"><Globe size={10} /> {stats?.platformStats?.logins?.web ?? 0} Web</span>
+                    <span className="text-slate-600">|</span>
+                    <span className="inline-flex items-center gap-0.5 text-purple-400"><Smartphone size={10} /> {stats?.platformStats?.logins?.app ?? 0} App</span>
                   </div>
                 </div>
               </div>

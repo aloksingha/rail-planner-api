@@ -79,13 +79,15 @@ router.post('/offline-pay', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'S
                 category = 'AC';
             }
 
+            const bookingPlatform = String(req.body.platform || req.headers['x-client-platform'] || (req.headers['user-agent']?.includes('Capacitor') ? 'APP' : 'WEB')).toUpperCase() === 'APP' ? 'APP' : 'WEB';
             const booking = await tx.booking.create({
                 data: {
                     userId: req.user!.userId,
                     eventId: event.id,
                     paymentId: offlinePaymentId,
                     status: 'CONFIRMED',
-                    class: category
+                    class: category,
+                    platform: bookingPlatform
                 }
             });
 

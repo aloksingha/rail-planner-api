@@ -111,6 +111,10 @@ router.get('/users', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (
             where = { createdByUserId: userId };
         }
 
+        if (req.query.platform && (req.query.platform === 'WEB' || req.query.platform === 'APP')) {
+            where = { ...where, lastLoginPlatform: req.query.platform };
+        }
+
         const limit = parseInt(req.query.limit as string) || 5000;
         const page = parseInt(req.query.page as string) || 1;
         const skip = (page - 1) * limit;
@@ -133,6 +137,8 @@ router.get('/users', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN']), async (
                     walletBalance: true,
                     createdAt: true,
                     createdByUserId: true,
+                    lastLoginPlatform: true,
+                    lastLoginAt: true,
                     _count: { select: { bookings: true } }
                 }
             }),

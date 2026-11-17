@@ -31,9 +31,12 @@ model User {
   createdUsers         User[]              @relation("UserCreator")
   walletTransactions   WalletTransaction[]
   withdrawalRequests   WithdrawalRequest[]
+  lastLoginPlatform    String?             @default("WEB")
+  lastLoginAt          DateTime?
 
   @@index([role])
   @@index([createdByUserId])
+  @@index([lastLoginPlatform])
 }
 
 model Event {
@@ -52,6 +55,7 @@ model Booking {
   ticketUrl     String?
   status        String         @default("CONFIRMED")
   class         String?
+  platform      String?        @default("WEB")
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   event         Event          @relation(fields: [eventId], references: [id])
@@ -64,6 +68,7 @@ model Booking {
   @@index([class, createdAt])
   @@index([userId, createdAt])
   @@index([paymentId])
+  @@index([platform])
 }
 
 model PaymentRecord {

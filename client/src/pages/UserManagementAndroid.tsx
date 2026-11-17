@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { Users, Shield, Zap, Train, Settings, Search, RefreshCw, ChevronDown, CheckCircle2, AlertCircle, UserCog, UserPlus, X, Wallet, Minus, Loader2, AlertTriangle, Lock, Trash2, Star } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Users, Shield, Zap, Train, Settings, Search, RefreshCw, ChevronDown, CheckCircle2, AlertCircle, UserCog, UserPlus, X, Wallet, Minus, Loader2, AlertTriangle, Lock, Trash2, Star, Globe, Smartphone, Clock } from 'lucide-react';
 import { isValidIndianMobile } from '../utils/validation';
 import { STATUS_META, ALL_ROLES, ROLE_META } from '../utils/constants';
 import { useUserManagement, User } from '../hooks/useUserManagement';
@@ -38,10 +38,25 @@ export default function UserManagement() {
         handleAdjustWallet,
         handleMimicUser,
         handleDeleteUser,
+        handleUpdateSpecialPermissions,
         filteredUsers,
         groupedUsers,
         totalByRole
     } = useUserManagement();
+
+    const [selectedUserForPermissions, setSelectedUserForPermissions] = useState<User | null>(null);
+    const [modalPermissions, setModalPermissions] = useState<string[]>([]);
+
+    const PERMISSION_OPTIONS = [
+        { key: 'BROADCAST_MESSAGES', label: 'Broadcast Messages' },
+        { key: 'CORRIDOR_PRICING', label: 'Corridor Pricing' },
+        { key: 'PRICE_REQUESTS', label: 'Price Requests' },
+        { key: 'FAILED_BOOKINGS', label: 'Failed Bookings' },
+        { key: 'GLOBAL_BOOKINGS', label: 'Global Bookings' },
+        { key: 'WALLET_MANAGEMENT', label: 'Wallet Management' },
+        { key: 'MANAGE_COUPONS', label: 'Manage Coupons' },
+        { key: 'TEST_WALLET', label: 'Test Wallet' },
+    ];
 
     useEffect(() => {
         const handler = () => setOpenDropdown(null);
@@ -234,6 +249,21 @@ export default function UserManagement() {
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-sm font-black text-slate-900 dark:text-white truncate tracking-tight">{user.name || 'ANONYMOUS'}</p>
                                                     <p className="text-[10px] font-bold text-slate-500 truncate font-mono mt-0.5">{user.email}</p>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className={`inline-flex items-center gap-1 text-[8px] font-black px-1.5 py-0.5 rounded border uppercase tracking-wider font-mono ${
+                                                            user.lastLoginPlatform === 'APP'
+                                                                ? 'bg-purple-500/10 text-purple-400 border-purple-500/30'
+                                                                : 'bg-sky-500/10 text-sky-400 border-sky-500/30'
+                                                        }`}>
+                                                            {user.lastLoginPlatform === 'APP' ? <Smartphone size={9} /> : <Globe size={9} />}
+                                                            {user.lastLoginPlatform ? `${user.lastLoginPlatform} LOGIN` : 'WEB LOGIN'}
+                                                        </span>
+                                                        {user.lastLoginAt && (
+                                                            <span className="text-[9px] text-slate-500 font-mono flex items-center gap-1">
+                                                                <Clock size={8} /> {new Date(user.lastLoginAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                             
@@ -257,11 +287,14 @@ export default function UserManagement() {
                                                 <>
                                                     {isSuperAdmin && (user.role === 'ADMIN' || user.role === 'SALES_MANAGER') && (
                                                         <button
-                                                            onClick={() => handleToggleSpecialPermission(user.id, !!user.hasSpecialPermission, user.email)}
-                                                            className={`flex items-center justify-center gap-1.5 px-2 py-2.5 border rounded-lg text-[9px] font-black uppercase tracking-widest active:scale-95 transition-transform ${user.hasSpecialPermission ? 'bg-indigo-500/5 dark:bg-indigo-500/10 border-indigo-500/20 text-indigo-500 dark:text-indigo-400' : 'bg-slate-500/5 dark:bg-slate-500/10 border-slate-500/20 text-slate-500 dark:text-slate-400'}`}
+                                                            onClick={() => {
+                                                                setSelectedUserForPermissions(user);
+                                                                setModalPermissions(user.specialPermissions || []);
+                                                            }}
+                                                            className={`flex items-center justify-center gap-1.5 px-2 py-2.5 border rounded-lg text-[9px] font-black uppercase tracking-widest active:scale-95 transition-transform ${(user.specialPermissions?.length || 0) > 0 ? 'bg-indigo-500/5 dark:bg-indigo-500/10 border-indigo-500/20 text-indigo-500 dark:text-indigo-400' : 'bg-slate-500/5 dark:bg-slate-500/10 border-slate-500/20 text-slate-500 dark:text-slate-400'}`}
                                                         >
-                                                            <Star size={12} className={user.hasSpecialPermission ? 'fill-indigo-500' : ''} />
-                                                            {user.hasSpecialPermission ? 'REVOKE SPECIAL' : 'GRANT SPECIAL'}
+                                                            <Star size={12} className={(user.specialPermissions?.length || 0) > 0 ? 'fill-indigo-500' : ''} />
+                                                            SPECIAL
                                                         </button>
                                                     )}
                                                     <button
@@ -416,6 +449,70 @@ export default function UserManagement() {
                                 >
                                     {isAdjustingWallet ? <Loader2 size={16} className="animate-spin" /> : <Minus size={16} />}
                                     DEDUCT BALANCE
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Special Permissions Modal */}
+            {selectedUserForPermissions && (
+                <div className="fixed inset-0 z-[1000] overflow-y-auto bg-slate-950/80 backdrop-blur-sm p-4 flex justify-center items-start animate-in fade-in duration-200">
+                    <div className="my-auto bg-slate-900 border border-slate-700/50 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 relative">
+                        <div className="flex items-center justify-between p-4 border-b border-slate-800">
+                            <div>
+                                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                    <Star size={18} className="text-indigo-400" />
+                                    Special Permissions
+                                </h3>
+                                <p className="text-slate-400 text-xs mt-1 truncate max-w-[200px]">{selectedUserForPermissions.email}</p>
+                            </div>
+                            <button onClick={() => setSelectedUserForPermissions(null)} className="text-slate-500 hover:text-white transition-colors">
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="p-5 space-y-4">
+                            <div className="space-y-3 max-h-[50vh] overflow-y-auto">
+                                {PERMISSION_OPTIONS.map(opt => (
+                                    <label key={opt.key} className="flex items-center gap-3 cursor-pointer group p-1">
+                                        <div className={`w-5 h-5 rounded border flex flex-shrink-0 items-center justify-center transition-colors ${modalPermissions.includes(opt.key) ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-slate-600 bg-slate-800 group-hover:border-indigo-400'}`}>
+                                            {modalPermissions.includes(opt.key) && <CheckCircle2 size={14} />}
+                                        </div>
+                                        <span className="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">
+                                            {opt.label}
+                                        </span>
+                                        <input
+                                            type="checkbox"
+                                            className="hidden"
+                                            checked={modalPermissions.includes(opt.key)}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setModalPermissions(prev => [...prev, opt.key]);
+                                                } else {
+                                                    setModalPermissions(prev => prev.filter(k => k !== opt.key));
+                                                }
+                                            }}
+                                        />
+                                    </label>
+                                ))}
+                            </div>
+                            
+                            <div className="flex items-center gap-3 pt-4 border-t border-slate-800">
+                                <button
+                                    onClick={() => setSelectedUserForPermissions(null)}
+                                    className="flex-1 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold rounded-xl transition-colors uppercase tracking-wider"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        handleUpdateSpecialPermissions(selectedUserForPermissions.id, modalPermissions, selectedUserForPermissions.email);
+                                        setSelectedUserForPermissions(null);
+                                    }}
+                                    className="flex-1 flex justify-center items-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-bold rounded-xl transition-colors shadow-lg shadow-indigo-600/20 uppercase tracking-wider"
+                                >
+                                    Save
                                 </button>
                             </div>
                         </div>

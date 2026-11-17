@@ -13,6 +13,11 @@ const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 const TEST_EMAIL = 'test@ticketspro.in';
 const TEST_ADMIN_EMAIL = 'test@railplanner.in';
 
+const resolvePlatform = (req: any): 'WEB' | 'APP' => {
+    const raw = req.body?.platform || req.headers['x-client-platform'] || (req.headers['user-agent']?.includes('Capacitor') ? 'APP' : 'WEB');
+    return String(raw).toUpperCase() === 'APP' ? 'APP' : 'WEB';
+};
+
 router.post('/bypass', rateLimiter({ windowSeconds: 60, maxRequests: 10, message: 'Too many authentication attempts. Please slow down.' }), async (req, res) => {
     const { email, password } = req.body;
 
@@ -40,17 +45,33 @@ router.post('/bypass', rateLimiter({ windowSeconds: 60, maxRequests: 10, message
         const name = email === 'admin@ticketspro.in' 
             ? 'System Admin' 
             : (email === TEST_ADMIN_EMAIL ? 'Test Super Admin' : 'Test Payment User');
+        const platform = resolvePlatform(req);
 
         const user = await prisma.user.upsert({
             where: { email },
-            update: { role },
+            update: { 
+                role,
+                lastLoginPlatform: platform,
+                lastLoginAt: new Date()
+            },
             create: {
                 email,
                 name,
                 passwordHash: 'SUPER_ADMIN_NODE_USER',
-                role
+                role,
+                lastLoginPlatform: platform,
+                lastLoginAt: new Date()
             }
         });
+
+        prisma.auditLog.create({
+            data: {
+                action: 'USER_LOGIN',
+                performedByUserId: user.id,
+                targetUserId: user.id,
+                details: JSON.stringify({ platform, role: user.role, email: user.email })
+            }
+        }).catch(() => {});
 
         const token = generateToken(user.id, user.email, user.role, user.name, user.role === 'SUPER_ADMIN');
         return res.json({ token, user: { id: user.id, email: user.email, role: user.role, name: user.name } });
@@ -99,10 +120,13 @@ router.post('/google', rateLimiter({ windowSeconds: 60, maxRequests: 20, message
 
         // 2. Map existing user or Register
         console.time('[Auth] DB Upsert');
+        const platform = resolvePlatform(req);
         const user = await prisma.user.upsert({
             where: { email },
             update: {
                 name, // Update name if it changed or was missing
+                lastLoginPlatform: platform,
+                lastLoginAt: new Date(),
                 // If email is in initial admin list, force role upgrade even for existing users
                 role: INITIAL_SUPER_ADMINS.includes(email) ? 'SUPER_ADMIN' : undefined
             },
@@ -110,10 +134,21 @@ router.post('/google', rateLimiter({ windowSeconds: 60, maxRequests: 20, message
                 email,
                 name,
                 passwordHash: 'GOOGLE_OAUTH_USER',
-                role: INITIAL_SUPER_ADMINS.includes(email) ? 'SUPER_ADMIN' : 'CUSTOMER'
+                role: INITIAL_SUPER_ADMINS.includes(email) ? 'SUPER_ADMIN' : 'CUSTOMER',
+                lastLoginPlatform: platform,
+                lastLoginAt: new Date()
             }
         });
         console.timeEnd('[Auth] DB Upsert');
+
+        prisma.auditLog.create({
+            data: {
+                action: 'USER_LOGIN',
+                performedByUserId: user.id,
+                targetUserId: user.id,
+                details: JSON.stringify({ platform, role: user.role, email: user.email })
+            }
+        }).catch(() => {});
 
         // 3. Issue our app's JWT Session
         const token = generateToken(user.id, user.email, user.role, user.name, user.role === 'SUPER_ADMIN');

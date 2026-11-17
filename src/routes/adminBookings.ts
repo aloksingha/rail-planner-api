@@ -66,13 +66,15 @@ router.post('/', requireAuth, requireActiveUser, async (req, res) => {
             });
 
             // 4. Create Booking
+            const bookingPlatform = String(req.body.platform || req.headers['x-client-platform'] || (req.headers['user-agent']?.includes('Capacitor') ? 'APP' : 'WEB')).toUpperCase() === 'APP' ? 'APP' : 'WEB';
             const booking = await tx.booking.create({
                 data: {
                     userId: req.user!.userId,
                     eventId: event.id,
                     status: 'CONFIRMED',
                     paymentId: manualPaymentId,
-                    class: trainClass === 'SLEEPER' ? 'SLEEPER' : 'AC'
+                    class: trainClass === 'SLEEPER' ? 'SLEEPER' : 'AC',
+                    platform: bookingPlatform
                 },
                 include: {
                     event: true,

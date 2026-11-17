@@ -698,21 +698,27 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
 
         const effectivePaymentMethod = (amountToPayViaGateway === 0 && paymentMethod !== 'OFFLINE') ? 'WALLET' : paymentMethod;
 
+        const bookingData = {
+            walletAmountUsed,
+            trainNo,
+            trainName: selectedTrainName,
+            fromStation: source,
+            toStation: destination,
+            journeyDate,
+            passengers: passengers.length,
+            mobile,
+            email,
+            trainClass,
+            passengerList: passengers,
+            platform: 'WEB'
+        };
+
         // --- WALLET PAYMENT BRANCH ---
         if (effectivePaymentMethod === 'WALLET') {
             try {
                 const { data } = await axios.post('/api/payments/wallet-pay', {
-                    amount: baseTotalAmount,
-                    trainNo,
-                    trainName: selectedTrainName,
-                    fromStation: source,
-                    toStation: destination,
-                    journeyDate,
-                    passengers: passengers.length,
-                    mobile,
-                    email,
-                    trainClass,
-                    passengerList: passengers
+                    ...bookingData,
+                    amount: baseTotalAmount
                 }, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -736,18 +742,8 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
         if (effectivePaymentMethod === 'OFFLINE') {
             try {
                 const { data } = await axios.post('/api/payments/offline-pay', {
-                    amount: amountToPayViaGateway,
-                    walletAmountUsed,
-                    trainNo,
-                    trainName: selectedTrainName,
-                    fromStation: source,
-                    toStation: destination,
-                    journeyDate,
-                    passengers: passengers.length,
-                    mobile,
-                    email,
-                    trainClass,
-                    passengerList: passengers
+                    ...bookingData,
+                    amount: amountToPayViaGateway
                 }, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -769,18 +765,8 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
         if (effectivePaymentMethod === 'SKYDO') {
             try {
                 const { data } = await axios.post('/api/payments/skydo-pay', {
-                    amount: amountToPayViaGateway,
-                    walletAmountUsed,
-                    trainNo,
-                    trainName: selectedTrainName,
-                    fromStation: source,
-                    toStation: destination,
-                    journeyDate,
-                    passengers: passengers.length,
-                    mobile,
-                    email,
-                    trainClass,
-                    passengerList: passengers
+                    ...bookingData,
+                    amount: amountToPayViaGateway
                 }, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -803,19 +789,9 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
         if (effectivePaymentMethod === 'YOUPI') {
             try {
                 const { data } = await axios.post('/api/payments/youpi/create-order', {
+                    ...bookingData,
                     amount: amountToPayViaGateway,
-                    walletAmountUsed,
-                    type: 'BOOKING',
-                    trainNo,
-                    trainName: selectedTrainName,
-                    fromStation: source,
-                    toStation: destination,
-                    journeyDate,
-                    passengers: passengers.length,
-                    mobile,
-                    email,
-                    trainClass,
-                    passengerList: passengers
+                    type: 'BOOKING'
                 }, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
@@ -883,7 +859,8 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                             amount: amountToPayViaGateway,
                             walletAmountUsed,
                             trainClass,
-                            passengerList: passengers
+                            passengerList: passengers,
+                            platform: 'WEB'
                         }, axiosConfig);
 
 

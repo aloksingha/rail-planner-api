@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Search, CalendarDays, Ticket, Trash2, Upload, CheckCircle, ChevronDown, MessageCircle, Phone, Eye } from 'lucide-react';
+import { Search, CalendarDays, Ticket, Trash2, Upload, CheckCircle, ChevronDown, MessageCircle, Phone, Eye, Globe, Smartphone } from 'lucide-react';
 import { jwtDecode } from 'jwt-decode';
 import ReportExport from '../components/ReportExport';
 import BookingDetailsModal from '../components/BookingDetailsModal';
@@ -16,6 +16,8 @@ export default function BookingManagement() {
         setSortBy,
         statusFilter,
         setStatusFilter,
+        platformFilter,
+        setPlatformFilter,
         toast,
         filteredBookings,
         handleStatusChange,
@@ -119,6 +121,15 @@ export default function BookingManagement() {
                              <option value="SUCCESS">SUCCESS</option>
                              <option value="PENDING">PENDING</option>
                              <option value="CANCELLED">CANCELLED</option>
+                            </select>
+                            <select 
+                              value={platformFilter} 
+                              onChange={e => setPlatformFilter(e.target.value as any)}
+                              className="bg-slate-950/50 border border-slate-800 text-slate-400 rounded-xl px-4 py-2 text-[10px] font-black uppercase tracking-widest h-10 outline-none focus:border-brand-blue/50"
+                            >
+                              <option value="ALL">ALL PLATFORMS</option>
+                              <option value="WEB">🌐 WEB ONLY</option>
+                              <option value="APP">📱 APP ONLY</option>
                            </select>
                            <select 
                              value={sortBy} 
@@ -157,7 +168,13 @@ export default function BookingManagement() {
                                                     <div className="w-1.5 h-1.5 rounded-full bg-brand-blue" />
                                                     <span className="text-[10px] font-black text-white/90 font-mono tracking-tighter">TP-{b.id.slice(-8).toUpperCase()}</span>
                                                 </div>
-                                                <span className="text-[9px] font-black text-slate-600 font-mono uppercase truncate max-w-[120px]">{b.paymentId || 'INTERNAL_SYS'}</span>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-[9px] font-black text-slate-600 font-mono uppercase truncate max-w-[120px]">{b.paymentId || 'INTERNAL_SYS'}</span>
+                                                    <span className={`inline-flex items-center gap-1 text-[8px] font-black px-1.5 py-0.5 rounded border uppercase tracking-wider font-mono ${b.platform === 'APP' ? 'bg-purple-500/10 text-purple-400 border-purple-500/30' : 'bg-sky-500/10 text-sky-400 border-sky-500/30'}`}>
+                                                        {b.platform === 'APP' ? <Smartphone size={9} /> : <Globe size={9} />}
+                                                        {b.platform || 'WEB'}
+                                                    </span>
+                                                </div>
                                             </div>
                                         </td>
                                         <td className="px-6 py-6 align-top">

@@ -8,6 +8,7 @@ export interface GlobalBooking {
     createdAt: string;
     ticketUrl?: string;
     class?: string;
+    platform?: string | null;
     paymentId?: string | null;
     user: { email: string; mobile: string | null };
     event: { name: string; date: string };
@@ -24,6 +25,7 @@ export const useBookingManagement = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [sortBy, setSortBy] = useState('createdAt-desc');
     const [statusFilter, setStatusFilter] = useState('ALL');
+    const [platformFilter, setPlatformFilter] = useState<'ALL' | 'WEB' | 'APP'>('ALL');
     const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
     const showToast = useCallback((msg: string, type: 'success' | 'error' = 'success') => {
@@ -126,7 +128,8 @@ export const useBookingManagement = () => {
             b.event?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
             b.id.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = statusFilter === 'ALL' || b.status === statusFilter;
-        return matchesSearch && matchesStatus;
+        const matchesPlatform = platformFilter === 'ALL' || (b.platform || 'WEB') === platformFilter;
+        return matchesSearch && matchesStatus && matchesPlatform;
     }).sort((a, b) => {
         if (sortBy === 'createdAt-desc') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         if (sortBy === 'createdAt-asc') return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
@@ -142,6 +145,8 @@ export const useBookingManagement = () => {
         setSortBy,
         statusFilter,
         setStatusFilter,
+        platformFilter,
+        setPlatformFilter,
         toast,
         filteredBookings,
         handleStatusChange,

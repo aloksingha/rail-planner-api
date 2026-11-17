@@ -60,8 +60,11 @@ router.post('/create-order', requireAuth, async (req: Request, res: Response) =>
         email,
         trainClass,
         passengerList,
-        walletAmountUsed = 0
+        walletAmountUsed = 0,
+        platform
     } = req.body;
+
+    const resolvedPlatform = String(platform || req.headers['x-client-platform'] || (req.headers['user-agent']?.includes('Capacitor') ? 'APP' : 'WEB')).toUpperCase() === 'APP' ? 'APP' : 'WEB';
 
     const numAmount = Number(amount);
     if (!numAmount || numAmount <= 0) {
@@ -137,6 +140,7 @@ router.post('/create-order', requireAuth, async (req: Request, res: Response) =>
             trainClass,
             passengerList,
             walletAmountUsed,
+            platform: resolvedPlatform,
             createdAt: Date.now()
         };
 
@@ -259,7 +263,8 @@ async function fulfillYouPiOrder(orderData: any, utr: string) {
                 eventId: event.id,
                 paymentId,
                 status: 'CONFIRMED',
-                class: category
+                class: category,
+                platform: orderData?.platform === 'APP' ? 'APP' : 'WEB'
             }
         });
 

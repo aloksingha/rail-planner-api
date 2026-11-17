@@ -1,7 +1,12 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import axios from 'axios'
+import { Capacitor } from '@capacitor/core'
 import './index.css'
 import RootApp from './App.tsx'
+
+// Set global platform telemetry header for all API requests
+axios.defaults.headers.common['x-client-platform'] = Capacitor.isNativePlatform() ? 'APP' : 'WEB';
 
 // Clear booking persistence on page reload/refresh
 try {

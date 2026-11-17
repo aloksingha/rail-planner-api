@@ -707,7 +707,8 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
             mobile,
             email,
             trainClass,
-            passengerList: passengers
+            passengerList: passengers,
+            platform: 'APP'
         };
 
         // --- WALLET PAYMENT BRANCH ---
@@ -724,7 +725,8 @@ export default function TicketBookingForm({ prefillData }: { prefillData?: any }
                     mobile,
                     email,
                     trainClass,
-                    passengerList: passengers
+                    passengerList: passengers,
+                    platform: 'APP'
                 }, {
                     headers: { Authorization: `Bearer ${token}` }
                 });

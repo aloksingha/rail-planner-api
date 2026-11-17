@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Users, Shield, Zap, Train, Settings, Search, RefreshCw, ChevronDown, CheckCircle2, AlertCircle, UserCog, UserPlus, X, Wallet, Minus, Loader2, AlertTriangle, Trash2, Star } from 'lucide-react';
+import { Users, Shield, Zap, Train, Settings, Search, RefreshCw, ChevronDown, CheckCircle2, AlertCircle, UserCog, UserPlus, X, Wallet, Minus, Loader2, AlertTriangle, Trash2, Star, Globe, Smartphone, Clock } from 'lucide-react';
 import { isValidIndianMobile } from '../utils/validation';
 import { STATUS_META, ALL_ROLES, ROLE_META } from '../utils/constants';
 import { useUserManagement, User } from '../hooks/useUserManagement';
@@ -12,6 +12,8 @@ export default function UserManagement() {
         setSearch,
         filterRole,
         setFilterRole,
+        filterPlatform,
+        setFilterPlatform,
         changingRole,
         openDropdown,
         setOpenDropdown,
@@ -55,6 +57,7 @@ export default function UserManagement() {
         { key: 'GLOBAL_BOOKINGS', label: 'Global Bookings' },
         { key: 'WALLET_MANAGEMENT', label: 'Wallet Management' },
         { key: 'MANAGE_COUPONS', label: 'Manage Coupons' },
+        { key: 'TEST_WALLET', label: 'Test Wallet' },
     ];
 
     useEffect(() => {
@@ -214,6 +217,26 @@ export default function UserManagement() {
                             className="w-full bg-white dark:bg-slate-950/60 border border-slate-300 dark:border-white/5 rounded-2xl pl-12 pr-4 py-3.5 text-sm text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-rose-500 shadow-md transition-all shadow-slate-200/50 dark:shadow-none"
                         />
                     </div>
+                    <div className="flex bg-white dark:bg-slate-950/60 border border-slate-300 dark:border-white/5 rounded-2xl p-1 gap-1 shadow-md shadow-slate-200/50 dark:shadow-none">
+                        <button
+                            onClick={() => setFilterPlatform('ALL')}
+                            className={`px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${filterPlatform === 'ALL' ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-sm' : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'}`}
+                        >
+                            All
+                        </button>
+                        <button
+                            onClick={() => setFilterPlatform('WEB')}
+                            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${filterPlatform === 'WEB' ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-500 hover:text-sky-500'}`}
+                        >
+                            <Globe size={13} /> Web
+                        </button>
+                        <button
+                            onClick={() => setFilterPlatform('APP')}
+                            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all ${filterPlatform === 'APP' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-500 hover:text-purple-400'}`}
+                        >
+                            <Smartphone size={13} /> App
+                        </button>
+                    </div>
                     <button
                         onClick={fetchUsers}
                         className="px-4 bg-white dark:bg-slate-950/60 border border-slate-300 dark:border-white/5 rounded-2xl text-slate-500 hover:text-rose-500 hover:border-rose-500/50 transition-all shadow-md shadow-slate-200/50 dark:shadow-none"
@@ -260,11 +283,25 @@ export default function UserManagement() {
                                                         <p className="text-base font-black text-slate-900 dark:text-white truncate tracking-tight">{user.name || 'Anonymous User'}</p>
                                                         <div className="flex items-center gap-2 mt-0.5">
                                                             <p className="text-xs font-bold text-slate-600 dark:text-slate-400 truncate font-mono">{user.email}</p>
+                                                            {user.lastLoginAt && (
+                                                                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono hidden md:inline-flex items-center gap-1">
+                                                                    <Clock size={10} />
+                                                                    {new Date(user.lastLoginAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true })}
+                                                                </span>
+                                                            )}
                                                             {user.status && (
                                                                 <span className={`text-[9px] font-black px-2 py-0.5 rounded border uppercase tracking-widest ${STATUS_META[user.status]?.bg || 'bg-slate-100'} ${STATUS_META[user.status]?.color || 'text-slate-600'} ${STATUS_META[user.status]?.border || 'border-slate-300'}`}>
                                                                     {STATUS_META[user.status]?.label || user.status}
                                                                 </span>
                                                             )}
+                                                            <span className={`inline-flex items-center gap-1 text-[9px] font-black px-2 py-0.5 rounded-full border uppercase tracking-widest font-mono ${
+                                                                user.lastLoginPlatform === 'APP'
+                                                                    ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30'
+                                                                    : 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/30'
+                                                            }`}>
+                                                                {user.lastLoginPlatform === 'APP' ? <Smartphone size={10} /> : <Globe size={10} />}
+                                                                {user.lastLoginPlatform ? `${user.lastLoginPlatform} LOGIN` : 'WEB LOGIN'}
+                                                            </span>
                                                         </div>
                                                     </div>
                                                 </div>

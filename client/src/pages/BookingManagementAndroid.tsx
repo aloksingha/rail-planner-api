@@ -155,7 +155,13 @@ export default function BookingManagement() {
                                        <div className={`w-1.5 h-1.5 rounded-full ${selected === 'SUCCESS' ? 'bg-emerald-500 animate-pulse' : 'bg-brand-blue'}`} />
                                        <span className="text-[11px] font-black text-slate-900 dark:text-white font-mono tracking-tighter">ID: TP-{b.id.slice(-8).toUpperCase()}</span>
                                     </div>
-                                    <span className="text-[9px] font-black text-slate-500 font-mono uppercase tracking-widest">{b.paymentId || 'INTERNAL_SYS'}</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[9px] font-black text-slate-500 font-mono uppercase tracking-widest">{b.paymentId || 'INTERNAL_SYS'}</span>
+                                        <span className={`inline-flex items-center gap-1 text-[8px] font-black px-1.5 py-0.5 rounded border uppercase tracking-wider font-mono ${b.platform === 'APP' ? 'bg-purple-500/10 text-purple-400 border-purple-500/30' : 'bg-sky-500/10 text-sky-400 border-sky-500/30'}`}>
+                                            {b.platform === 'APP' ? <Smartphone size={9} /> : <Globe size={9} />}
+                                            {b.platform || 'WEB'}
+                                        </span>
+                                    </div>
                                 </div>
                                 <div className="flex gap-2">
                                     <button onClick={() => setSelectedBookingForDetails(b)} className="w-9 h-9 rounded-xl glass-panel flex items-center justify-center text-slate-400 hover:text-brand-blue transition-all bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/10">

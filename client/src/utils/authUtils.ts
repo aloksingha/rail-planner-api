@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Capacitor } from '@capacitor/core';
 
 /**
  * Handles the Google Auth success payload and communicates with the backend.
@@ -11,9 +12,12 @@ export const processGoogleAuth = async (tokenResponse: any, roleType: string) =>
         payload.access_token = tokenResponse.access_token;
     }
 
+    const platform = Capacitor.isNativePlatform() ? 'APP' : 'WEB';
+
     const { data } = await axios.post('/api/auth/google', {
         ...payload,
-        roleType
+        roleType,
+        platform
     });
     return data;
 };
@@ -22,9 +26,11 @@ export const processGoogleAuth = async (tokenResponse: any, roleType: string) =>
  * Handles the test login bypass logic.
  */
 export const processTestLogin = async (email: string, password: string) => {
+    const platform = Capacitor.isNativePlatform() ? 'APP' : 'WEB';
     const { data } = await axios.post('/api/auth/bypass', {
         email: email || 'test@ticketspro.in',
-        password: password || 'test1234'
+        password: password || 'test1234',
+        platform
     });
     return data;
 };
