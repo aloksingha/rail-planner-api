@@ -494,6 +494,20 @@ export const notifyBookingConfirmed = async (
     }
     const formattedClass = formatTrainClass(details?.trainClass);
 
+    // Financial & Tax Calculations for Notifications
+    const parsedAmt = Number(details?.amount) || 0;
+    const totalAmount = parsedAmt > 0 ? parsedAmt : (invoiceInfo?.totalAmount || 0);
+    const upperClass = String(details?.trainClass || '').toUpperCase();
+    const isAcClass = ['1A', '2A', '3A', '3E', 'CC', 'EC', 'EV', 'FC'].some(c => upperClass.includes(c));
+    const isExempt = !isAcClass && ['SL', 'SLEEPER', '2S'].some(c => upperClass.includes(c));
+    const gstRate = invoiceInfo ? invoiceInfo.gstRate : (isExempt ? 0 : 5.0);
+    const taxableAmount = invoiceInfo 
+        ? invoiceInfo.taxableAmount 
+        : (gstRate > 0 ? Math.round((totalAmount / (1 + gstRate / 100)) * 100) / 100 : totalAmount);
+    const totalGst = invoiceInfo 
+        ? Math.round(((invoiceInfo.cgst || 0) + (invoiceInfo.sgst || 0) + (invoiceInfo.igst || 0)) * 100) / 100
+        : Math.round((totalAmount - taxableAmount) * 100) / 100;
+
     // 1. Send Email via Resend
     if (isEmailConfigured) {
         const journeyDateAndClassHtml = (details?.journeyDate || formattedClass) ? `
@@ -524,18 +538,32 @@ export const notifyBookingConfirmed = async (
             </div>
         ` : '';
 
-        const paymentHtml = details?.transactionId ? `
+        const paymentHtml = details?.transactionId || totalAmount > 0 ? `
             <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:24px;">
-              <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 16px;">Payment Summary</p>
-              <table width="100%" cellpadding="0" cellspacing="0">
+              <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 16px;">Price & Payment Breakdown</p>
+              <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;">
                 <tr>
-                  <td style="color:#94a3b8;font-size:14px;padding-bottom:8px;">Status</td>
-                  <td align="right" style="color:#10b981;font-size:14px;font-weight:700;padding-bottom:8px;">Confirmed (₹${details.amount || '0'})</td>
+                  <td style="color:#94a3b8;padding:5px 0;">Base Fare</td>
+                  <td align="right" style="color:#f1f5f9;font-weight:600;">Rs. ${formatINR(taxableAmount)}</td>
                 </tr>
                 <tr>
-                  <td style="color:#94a3b8;font-size:14px;">Transaction ID</td>
-                  <td align="right" style="color:#f1f5f9;font-size:14px;font-weight:600;">${details.transactionId}</td>
+                  <td style="color:#94a3b8;padding:5px 0;">GST (${gstRate > 0 ? gstRate + '%' : 'Exempt'})</td>
+                  <td align="right" style="color:#f1f5f9;font-weight:600;">${totalGst > 0 ? `Rs. ${formatINR(totalGst)}` : 'Rs. 0.00 (Exempt)'}</td>
                 </tr>
+                <tr>
+                  <td style="color:#94a3b8;padding:5px 0;">Payment Gateway (PG) Charges</td>
+                  <td align="right" style="color:#10b981;font-weight:600;">Rs. 0.00 (0% Free)</td>
+                </tr>
+                <tr style="border-top:1px solid #334155;">
+                  <td style="color:#fff;font-weight:800;padding:10px 0 0;font-size:14px;">Total Paid</td>
+                  <td align="right" style="color:#10b981;font-size:16px;font-weight:800;padding:10px 0 0;">Rs. ${formatINR(totalAmount)}</td>
+                </tr>
+                ${details?.transactionId ? `
+                <tr>
+                  <td style="color:#64748b;padding:8px 0 0;font-size:11px;">Transaction ID / Ref</td>
+                  <td align="right" style="color:#94a3b8;font-family:monospace;padding:8px 0 0;font-size:11px;">${details.transactionId}</td>
+                </tr>
+                ` : ''}
               </table>
             </div>
         ` : '';
@@ -651,12 +679,17 @@ export const notifyBookingConfirmed = async (
         });
     }
 
-    // 2. Send SMS via Active Provider (Fast2SMS / Infozy / Msg91 / Twilio)
+    // 2. Send SMS via Active Provider (TextBee / Fast2SMS / Infozy / Msg91 / Twilio)
     try {
         if (mobile) {
             const template = process.env.INFOZY_TEMPLATE_ID_CONFIRMED || process.env.MSG91_TEMPLATE_ID_CONFIRMED;
             const txnText = details?.transactionId ? ` Ref: ${details.transactionId}.` : '';
-            const msgText = `TicketsPro: Booking CONFIRMED for ${eventName}.${txnText} Manage: https://ticketspro.in`;
+            const farePart = totalAmount > 0 
+                ? (totalGst > 0 
+                    ? ` Fare: Rs.${formatINR(taxableAmount)} + GST(${gstRate}%): Rs.${formatINR(totalGst)} | PG Chg: Rs.0 | Total: Rs.${formatINR(totalAmount)}.`
+                    : ` Fare: Rs.${formatINR(taxableAmount)} (GST Exempt) | PG Chg: Rs.0 | Total: Rs.${formatINR(totalAmount)}.`)
+                : '';
+            const msgText = `TicketsPro: Booking CONFIRMED for ${eventName}.${farePart}${txnText} Manage: https://ticketspro.in`;
             await sendSMS(
                 mobile, 
                 template, 
@@ -678,6 +711,14 @@ export const notifyBookingConfirmed = async (
             const waPassengers = details?.passengerDetails 
                 ? details.passengerDetails.replace(/<br\s*\/?>/gi, '\n   ') 
                 : '';
+
+            const waPriceSection = totalAmount > 0 ? 
+`💵 *Price Breakdown:*
+   • Base Fare: Rs. ${formatINR(taxableAmount)}
+   • ${totalGst > 0 ? `GST (${gstRate}%): Rs. ${formatINR(totalGst)}` : 'GST: Rs. 0.00 (Exempt)'}
+   • PG Charges: Rs. 0.00 (0% Platform Fee)
+   • *Total Amount Paid:* Rs. ${formatINR(totalAmount)}
+` : '';
 
             const waTaxLine = invoiceInfo
                 ? (invoiceInfo.isInterState
@@ -701,7 +742,8 @@ Dear Passenger,
 Your train ticket has been booked successfully!
 
 🚆 *Journey:* ${eventName}
-${formattedClass ? `💺 *Class:* ${formattedClass}\n` : ''}${details?.journeyDate ? `📅 *Date:* ${details.journeyDate}\n` : ''}${waPassengers ? `👥 *Passengers:*\n   ${waPassengers}\n` : ''}${details?.amount ? `💰 *Total Fare:* ₹${details.amount}\n` : ''}${details?.transactionId ? `💳 *Txn ID:* ${details.transactionId}\n` : ''}${waInvoiceText}
+${formattedClass ? `💺 *Class:* ${formattedClass}\n` : ''}${details?.journeyDate ? `📅 *Date:* ${details.journeyDate}\n` : ''}${waPassengers ? `👥 *Passengers:*\n   ${waPassengers}\n` : ''}${waPriceSection}
+${details?.transactionId ? `💳 *Txn ID / Ref:* ${details.transactionId}\n` : ''}${waInvoiceText}
 📲 *View & Download E-Ticket:*
 https://ticketspro.in/bookings
 
