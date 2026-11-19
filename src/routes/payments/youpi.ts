@@ -167,7 +167,7 @@ router.post('/create-order', requireAuth, async (req: Request, res: Response) =>
 /**
  * Internal helper to fulfill a paid YouPI order idempotently.
  */
-async function fulfillYouPiOrder(orderData: any, utr: string) {
+async function fulfillYouPiOrder(orderData: any, utr: string, fulfillmentStatus: 'CONFIRMED' | 'PENDING' = 'CONFIRMED') {
     const orderId = orderData.orderId;
     const userId = orderData.userId;
     const paymentId = utr ? `YP_${utr}` : `YP_${orderId}`;
@@ -189,26 +189,29 @@ async function fulfillYouPiOrder(orderData: any, utr: string) {
 
     if (orderData.type === 'WALLET_TOPUP') {
         const result = await prisma.$transaction(async (tx) => {
-            const user = await tx.user.update({
-                where: { id: userId },
-                data: { walletBalance: { increment: orderData.amount } }
-            });
+            let user = null;
+            if (fulfillmentStatus === 'CONFIRMED') {
+                user = await tx.user.update({
+                    where: { id: userId },
+                    data: { walletBalance: { increment: orderData.amount } }
+                });
 
-            await tx.walletTransaction.create({
-                data: {
-                    userId,
-                    amount: orderData.amount,
-                    type: 'CREDIT',
-                    description: `Wallet top-up via Direct UPI (UTR: ${utr || orderId})`
-                }
-            });
+                await tx.walletTransaction.create({
+                    data: {
+                        userId,
+                        amount: orderData.amount,
+                        type: 'CREDIT',
+                        description: `Wallet top-up via Direct UPI (UTR: ${utr || orderId})`
+                    }
+                });
+            }
 
             const paymentRecord = await tx.paymentRecord.create({
                 data: {
                     orderId,
                     paymentId,
                     amount: orderData.amount,
-                    status: 'CAPTURED',
+                    status: fulfillmentStatus === 'CONFIRMED' ? 'CAPTURED' : 'PENDING',
                     userId
                 }
             });
@@ -217,7 +220,7 @@ async function fulfillYouPiOrder(orderData: any, utr: string) {
         });
 
         // Update cached session
-        orderData.status = 'SUCCESS';
+        orderData.status = fulfillmentStatus === 'CONFIRMED' ? 'SUCCESS' : 'PENDING';
         orderData.utr = utr;
         await CacheService.set(`youpi:order:${orderId}`, JSON.stringify(orderData), 3600);
 
@@ -246,7 +249,7 @@ async function fulfillYouPiOrder(orderData: any, utr: string) {
                 orderId,
                 paymentId,
                 amount: Number(orderData.amount),
-                status: 'CAPTURED',
+                status: fulfillmentStatus === 'CONFIRMED' ? 'CAPTURED' : 'PENDING',
                 userId
             }
         });
@@ -262,7 +265,7 @@ async function fulfillYouPiOrder(orderData: any, utr: string) {
                 userId,
                 eventId: event.id,
                 paymentId,
-                status: 'CONFIRMED',
+                status: fulfillmentStatus,
                 class: category,
                 platform: orderData?.platform === 'APP' ? 'APP' : 'WEB'
             }
@@ -285,39 +288,43 @@ async function fulfillYouPiOrder(orderData: any, utr: string) {
             });
         }
 
-        await checkAndApplyCommission(tx, userId, Number(orderData.amount), booking.id, orderData.trainNo);
-        await incrementCouponUsage(tx, orderData.couponCode || orderData.coupon);
+        if (fulfillmentStatus === 'CONFIRMED') {
+            await checkAndApplyCommission(tx, userId, Number(orderData.amount), booking.id, orderData.trainNo);
+            await incrementCouponUsage(tx, orderData.couponCode || orderData.coupon);
+        }
 
         return { booking, eventName };
     });
 
-    // Send customer notification (Non-blocking)
-    try {
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-        const targetEmail = orderData.email || user?.email;
-        const targetMobile = orderData.mobile || user?.mobile || undefined;
-        if (targetEmail) {
-            const pDesc = Array.isArray(orderData.passengerList)
-                ? orderData.passengerList.map((p: any, i: number) => `0${i+1} ${p.name} (Age: ${p.age}, Gender: ${p.gender})`).join('<br/>')
-                : `Passengers: ${orderData.passengers}`;
+    // Send customer notification (Non-blocking) only if confirmed
+    if (fulfillmentStatus === 'CONFIRMED') {
+        try {
+            const user = await prisma.user.findUnique({ where: { id: userId } });
+            const targetEmail = orderData.email || user?.email;
+            const targetMobile = orderData.mobile || user?.mobile || undefined;
+            if (targetEmail) {
+                const pDesc = Array.isArray(orderData.passengerList)
+                    ? orderData.passengerList.map((p: any, i: number) => `0${i+1} ${p.name} (Age: ${p.age}, Gender: ${p.gender})`).join('<br/>')
+                    : `Passengers: ${orderData.passengers}`;
 
-            const emailDetails = {
-                bookingId: result.booking.id,
-                journeyDate: orderData.journeyDate ? new Date(orderData.journeyDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '',
-                passengerDetails: pDesc,
-                transactionId: utr || orderId,
-                amount: orderData.amount,
-                trainClass: orderData.trainClass
-            };
+                const emailDetails = {
+                    bookingId: result.booking.id,
+                    journeyDate: orderData.journeyDate ? new Date(orderData.journeyDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '',
+                    passengerDetails: pDesc,
+                    transactionId: utr || orderId,
+                    amount: orderData.amount,
+                    trainClass: orderData.trainClass
+                };
 
-            notifyBookingConfirmed(targetEmail, result.eventName, targetMobile, emailDetails).catch(err => console.error('[YouPI] Notification error:', err));
+                notifyBookingConfirmed(targetEmail, result.eventName, targetMobile, emailDetails).catch(err => console.error('[YouPI] Notification error:', err));
+            }
+        } catch (e) {
+            console.error('[YouPI] Notification log error:', e);
         }
-    } catch (e) {
-        console.error('[YouPI] Notification log error:', e);
     }
 
     // Update cached session
-    orderData.status = 'SUCCESS';
+    orderData.status = fulfillmentStatus === 'CONFIRMED' ? 'SUCCESS' : 'PENDING';
     orderData.bookingId = result.booking.id;
     orderData.utr = utr;
     await CacheService.set(`youpi:order:${orderId}`, JSON.stringify(orderData), 3600);
@@ -508,6 +515,8 @@ router.post('/verify-utr', requireAuth, async (req: Request, res: Response) => {
 
         // If YouPI server is active, verify with YouPI verification endpoint
         const config = await getYouPiConfig();
+        let isGatewayVerified = false;
+
         if (config.baseUrl && config.merchantKey) {
             try {
                 const response = await axios.post(`${config.baseUrl}/v2/orders/verify-utr`, {
@@ -517,23 +526,63 @@ router.post('/verify-utr', requireAuth, async (req: Request, res: Response) => {
                 }, { timeout: 6000 });
 
                 if (response.data?.success || response.data?.verified) {
-                    const fulfillment = await fulfillYouPiOrder(orderData, cleanUtr);
-                    return res.json({ success: true, bookingId: fulfillment.bookingId });
+                    isGatewayVerified = true;
+                } else if (response.data && response.data.verified === false) {
+                    return res.status(400).json({ error: response.data.error || 'The entered UTR could not be verified by the banking gateway. Please double check the 12-digit reference number.' });
                 }
-            } catch (err) {
-                console.warn('[YouPI] Remote UTR verification failed, continuing with direct confirmation flow.');
+            } catch (err: any) {
+                console.warn('[YouPI] Remote UTR verification error:', err.message || err);
             }
         }
 
-        // Assisted Instant Confirmation: Fulfill with the customer's provided UTR
-        const fulfillment = await fulfillYouPiOrder(orderData, cleanUtr);
-        await createAuditLog({
-            action: 'YOUPI_CUSTOMER_UTR_VERIFICATION',
-            performedByUserId: req.user!.userId,
-            details: `Customer submitted UTR ${cleanUtr} for Order ${orderId}`
-        });
+        if (isGatewayVerified) {
+            // 1. Gateway verified: Confirm booking or wallet recharge immediately
+            const fulfillment = await fulfillYouPiOrder(orderData, cleanUtr, 'CONFIRMED');
+            await createAuditLog({
+                action: 'YOUPI_VERIFIED_UTR_PAYMENT',
+                performedByUserId: req.user!.userId,
+                details: `Gateway verified UTR ${cleanUtr} for Order ${orderId}`
+            });
+            return res.json({ success: true, bookingId: fulfillment.bookingId });
+        } else {
+            // 2. Unverified / Offline Fallback: NEVER auto-confirm unverified payments or credit wallets
+            if (orderData.type === 'WALLET_TOPUP') {
+                // Record pending payment record for admin review (Do NOT increment user balance)
+                await prisma.paymentRecord.create({
+                    data: {
+                        orderId,
+                        paymentId: `YP_${cleanUtr}`,
+                        amount: Number(orderData.amount),
+                        status: 'PENDING',
+                        userId: orderData.userId
+                    }
+                });
+                await createAuditLog({
+                    action: 'YOUPI_MANUAL_UTR_TOPUP_SUBMISSION',
+                    performedByUserId: req.user!.userId,
+                    details: `Customer submitted unverified UTR ${cleanUtr} for Wallet Top-up of ₹${orderData.amount}. Pending Admin Approval.`
+                });
+                return res.json({ 
+                    success: true, 
+                    pendingApproval: true, 
+                    message: `Your wallet recharge of ₹${orderData.amount} with UTR ${cleanUtr} has been submitted for verification. Balance will be updated upon confirmation.` 
+                });
+            }
 
-        return res.json({ success: true, bookingId: fulfillment.bookingId });
+            // For Train Bookings: Place in PENDING status for manual admin verification
+            const fulfillment = await fulfillYouPiOrder(orderData, cleanUtr, 'PENDING');
+            await createAuditLog({
+                action: 'YOUPI_MANUAL_UTR_BOOKING_SUBMISSION',
+                performedByUserId: req.user!.userId,
+                details: `Customer submitted unverified UTR ${cleanUtr} for Order ${orderId}. Placed in PENDING verification.`
+            });
+            return res.json({ 
+                success: true, 
+                pendingApproval: true, 
+                bookingId: fulfillment.bookingId,
+                message: `Your booking has been received with UTR ${cleanUtr} and is awaiting bank settlement confirmation.`
+            });
+        }
 
     } catch (error: any) {
         console.error('[YouPI] verify-utr error:', error);
