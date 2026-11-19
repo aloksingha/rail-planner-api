@@ -166,7 +166,7 @@ router.get('/gst-report', requireAuth, requireRole(['SUPER_ADMIN', 'ADMIN', 'SAL
                 igst: 0,
                 totalAmount: Math.round(totalAmount * 100) / 100,
                 pdfUrl: `/api/invoices/${b.id}?view=true`,
-                downloadUrl: `https://rail-planner-api.onrender.com/api/invoices/${b.id}?download=true`
+                downloadUrl: `https://ticketspro.in/api/invoices/${b.id}?download=true`
             };
         });
 

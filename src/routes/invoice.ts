@@ -272,8 +272,8 @@ router.post('/:bookingId/send', requireAuth, async (req, res) => {
             clientState
         });
 
-        // Direct download URL pointing to the live API with signed access token
-        const directDownloadUrl = `https://rail-planner-api.onrender.com/api/invoices/${booking.id}?download=true&token=${getInvoiceAccessToken(booking.id)}`;
+        // Direct download URL pointing to the live portal with signed access token
+        const directDownloadUrl = `https://ticketspro.in/api/invoices/${booking.id}?download=true&token=${getInvoiceAccessToken(booking.id)}`;
 
         // 1. Send via WhatsApp
         if (targetMobile) {

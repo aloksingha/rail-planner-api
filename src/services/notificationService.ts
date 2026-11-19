@@ -602,7 +602,7 @@ export const notifyBookingConfirmed = async (
                 </tr>
               </table>
               <div style="margin-top:16px;text-align:center;">
-                <a href="https://rail-planner-api.onrender.com/api/invoices/${details?.bookingId || details?.transactionId}?download=true" style="background:#0f172a;border:1px solid #38bdf8;color:#38bdf8;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:700;font-size:12px;display:inline-block;">
+                <a href="https://ticketspro.in/api/invoices/${details?.bookingId || details?.transactionId}?download=true" style="background:#0f172a;border:1px solid #38bdf8;color:#38bdf8;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:700;font-size:12px;display:inline-block;">
                   📄 Download Official GST Tax Invoice (PDF)
                 </a>
               </div>
@@ -733,7 +733,7 @@ export const notifyBookingConfirmed = async (
    • *Total Paid:* Rs. ${formatINR(invoiceInfo.totalAmount)}
 
 📄 *Download Official GST Tax Invoice (PDF):*
-https://rail-planner-api.onrender.com/api/invoices/${details?.bookingId || details?.transactionId}?download=true\n` : '';
+https://ticketspro.in/api/invoices/${details?.bookingId || details?.transactionId}?download=true\n` : '';
 
             const waMessage = 
 `🎫 *Tickets Pro — Booking Confirmed!*
