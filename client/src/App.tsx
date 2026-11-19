@@ -890,8 +890,6 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
               <>
                 <SidebarSection label="Travel Center" />
                 <NavLink to="/bookings" icon={BookOpen}>My Bookings</NavLink>
-                <NavLink to="/flight-booking" icon={Plane}>Flight Booking</NavLink>
-                <NavLink to="/bus-booking" icon={Bus}>Bus Booking</NavLink>
                 
                 <SidebarSection label="Account" />
                 <NavLink to="/wallet" icon={Wallet}>My Wallet</NavLink>
@@ -1193,8 +1191,8 @@ function AppContent({ auth, setToken, handleLogout, theme, toggleTheme }: any) {
                       : <Navigate to="/" replace />
                   } />
                   <Route path="/refunds" element={<ManualRefunds />} />
-                  <Route path="/flight-booking" element={<FlightBooking />} />
-                  <Route path="/bus-booking" element={<BusBooking />} />
+                  <Route path="/flight-booking" element={auth.role === 'SUPER_ADMIN' ? <FlightBooking /> : <Navigate to="/" replace />} />
+                  <Route path="/bus-booking" element={auth.role === 'SUPER_ADMIN' ? <BusBooking /> : <Navigate to="/" replace />} />
                   <Route path="/car-rental" element={<Navigate to="/" replace />} />
                   <Route path="/contact" element={<ContactUs />} />
                   <Route path="/terms" element={<TermsAndConditions />} />
