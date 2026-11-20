@@ -520,6 +520,48 @@ export const triggerAutomatedConfirmationCall = async (params: VoiceCallParams) 
         }
     }
 
+
+    // 3. Vapi AI Conversational Voice Agent
+    const vapiApiKey = process.env.VAPI_API_KEY || 'a17850e0-37cf-4a2b-9f10-49d44960a684';
+    const vapiAssistantId = process.env.VAPI_ASSISTANT_ID || '6524e55a-007d-44c4-8367-60ac7b357ab6';
+    const vapiPhoneId = process.env.VAPI_PHONE_NUMBER_ID;
+
+    if (vapiApiKey && vapiAssistantId && vapiPhoneId && vapiPhoneId.trim() !== '') {
+        try {
+            const vapiRes = await axios.post(
+                'https://api.vapi.ai/call/phone',
+                {
+                    assistantId: vapiAssistantId,
+                    phoneNumberId: vapiPhoneId,
+                    customer: {
+                        number: toFormatted,
+                        name: passenger
+                    },
+                    assistantOverrides: {
+                        variableValues: {
+                            passengerName: passenger,
+                            trainName: cleanTrain,
+                            bookingRef: ref,
+                            supportPhone1: '7318815790',
+                            supportPhone2: '7001969682'
+                        }
+                    }
+                },
+                {
+                    headers: {
+                        'Authorization': `Bearer ${vapiApiKey}`,
+                        'Content-Type': 'application/json'
+                    },
+                    timeout: 10000
+                }
+            );
+            console.log(`✅ [Vapi Voice Agent] Outbound call placed to ${toFormatted}. Call ID: ${vapiRes.data?.id}`);
+            return { success: true, provider: 'Vapi', callId: vapiRes.data?.id };
+        } catch (vapiErr: any) {
+            console.error('❌ [Vapi Voice Agent] Outbound call failed:', vapiErr?.response?.data || vapiErr.message);
+        }
+    }
+
     // 2. Fast2SMS Voice API
     const fast2smsKey = process.env.FAST2SMS_API_KEY;
     if (fast2smsKey && fast2smsKey.trim() !== '') {

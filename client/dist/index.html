@@ -621,5 +621,57 @@
         <p>Please enable JavaScript to enjoy full interactive train search and Tatkal booking capabilities. You can still reach us via WhatsApp at +91 73188 15790 for manual booking assistance and live PNR status checks.</p>
       </div>
     </noscript>
+  
+    <!-- Vapi AI Conversational Voice Widget (TicketsPro Voice Assistant) -->
+    <script>
+      var vapiInstance = null;
+      const assistant = "6524e55a-007d-44c4-8367-60ac7b357ab6";
+      const apiKey = "81edc302-ea08-4d78-aa7d-cecd608dbd09";
+      const buttonConfig = {
+        position: "bottom-right",
+        offset: "24px",
+        width: "56px",
+        height: "56px",
+        idle: {
+          color: "rgb(13, 148, 136)",
+          type: "pill",
+          title: "Talk with AI",
+          subtitle: "TicketsPro Voice Assistant",
+          icon: "https://unpkg.com/lucide-static@0.321.0/icons/mic.svg",
+        },
+        loading: {
+          color: "rgb(13, 148, 136)",
+          type: "pill",
+          title: "Connecting...",
+          subtitle: "Please wait",
+          icon: "https://unpkg.com/lucide-static@0.321.0/icons/loader-2.svg",
+        },
+        active: {
+          color: "rgb(239, 68, 68)",
+          type: "pill",
+          title: "Listening...",
+          subtitle: "Say 'End call' or tap to stop",
+          icon: "https://unpkg.com/lucide-static@0.321.0/icons/phone-off.svg",
+        },
+      };
+
+      (function (d, t) {
+        var g = document.createElement(t),
+            s = d.getElementsByTagName(t)[0];
+        g.src = "https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js";
+        g.defer = true;
+        g.async = true;
+        s.parentNode.insertBefore(g, s);
+        
+        g.onload = function () {
+          vapiInstance = window.vapiSDK.run({
+            apiKey: apiKey,
+            assistant: assistant,
+            config: buttonConfig,
+          });
+        };
+      })(document, "script");
+    </script>
+
   </body>
 </html>
