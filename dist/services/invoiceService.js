@@ -337,44 +337,45 @@ async function generateGSTInvoice(data) {
         // Table Header
         doc.rect(36, tableY, 523, thHeight).fill('#0f172a');
         doc.fillColor('#ffffff').fontSize(7.5).font('Helvetica-Bold');
-        doc.text('S.No', 42, tableY + 6);
-        doc.text('Description of Service', 68, tableY + 6);
-        doc.text('SAC', 240, tableY + 6);
-        doc.text('Qty', 275, tableY + 6);
-        doc.text('Taxable (INR)', 305, tableY + 6);
+        doc.text('S.No', 40, tableY + 6);
+        doc.text('Description of Service', 66, tableY + 6);
+        doc.text('SAC', 270, tableY + 6, { width: 34, align: 'center' });
+        doc.text('Qty', 308, tableY + 6, { width: 20, align: 'center' });
+        doc.text('Taxable (INR)', 332, tableY + 6, { width: 62, align: 'right' });
         if (isInterState) {
-            doc.text(`IGST (${gstRate}%)`, 385, tableY + 6);
+            doc.text(`IGST (${gstRate}%)`, 400, tableY + 6, { width: 75, align: 'right' });
         }
         else {
-            doc.text(`CGST (${(gstRate / 2).toFixed(1)}%)`, 375, tableY + 6);
-            doc.text(`SGST (${(gstRate / 2).toFixed(1)}%)`, 435, tableY + 6);
+            doc.text(`CGST (${(gstRate / 2).toFixed(1)}%)`, 400, tableY + 6, { width: 44, align: 'right' });
+            doc.text(`SGST (${(gstRate / 2).toFixed(1)}%)`, 450, tableY + 6, { width: 44, align: 'right' });
         }
-        doc.text('Total (INR)', 495, tableY + 6);
+        doc.text('Total (INR)', 500, tableY + 6, { width: 54, align: 'right' });
         // Table Row 1
         const r1Y = tableY + thHeight;
-        const rowHeight = 32;
+        const rowHeight = 34;
         doc.rect(36, r1Y, 523, rowHeight).strokeColor('#e2e8f0').lineWidth(1).stroke();
         doc.fillColor('#334155').fontSize(7.5).font('Helvetica');
-        doc.text('1', 44, r1Y + 8);
+        doc.text('1', 40, r1Y + 9, { width: 22, align: 'center' });
         const serviceDesc = isExempt
             ? `Passenger Transport by Rail (Train ${data.trainNo || ''} - Non-AC Sleeper)`
             : `Passenger Transport by Rail (Train ${data.trainNo || ''} - AC Class)`;
         const subDesc = isExempt
             ? 'Exempt from GST as per Notification No. 12/2017 - Central Tax (Rate)'
             : 'Online railway ticket booking and facilitation (SAC 996411)';
-        doc.font('Helvetica-Bold').text(serviceDesc, 68, r1Y + 8)
-            .font('Helvetica').fillColor('#64748b').text(subDesc, 68, r1Y + 18);
-        doc.fillColor('#334155').text('996411', 240, r1Y + 12);
-        doc.text(String(data.passengers || 1), 280, r1Y + 12);
-        doc.text(`Rs. ${formatINR(taxableAmount)}`, 305, r1Y + 12);
+        doc.font('Helvetica-Bold').fontSize(7).text(serviceDesc, 66, r1Y + 7, { width: 198 })
+            .font('Helvetica').fontSize(6.5).fillColor('#64748b').text(subDesc, 66, r1Y + 18, { width: 198 });
+        doc.fillColor('#334155').fontSize(7.5);
+        doc.text('996411', 270, r1Y + 11, { width: 34, align: 'center' });
+        doc.text(String(data.passengers || 1), 308, r1Y + 11, { width: 20, align: 'center' });
+        doc.text(`Rs. ${formatINR(taxableAmount)}`, 332, r1Y + 11, { width: 62, align: 'right' });
         if (isInterState) {
-            doc.text(`Rs. ${formatINR(igst)}`, 385, r1Y + 12);
+            doc.text(`Rs. ${formatINR(igst)}`, 400, r1Y + 11, { width: 75, align: 'right' });
         }
         else {
-            doc.text(`Rs. ${formatINR(cgst)}`, 375, r1Y + 12);
-            doc.text(`Rs. ${formatINR(sgst)}`, 435, r1Y + 12);
+            doc.text(`Rs. ${formatINR(cgst)}`, 400, r1Y + 11, { width: 44, align: 'right' });
+            doc.text(`Rs. ${formatINR(sgst)}`, 450, r1Y + 11, { width: 44, align: 'right' });
         }
-        doc.font('Helvetica-Bold').fillColor('#0f172a').text(`Rs. ${formatINR(totalAmount)}`, 495, r1Y + 12);
+        doc.font('Helvetica-Bold').fillColor('#0f172a').text(`Rs. ${formatINR(totalAmount)}`, 500, r1Y + 11, { width: 54, align: 'right' });
         // ── Summary Totals Box ──
         const sumY = r1Y + rowHeight + 12;
         const boxW = 220;
