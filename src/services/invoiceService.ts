@@ -38,6 +38,32 @@ export interface InvoiceResult {
     isInterState: boolean;
 }
 
+/**
+ * Extracts 1st client / passenger name from passengerList or raw passenger string
+ */
+export function extractFirstPassengerName(raw?: Array<{ name: string }> | string | null): string {
+    if (!raw) return '';
+    if (Array.isArray(raw)) {
+        const first = raw[0]?.name?.trim();
+        return first && !/^(?:valued passenger|passenger)$/i.test(first) ? first : '';
+    }
+    const text = String(raw).replace(/<[^>]+>/g, '\n').trim();
+    const firstEntry = text.split(/[\n;\r|]/)[0]?.trim();
+    if (!firstEntry) return '';
+
+    let cleaned = firstEntry.replace(/^(?:passengers?\s*(?:\d+)?[:.-]?|\d+[.)\s-])\s*/i, '').trim();
+    const nameMatch = cleaned.match(/^([^(,]+)/);
+    if (nameMatch && nameMatch[1]) {
+        cleaned = nameMatch[1].trim();
+    }
+    cleaned = cleaned.replace(/[,:.-]+$/, '').trim();
+
+    if (!cleaned || /^\d+$/.test(cleaned) || /^(?:valued passenger|customer|user)$/i.test(cleaned)) {
+        return '';
+    }
+    return cleaned;
+}
+
 // Indian GST State Codes Map
 const GST_STATE_CODES: Record<string, string> = {
     '01': 'Jammu & Kashmir',
@@ -279,7 +305,23 @@ export async function generateGSTInvoice(data: InvoiceData): Promise<InvoiceResu
         doc.rect(rightX, topY, colWidth, 18).fill('#f8fafc');
         doc.fillColor('#334155').fontSize(8).font('Helvetica-Bold').text('BILLED TO (RECIPIENT)', rightX + 8, topY + 5);
 
-        const clientName = data.clientCompanyName || data.customerName || 'Valued Passenger';
+        // Prioritize 1st Client / Passenger Name
+        const firstPassenger = extractFirstPassengerName(data.passengerList);
+        let clientName = data.clientCompanyName?.trim();
+        if (!clientName) {
+            if (firstPassenger) {
+                clientName = firstPassenger;
+            } else if (data.customerName && !/^(?:valued passenger|customer|user|admin|super\s*admin)$/i.test(data.customerName.trim())) {
+                clientName = data.customerName.trim();
+            } else {
+                clientName = 'Valued Passenger';
+            }
+        }
+
+        // Sanitize and clean customer mobile (always 10 digits)
+        let cleanCustomerMobile = data.customerMobile ? String(data.customerMobile).replace(/\D/g, '') : '';
+        if (cleanCustomerMobile.length >= 10) cleanCustomerMobile = cleanCustomerMobile.slice(-10);
+
         doc.fillColor('#0f172a').fontSize(9).font('Helvetica-Bold').text(clientName, rightX + 8, topY + 24);
         doc.fillColor('#475569').fontSize(7.5).font('Helvetica');
         if (data.clientGstin) {
@@ -287,7 +329,7 @@ export async function generateGSTInvoice(data: InvoiceData): Promise<InvoiceResu
         } else {
             doc.text('Type: Unregistered Consumer (B2C)', rightX + 8, topY + 37);
         }
-        doc.text(`Mobile: ${data.customerMobile || 'N/A'}`, rightX + 8, topY + 49);
+        doc.text(`Mobile: ${cleanCustomerMobile || 'N/A'}`, rightX + 8, topY + 49);
         doc.text(`Email: ${data.customerEmail || 'N/A'}`, rightX + 8, topY + 61);
         doc.text(`Place of Supply: ${placeOfSupply}`, rightX + 8, topY + 73);
         doc.text(`Reverse Charge Applicable: NO`, rightX + 8, topY + 85);

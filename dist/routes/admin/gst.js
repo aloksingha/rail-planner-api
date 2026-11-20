@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const auth_1 = require("../../middleware/auth");
 const prisma_1 = require("../../prisma");
+const invoiceService_1 = require("../../services/invoiceService");
 const router = (0, express_1.Router)();
 /**
  * Helper to parse booking amount from payment record or event description
@@ -115,22 +116,33 @@ router.get('/gst-report', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_AD
             const cleanId = b.id.replace(/-/g, '').slice(0, 8).toUpperCase();
             const invYear = new Date(b.createdAt).getFullYear();
             const invoiceNumber = `INV-${invYear}-${cleanId}`;
-            // Customer info
-            let customerMobile = b.user?.mobile || '';
-            let customerName = b.user?.name || '';
-            if (!customerMobile && b.event?.description) {
-                const mobMatch = b.event.description.match(/Mobile:\s*([+0-9\s-]+)/i);
-                if (mobMatch && mobMatch[1])
-                    customerMobile = mobMatch[1].replace(/\D/g, '').slice(-10);
-            }
-            if ((!customerName || customerName.includes('Admin')) && b.event?.description) {
-                const pMatch = b.event.description.match(/Passengers:\s*([^.]+)/i);
-                if (pMatch && pMatch[1]) {
-                    const firstP = pMatch[1].split(/[;,]/)[0]?.split('(')[0]?.trim();
-                    if (firstP)
-                        customerName = firstP;
+            // Customer info: Extract 1st client / passenger name and actual booking mobile
+            let customerMobile = '';
+            if (b.event?.description) {
+                const mobMatch = b.event.description.match(/Mobile:\s*([+0-9\s-]+?)(?:\.|\s*Amount:|\s*Paid:|\s*$)/i);
+                if (mobMatch && mobMatch[1]) {
+                    const digits = mobMatch[1].replace(/\D/g, '');
+                    if (digits.length >= 10)
+                        customerMobile = digits.slice(-10);
                 }
             }
+            if (!customerMobile && b.user?.mobile) {
+                const digits = String(b.user.mobile).replace(/\D/g, '');
+                if (digits.length >= 10)
+                    customerMobile = digits.slice(-10);
+            }
+            let customerName = '';
+            if (b.event?.description) {
+                const pMatch = b.event.description.match(/Passengers:\s*([^.]+)/i);
+                if (pMatch && pMatch[1]) {
+                    customerName = (0, invoiceService_1.extractFirstPassengerName)(pMatch[1].trim());
+                }
+            }
+            if (!customerName && b.user?.name && !/^(?:admin|super\s*admin|user)$/i.test(b.user.name)) {
+                customerName = b.user.name;
+            }
+            if (!customerName)
+                customerName = 'Valued Passenger';
             return {
                 bookingId: b.id,
                 invoiceNumber,
@@ -156,7 +168,7 @@ router.get('/gst-report', auth_1.requireAuth, (0, auth_1.requireRole)(['SUPER_AD
                 igst: 0,
                 totalAmount: Math.round(totalAmount * 100) / 100,
                 pdfUrl: `/api/invoices/${b.id}?view=true`,
-                downloadUrl: `https://rail-planner-api.onrender.com/api/invoices/${b.id}?download=true`
+                downloadUrl: `https://ticketspro.in/api/invoices/${b.id}?download=true`
             };
         });
         const totalTax = Math.round((totalCGST + totalSGST + totalIGST) * 100) / 100;

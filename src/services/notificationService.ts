@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
 import axios from 'axios';
-import { generateGSTInvoice, formatINR } from './invoiceService';
+import { generateGSTInvoice, formatINR, extractFirstPassengerName } from './invoiceService';
 
 // ─── Resend SMTP Configuration ──────────────────────────────────────────────────
 const isEmailConfigured = !!process.env.RESEND_API_KEY;
@@ -610,6 +610,7 @@ export const notifyBookingConfirmed = async (
     let invoiceInfo: any = null;
     try {
         const parsedAmt = Number(details?.amount) || 0;
+        const firstPassenger = details?.passengerDetails ? extractFirstPassengerName(details.passengerDetails) : '';
         invoiceInfo = await generateGSTInvoice({
             bookingId: details?.bookingId || details?.transactionId || `BK_${Date.now()}`,
             amount: parsedAmt,
@@ -619,6 +620,7 @@ export const notifyBookingConfirmed = async (
             trainClass: details?.trainClass,
             passengerList: details?.passengerDetails,
             paymentId: details?.transactionId,
+            customerName: firstPassenger || undefined,
             customerEmail: email,
             customerMobile: mobile,
             clientGstin: details?.clientGstin,

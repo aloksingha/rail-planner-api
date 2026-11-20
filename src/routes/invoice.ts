@@ -5,7 +5,7 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../prisma';
 import { requireAuth } from '../middleware/auth';
-import { generateGSTInvoice, formatINR } from '../services/invoiceService';
+import { generateGSTInvoice, formatINR, extractFirstPassengerName } from '../services/invoiceService';
 import { sendWhatsApp } from '../services/notificationService';
 import axios from 'axios';
 
@@ -80,31 +80,38 @@ function parseTrainDetails(event: any) {
 
 /**
  * Helper to extract customer details (mobile, name, passenger list)
+ * Prioritizes 1st client / passenger name and booking contact mobile
  */
 function extractCustomerDetails(booking: any) {
-    let customerMobile = booking.user?.mobile || '';
-    let customerName = booking.user?.name || '';
-    let passengerList = 'Passengers';
-
     const desc = booking.event?.description || '';
+    let passengerList = 'Passengers';
+    let firstPassengerName = '';
 
-    // Extract mobile from description if user mobile is missing
-    if (!customerMobile && desc) {
-        const mobMatch = desc.match(/Mobile:\s*([+0-9\s-]+)/i);
-        if (mobMatch && mobMatch[1]) {
-            customerMobile = mobMatch[1].replace(/\D/g, '').slice(-10);
-        }
-    }
-
-    // Extract passengers
+    // Extract passengers from description
     const pMatch = desc.match(/Passengers:\s*([^.]+)/i);
     if (pMatch && pMatch[1]) {
         passengerList = pMatch[1].trim();
-        // If customer name is missing or is admin/generic, use the first passenger's name
-        const firstPassenger = passengerList.split(/[;,]/)[0]?.split('(')[0]?.trim();
-        if ((!customerName || customerName.toLowerCase().includes('admin') || customerName.toLowerCase().includes('system')) && firstPassenger) {
-            customerName = firstPassenger;
+        firstPassengerName = extractFirstPassengerName(passengerList);
+    }
+
+    // 1st passenger name is the primary client name on the invoice
+    let customerName = firstPassengerName || booking.user?.name || '';
+    if (!customerName || /^(?:valued passenger|customer|user|admin|super\s*admin|system)$/i.test(customerName.trim())) {
+        customerName = firstPassengerName || 'Valued Passenger';
+    }
+
+    // Mobile number from booking description takes priority over user account mobile
+    let customerMobile = '';
+    if (desc) {
+        const mobMatch = desc.match(/Mobile:\s*([+0-9\s-]+?)(?:\.|\s*Amount:|\s*Paid:|\s*$)/i);
+        if (mobMatch && mobMatch[1]) {
+            const digits = mobMatch[1].replace(/\D/g, '');
+            if (digits.length >= 10) customerMobile = digits.slice(-10);
         }
+    }
+    if (!customerMobile && booking.user?.mobile) {
+        const digits = String(booking.user.mobile).replace(/\D/g, '');
+        if (digits.length >= 10) customerMobile = digits.slice(-10);
     }
 
     return {

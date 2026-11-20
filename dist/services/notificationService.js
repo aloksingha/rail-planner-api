@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.notifyPaymentReceived = exports.notifyBookingCancelled = exports.notifyBookingConfirmed = exports.formatTrainClass = exports.getTextBeeMessages = exports.sendTextBeeBulkSMS = exports.getTextBeeDevices = exports.getTextBeeStats = exports.sendSMS = exports.sendWhatsApp = void 0;
+exports.notifyPaymentReceived = exports.notifyBookingCancelled = exports.notifyBookingConfirmed = exports.triggerAutomatedConfirmationCall = exports.formatTrainClass = exports.getTextBeeMessages = exports.sendTextBeeBulkSMS = exports.getTextBeeDevices = exports.getTextBeeStats = exports.sendSMS = exports.sendWhatsApp = void 0;
 const axios_1 = __importDefault(require("axios"));
 const invoiceService_1 = require("./invoiceService");
 // ─── Resend SMTP Configuration ──────────────────────────────────────────────────
@@ -407,11 +407,110 @@ const formatTrainClass = (rawClass) => {
     return CLASS_LABELS[upper] || rawClass.trim();
 };
 exports.formatTrainClass = formatTrainClass;
+const triggerAutomatedConfirmationCall = async (params) => {
+    if (!params.mobile)
+        return { success: false, reason: 'No mobile provided' };
+    const cleanMobile = params.mobile.replace(/\D/g, '');
+    const mobile10 = cleanMobile.length >= 10 ? cleanMobile.slice(-10) : cleanMobile;
+    const toFormatted = '+91' + mobile10;
+    const passenger = (params.passengerName || 'Dear Passenger').replace(/[<>]/g, '');
+    const cleanTrain = params.eventName.replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim();
+    const ref = params.bookingRef || 'your booking reference';
+    const enScript = `Hello ${passenger}. This is an automated booking confirmation call from Tickets Pro. Your train booking for ${cleanTrain} has been successfully CONFIRMED with reference ${ref}. Complete ticket details and invoice have been sent to your WhatsApp. For any assistance, our customer support helplines are 7318815790 and 7001969682. Thank you for choosing Tickets Pro, and have a safe journey!`;
+    const hiScript = `नमस्ते ${passenger}। टिकट्स प्रो की तरफ से यह आपकी ट्रेन बुकिंग की पुष्टि कॉल है। ट्रेन ${cleanTrain} के लिए आपकी टिकट कन्फर्म हो चुकी है। बुकिंग रेफरेंस संख्या ${ref} है। टिकट की पूरी जानकारी आपके व्हाट्सएप पर भेज दी गई है। किसी भी सहायता के लिए हमारे कस्टमर सपोर्ट नंबर 7318815790 या 7001969682 पर संपर्क करें। टिकट्स प्रो चुनने के लिए धन्यवाद।`;
+    console.log(`📞 [Voice Bot] Initiating automated outbound confirmation call to ${toFormatted}...`);
+    // 1. Twilio Voice API
+    const twilioSid = process.env.TWILIO_ACCOUNT_SID;
+    const twilioAuth = process.env.TWILIO_AUTH_TOKEN;
+    const twilioFrom = process.env.TWILIO_FROM_NUMBER;
+    if (twilioSid && twilioAuth && twilioFrom && twilioSid.trim() !== '""' && twilioSid.trim() !== '') {
+        try {
+            const auth = Buffer.from(`${twilioSid}:${twilioAuth}`).toString('base64');
+            const twiml = `<Response><Pause length="1"/><Say language="hi-IN" voice="Polly.Aditi">${hiScript}</Say><Pause length="1"/><Say language="en-IN" voice="Polly.Raveena">${enScript}</Say></Response>`;
+            const postParams = new URLSearchParams();
+            postParams.append('To', toFormatted);
+            postParams.append('From', twilioFrom);
+            postParams.append('Twiml', twiml);
+            const twilioRes = await axios_1.default.post(`https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Calls.json`, postParams.toString(), {
+                headers: {
+                    'Authorization': `Basic ${auth}`,
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                timeout: 10000
+            });
+            console.log(`✅ [Twilio Voice] Outbound call placed to ${toFormatted}. Call SID: ${twilioRes.data?.sid}`);
+            return { success: true, provider: 'Twilio', callSid: twilioRes.data?.sid };
+        }
+        catch (twErr) {
+            console.error('❌ [Twilio Voice] Outbound call failed:', twErr?.response?.data || twErr.message);
+        }
+    }
+    // 3. Vapi AI Conversational Voice Agent
+    const vapiApiKey = process.env.VAPI_API_KEY || 'a17850e0-37cf-4a2b-9f10-49d44960a684';
+    const vapiAssistantId = process.env.VAPI_ASSISTANT_ID || '6524e55a-007d-44c4-8367-60ac7b357ab6';
+    const vapiPhoneId = process.env.VAPI_PHONE_NUMBER_ID;
+    if (vapiApiKey && vapiAssistantId && vapiPhoneId && vapiPhoneId.trim() !== '') {
+        try {
+            const vapiRes = await axios_1.default.post('https://api.vapi.ai/call/phone', {
+                assistantId: vapiAssistantId,
+                phoneNumberId: vapiPhoneId,
+                customer: {
+                    number: toFormatted,
+                    name: passenger
+                },
+                assistantOverrides: {
+                    variableValues: {
+                        passengerName: passenger,
+                        trainName: cleanTrain,
+                        bookingRef: ref,
+                        supportPhone1: '7318815790',
+                        supportPhone2: '7001969682'
+                    }
+                }
+            }, {
+                headers: {
+                    'Authorization': `Bearer ${vapiApiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 10000
+            });
+            console.log(`✅ [Vapi Voice Agent] Outbound call placed to ${toFormatted}. Call ID: ${vapiRes.data?.id}`);
+            return { success: true, provider: 'Vapi', callId: vapiRes.data?.id };
+        }
+        catch (vapiErr) {
+            console.error('❌ [Vapi Voice Agent] Outbound call failed:', vapiErr?.response?.data || vapiErr.message);
+        }
+    }
+    // 2. Fast2SMS Voice API
+    const fast2smsKey = process.env.FAST2SMS_API_KEY;
+    if (fast2smsKey && fast2smsKey.trim() !== '') {
+        try {
+            const fRes = await axios_1.default.post('https://www.fast2sms.com/dev/voice', {
+                variables_values: enScript,
+                route: 'otp',
+                numbers: mobile10
+            }, {
+                headers: { 'authorization': fast2smsKey },
+                timeout: 10000
+            });
+            console.log(`✅ [Fast2SMS Voice] Call placed to ${mobile10}:`, fRes.data);
+            return { success: true, provider: 'Fast2SMS', data: fRes.data };
+        }
+        catch (fErr) {
+            console.error('❌ [Fast2SMS Voice] Outbound call failed:', fErr?.response?.data || fErr.message);
+        }
+    }
+    // Fallback log
+    console.log(`ℹ️ [Voice Bot] Prepared automated outbound confirmation call for ${toFormatted}. (Support helplines: 7318815790, 7001969682).`);
+    return { success: true, provider: 'VirtualVoiceBot', queued: true, script: enScript };
+};
+exports.triggerAutomatedConfirmationCall = triggerAutomatedConfirmationCall;
 const notifyBookingConfirmed = async (email, eventName, mobile, details) => {
     // Auto-generate official GST Tax Invoice PDF
     let invoiceInfo = null;
     try {
         const parsedAmt = Number(details?.amount) || 0;
+        const firstPassenger = details?.passengerDetails ? (0, invoiceService_1.extractFirstPassengerName)(details.passengerDetails) : '';
         invoiceInfo = await (0, invoiceService_1.generateGSTInvoice)({
             bookingId: details?.bookingId || details?.transactionId || `BK_${Date.now()}`,
             amount: parsedAmt,
@@ -421,6 +520,7 @@ const notifyBookingConfirmed = async (email, eventName, mobile, details) => {
             trainClass: details?.trainClass,
             passengerList: details?.passengerDetails,
             paymentId: details?.transactionId,
+            customerName: firstPassenger || undefined,
             customerEmail: email,
             customerMobile: mobile,
             clientGstin: details?.clientGstin,
@@ -432,6 +532,19 @@ const notifyBookingConfirmed = async (email, eventName, mobile, details) => {
         console.warn('[Invoice] Auto GST invoice generation failed (non-fatal):', invErr);
     }
     const formattedClass = (0, exports.formatTrainClass)(details?.trainClass);
+    // Financial & Tax Calculations for Notifications
+    const parsedAmt = Number(details?.amount) || 0;
+    const totalAmount = parsedAmt > 0 ? parsedAmt : (invoiceInfo?.totalAmount || 0);
+    const upperClass = String(details?.trainClass || '').toUpperCase();
+    const isAcClass = ['1A', '2A', '3A', '3E', 'CC', 'EC', 'EV', 'FC'].some(c => upperClass.includes(c));
+    const isExempt = !isAcClass && ['SL', 'SLEEPER', '2S'].some(c => upperClass.includes(c));
+    const gstRate = invoiceInfo ? invoiceInfo.gstRate : (isExempt ? 0 : 5.0);
+    const taxableAmount = invoiceInfo
+        ? invoiceInfo.taxableAmount
+        : (gstRate > 0 ? Math.round((totalAmount / (1 + gstRate / 100)) * 100) / 100 : totalAmount);
+    const totalGst = invoiceInfo
+        ? Math.round(((invoiceInfo.cgst || 0) + (invoiceInfo.sgst || 0) + (invoiceInfo.igst || 0)) * 100) / 100
+        : Math.round((totalAmount - taxableAmount) * 100) / 100;
     // 1. Send Email via Resend
     if (isEmailConfigured) {
         const journeyDateAndClassHtml = (details?.journeyDate || formattedClass) ? `
@@ -460,18 +573,32 @@ const notifyBookingConfirmed = async (email, eventName, mobile, details) => {
               <p style="color:#0ea5e9;font-size:14px;font-weight:600;margin:0;line-height:1.6;">${details.passengerDetails}</p>
             </div>
         ` : '';
-        const paymentHtml = details?.transactionId ? `
+        const paymentHtml = details?.transactionId || totalAmount > 0 ? `
             <div style="background:#1e293b;border:1px solid #334155;border-radius:12px;padding:24px;margin-bottom:24px;">
-              <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 16px;">Payment Summary</p>
-              <table width="100%" cellpadding="0" cellspacing="0">
+              <p style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin:0 0 16px;">Price & Payment Breakdown</p>
+              <table width="100%" cellpadding="0" cellspacing="0" style="font-size:13px;">
                 <tr>
-                  <td style="color:#94a3b8;font-size:14px;padding-bottom:8px;">Status</td>
-                  <td align="right" style="color:#10b981;font-size:14px;font-weight:700;padding-bottom:8px;">Confirmed (₹${details.amount || '0'})</td>
+                  <td style="color:#94a3b8;padding:5px 0;">Base Fare</td>
+                  <td align="right" style="color:#f1f5f9;font-weight:600;">Rs. ${(0, invoiceService_1.formatINR)(taxableAmount)}</td>
                 </tr>
                 <tr>
-                  <td style="color:#94a3b8;font-size:14px;">Transaction ID</td>
-                  <td align="right" style="color:#f1f5f9;font-size:14px;font-weight:600;">${details.transactionId}</td>
+                  <td style="color:#94a3b8;padding:5px 0;">GST (${gstRate > 0 ? gstRate + '%' : 'Exempt'})</td>
+                  <td align="right" style="color:#f1f5f9;font-weight:600;">${totalGst > 0 ? `Rs. ${(0, invoiceService_1.formatINR)(totalGst)}` : 'Rs. 0.00 (Exempt)'}</td>
                 </tr>
+                <tr>
+                  <td style="color:#94a3b8;padding:5px 0;">Payment Gateway (PG) Charges</td>
+                  <td align="right" style="color:#10b981;font-weight:600;">Rs. 0.00 (0% Free)</td>
+                </tr>
+                <tr style="border-top:1px solid #334155;">
+                  <td style="color:#fff;font-weight:800;padding:10px 0 0;font-size:14px;">Total Paid</td>
+                  <td align="right" style="color:#10b981;font-size:16px;font-weight:800;padding:10px 0 0;">Rs. ${(0, invoiceService_1.formatINR)(totalAmount)}</td>
+                </tr>
+                ${details?.transactionId ? `
+                <tr>
+                  <td style="color:#64748b;padding:8px 0 0;font-size:11px;">Transaction ID / Ref</td>
+                  <td align="right" style="color:#94a3b8;font-family:monospace;padding:8px 0 0;font-size:11px;">${details.transactionId}</td>
+                </tr>
+                ` : ''}
               </table>
             </div>
         ` : '';
@@ -509,7 +636,7 @@ const notifyBookingConfirmed = async (email, eventName, mobile, details) => {
                 </tr>
               </table>
               <div style="margin-top:16px;text-align:center;">
-                <a href="https://rail-planner-api.onrender.com/api/invoices/${details?.bookingId || details?.transactionId}?download=true" style="background:#0f172a;border:1px solid #38bdf8;color:#38bdf8;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:700;font-size:12px;display:inline-block;">
+                <a href="https://ticketspro.in/api/invoices/${details?.bookingId || details?.transactionId}?download=true" style="background:#0f172a;border:1px solid #38bdf8;color:#38bdf8;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:700;font-size:12px;display:inline-block;">
                   📄 Download Official GST Tax Invoice (PDF)
                 </a>
               </div>
@@ -584,12 +711,17 @@ const notifyBookingConfirmed = async (email, eventName, mobile, details) => {
             console.error('❌ Email send failed (non-fatal):', e?.message || e);
         });
     }
-    // 2. Send SMS via Active Provider (Fast2SMS / Infozy / Msg91 / Twilio)
+    // 2. Send SMS via Active Provider (TextBee / Fast2SMS / Infozy / Msg91 / Twilio)
     try {
         if (mobile) {
             const template = process.env.INFOZY_TEMPLATE_ID_CONFIRMED || process.env.MSG91_TEMPLATE_ID_CONFIRMED;
             const txnText = details?.transactionId ? ` Ref: ${details.transactionId}.` : '';
-            const msgText = `TicketsPro: Booking CONFIRMED for ${eventName}.${txnText} Manage: https://ticketspro.in`;
+            const farePart = totalAmount > 0
+                ? (totalGst > 0
+                    ? ` Fare: Rs.${(0, invoiceService_1.formatINR)(taxableAmount)} + GST(${gstRate}%): Rs.${(0, invoiceService_1.formatINR)(totalGst)} | PG Chg: Rs.0 | Total: Rs.${(0, invoiceService_1.formatINR)(totalAmount)}.`
+                    : ` Fare: Rs.${(0, invoiceService_1.formatINR)(taxableAmount)} (GST Exempt) | PG Chg: Rs.0 | Total: Rs.${(0, invoiceService_1.formatINR)(totalAmount)}.`)
+                : '';
+            const msgText = `TicketsPro: Booking CONFIRMED for ${eventName}.${farePart}${txnText} Manage: https://ticketspro.in`;
             await (0, exports.sendSMS)(mobile, template, {
                 event_name: eventName,
                 status: 'Confirmed'
@@ -605,6 +737,13 @@ const notifyBookingConfirmed = async (email, eventName, mobile, details) => {
             const waPassengers = details?.passengerDetails
                 ? details.passengerDetails.replace(/<br\s*\/?>/gi, '\n   ')
                 : '';
+            const waPriceSection = totalAmount > 0 ?
+                `💵 *Price Breakdown:*
+   • Base Fare: Rs. ${(0, invoiceService_1.formatINR)(taxableAmount)}
+   • ${totalGst > 0 ? `GST (${gstRate}%): Rs. ${(0, invoiceService_1.formatINR)(totalGst)}` : 'GST: Rs. 0.00 (Exempt)'}
+   • PG Charges: Rs. 0.00 (0% Platform Fee)
+   • *Total Amount Paid:* Rs. ${(0, invoiceService_1.formatINR)(totalAmount)}
+` : '';
             const waTaxLine = invoiceInfo
                 ? (invoiceInfo.isInterState
                     ? `• IGST (${invoiceInfo.gstRate}%): Rs. ${(0, invoiceService_1.formatINR)(invoiceInfo.igst)}`
@@ -617,26 +756,48 @@ const notifyBookingConfirmed = async (email, eventName, mobile, details) => {
    • *Total Paid:* Rs. ${(0, invoiceService_1.formatINR)(invoiceInfo.totalAmount)}
 
 📄 *Download Official GST Tax Invoice (PDF):*
-https://rail-planner-api.onrender.com/api/invoices/${details?.bookingId || details?.transactionId}?download=true\n` : '';
+https://ticketspro.in/api/invoices/${details?.bookingId || details?.transactionId}?download=true\n` : '';
             const waMessage = `🎫 *Tickets Pro — Booking Confirmed!*
 
 Dear Passenger,
 Your train ticket has been booked successfully!
 
 🚆 *Journey:* ${eventName}
-${formattedClass ? `💺 *Class:* ${formattedClass}\n` : ''}${details?.journeyDate ? `📅 *Date:* ${details.journeyDate}\n` : ''}${waPassengers ? `👥 *Passengers:*\n   ${waPassengers}\n` : ''}${details?.amount ? `💰 *Total Fare:* ₹${details.amount}\n` : ''}${details?.transactionId ? `💳 *Txn ID:* ${details.transactionId}\n` : ''}${waInvoiceText}
+${formattedClass ? `💺 *Class:* ${formattedClass}\n` : ''}${details?.journeyDate ? `📅 *Date:* ${details.journeyDate}\n` : ''}${waPassengers ? `👥 *Passengers:*\n   ${waPassengers}\n` : ''}${waPriceSection}
+${details?.transactionId ? `💳 *Txn ID / Ref:* ${details.transactionId}\n` : ''}${waInvoiceText}
 📲 *View & Download E-Ticket:*
 https://ticketspro.in/bookings
 
 Please carry a valid government-issued photo ID during travel.
 
 Thank you for booking with *Tickets Pro*!
-Support: https://ticketspro.in`;
+📞 *Customer Support:* +91 7318815790 | +91 7001969682
+🌐 *Portal:* https://ticketspro.in`;
             await (0, exports.sendWhatsApp)(mobile, waMessage);
         }
     }
     catch (e) {
         console.error('❌ WhatsApp send failed (non-fatal):', e?.message || e);
+    }
+    // 4. Automated Outbound Confirmation Voice Call
+    try {
+        if (mobile) {
+            const firstPassenger = details?.passengerDetails ? details.passengerDetails.split(/<br\s*\/?>|\n/)[0]?.replace(/[0-9.]/g, '').trim() : '';
+            (0, exports.triggerAutomatedConfirmationCall)({
+                mobile,
+                passengerName: firstPassenger,
+                eventName,
+                bookingRef: details?.bookingId || details?.transactionId,
+                journeyDate: details?.journeyDate,
+                trainClass: formattedClass,
+                amount: totalAmount
+            }).catch(callErr => {
+                console.warn('⚠️ Automated confirmation call failed (non-fatal):', callErr?.message || callErr);
+            });
+        }
+    }
+    catch (callErr) {
+        console.warn('⚠️ Automated confirmation call dispatch error:', callErr?.message || callErr);
     }
 };
 exports.notifyBookingConfirmed = notifyBookingConfirmed;

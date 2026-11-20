@@ -77,28 +77,37 @@ function parseTrainDetails(event) {
 }
 /**
  * Helper to extract customer details (mobile, name, passenger list)
+ * Prioritizes 1st client / passenger name and booking contact mobile
  */
 function extractCustomerDetails(booking) {
-    let customerMobile = booking.user?.mobile || '';
-    let customerName = booking.user?.name || '';
-    let passengerList = 'Passengers';
     const desc = booking.event?.description || '';
-    // Extract mobile from description if user mobile is missing
-    if (!customerMobile && desc) {
-        const mobMatch = desc.match(/Mobile:\s*([+0-9\s-]+)/i);
-        if (mobMatch && mobMatch[1]) {
-            customerMobile = mobMatch[1].replace(/\D/g, '').slice(-10);
-        }
-    }
-    // Extract passengers
+    let passengerList = 'Passengers';
+    let firstPassengerName = '';
+    // Extract passengers from description
     const pMatch = desc.match(/Passengers:\s*([^.]+)/i);
     if (pMatch && pMatch[1]) {
         passengerList = pMatch[1].trim();
-        // If customer name is missing or is admin/generic, use the first passenger's name
-        const firstPassenger = passengerList.split(/[;,]/)[0]?.split('(')[0]?.trim();
-        if ((!customerName || customerName.toLowerCase().includes('admin') || customerName.toLowerCase().includes('system')) && firstPassenger) {
-            customerName = firstPassenger;
+        firstPassengerName = (0, invoiceService_1.extractFirstPassengerName)(passengerList);
+    }
+    // 1st passenger name is the primary client name on the invoice
+    let customerName = firstPassengerName || booking.user?.name || '';
+    if (!customerName || /^(?:valued passenger|customer|user|admin|super\s*admin|system)$/i.test(customerName.trim())) {
+        customerName = firstPassengerName || 'Valued Passenger';
+    }
+    // Mobile number from booking description takes priority over user account mobile
+    let customerMobile = '';
+    if (desc) {
+        const mobMatch = desc.match(/Mobile:\s*([+0-9\s-]+?)(?:\.|\s*Amount:|\s*Paid:|\s*$)/i);
+        if (mobMatch && mobMatch[1]) {
+            const digits = mobMatch[1].replace(/\D/g, '');
+            if (digits.length >= 10)
+                customerMobile = digits.slice(-10);
         }
+    }
+    if (!customerMobile && booking.user?.mobile) {
+        const digits = String(booking.user.mobile).replace(/\D/g, '');
+        if (digits.length >= 10)
+            customerMobile = digits.slice(-10);
     }
     return {
         customerMobile: customerMobile || undefined,
@@ -247,8 +256,8 @@ router.post('/:bookingId/send', auth_1.requireAuth, async (req, res) => {
             clientCompanyName,
             clientState
         });
-        // Direct download URL pointing to the live API with signed access token
-        const directDownloadUrl = `https://rail-planner-api.onrender.com/api/invoices/${booking.id}?download=true&token=${getInvoiceAccessToken(booking.id)}`;
+        // Direct download URL pointing to the live portal with signed access token
+        const directDownloadUrl = `https://ticketspro.in/api/invoices/${booking.id}?download=true&token=${getInvoiceAccessToken(booking.id)}`;
         // 1. Send via WhatsApp
         if (targetMobile) {
             const cleanDigits = targetMobile.replace(/\D/g, '').slice(-10);
