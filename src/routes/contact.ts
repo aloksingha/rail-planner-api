@@ -36,9 +36,12 @@ router.post('/', rateLimiter({ windowSeconds: 300, maxRequests: 5, message: 'Too
         (async () => {
             try {
                 const settings = await prisma.globalSettings.findUnique({ where: { id: 'singleton' } });
-                const adminPhone = settings?.phone || '7318815790';
-                if (adminPhone) {
-                    const waText = 
+                const adminPhones = (settings?.phone || '7318815790, 7001969682')
+                    .split(/[,/|]+/)
+                    .map(p => p.trim().replace(/[^0-9]/g, ''))
+                    .filter(Boolean);
+
+                const waText = 
 `🚨 *TicketsPro Priority Alert: New Contact Inquiry!*
 
 👤 *Name:* ${name}
@@ -56,8 +59,13 @@ router.post('/', rateLimiter({ windowSeconds: 300, maxRequests: 5, message: 'Too
 👉 *Manage in Contact Inbox:*
 https://ticketspro.in/inbox`;
 
-                    await sendWhatsApp(adminPhone, waText);
-                    console.log(`✅ Admin alerted via WhatsApp with visitor intelligence for contact inquiry (${adminPhone})`);
+                for (const p of adminPhones) {
+                    try {
+                        await sendWhatsApp(p, waText);
+                        console.log(`✅ Admin alerted via WhatsApp for contact inquiry (${p})`);
+                    } catch (e: any) {
+                        console.warn(`⚠️ Could not WhatsApp admin ${p}:`, e?.message || e);
+                    }
                 }
             } catch (notifyErr: any) {
                 console.error('⚠️ Failed to dispatch WhatsApp admin alert for contact message:', notifyErr?.message || notifyErr);

@@ -112,9 +112,19 @@ export default function ContactUs() {
                         </div>
                         <h3 className="text-white font-black mb-1">Phone Support</h3>
                         <p className="text-slate-500 text-[10px] mb-3 uppercase font-black tracking-widest">Available 9am - 6pm</p>
-                        <a href={`tel:${settings.phone.replace(/[^0-9+]/g, '')}`} className="text-brand-teal font-black text-sm hover:underline">
-                            {settings.phone}
-                        </a>
+                        <div className="flex flex-col gap-1 items-center">
+                            {(settings.phone || '7318815790, 7001969682').split(/[,/|]+/).map((num, idx) => {
+                                const clean = num.trim();
+                                if (!clean) return null;
+                                const dial = clean.replace(/[^0-9+]/g, '');
+                                const display = clean.startsWith('+') ? clean : (clean.length === 10 ? `+91 ${clean}` : clean);
+                                return (
+                                    <a key={idx} href={`tel:${dial}`} className="text-brand-teal font-black text-sm hover:underline tracking-tight">
+                                        {display}
+                                    </a>
+                                );
+                            })}
+                        </div>
                     </div>
 
                     <div className="bg-slate-900/40 backdrop-blur-md border border-slate-700/40 rounded-2xl p-6 shadow-xl flex flex-col items-center text-center group transition-all hover:-translate-y-1">
