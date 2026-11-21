@@ -158,7 +158,7 @@ async function generateGSTInvoice(data) {
     const legalEntityName = 'Pradip Enterprises';
     const supplierGstin = settings?.gstNo || '19BOOPA3821C1Z9';
     const supplierAddress = 'MACHHOL, ALTAPUR, WEST BENGAL - 733215';
-    const supplierPhone = '+91 73188 15790';
+    const supplierPhone = '+91 80 6426 1270';
     const supplierEmail = settings?.email || 'support@ticketspro.in';
     const supplierState = 'West Bengal (19)';
     // 2. Invoice Identifiers

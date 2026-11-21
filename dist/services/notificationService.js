@@ -501,7 +501,7 @@ const triggerAutomatedConfirmationCall = async (params) => {
         }
     }
     // Fallback log
-    console.log(`ℹ️ [Voice Bot] Prepared automated outbound confirmation call for ${toFormatted}. (Support helplines: 7318815790, 7001969682).`);
+    console.log(`ℹ️ [Voice Bot] Prepared automated outbound confirmation call for ${toFormatted}. (Support helplines: +91 80 6426 1270, 7318815790, 7001969682).`);
     return { success: true, provider: 'VirtualVoiceBot', queued: true, script: enScript };
 };
 exports.triggerAutomatedConfirmationCall = triggerAutomatedConfirmationCall;
@@ -771,6 +771,7 @@ https://ticketspro.in/bookings
 Please carry a valid government-issued photo ID during travel.
 
 Thank you for booking with *Tickets Pro*!
+🤖 *24/7 AI Voice Helpline:* +91 80 6426 1270
 📞 *Customer Support:* +91 7318815790 | +91 7001969682
 🌐 *Portal:* https://ticketspro.in`;
             await (0, exports.sendWhatsApp)(mobile, waMessage);
